@@ -623,6 +623,14 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(failureCount = 1)
             }
 
+            // Snapshot still-fresh test results BEFORE the old generation is deleted, keyed
+            // by config identity (protocol + endpoint + credentials), so re-importing the
+            // same subscription — a source switch, the 4-hourly refresh, a manual pull —
+            // keeps the delay badges instead of forcing a full-pool re-test. Results older
+            // than DERAFSH_TEST_FRESH_MS are dropped here so dead servers are re-detected
+            // by the next auto test pass.
+            val carriedResults = snapshotFreshTestResults(primarySubId)
+
             // Drop THIS primary's previous overflow groups before redistributing.
             chunkGroupsOf(primarySubId).forEach { cache ->
                 MmkvManager.removeSubscription(cache.guid)
@@ -653,12 +661,22 @@ object AngConfigManager {
                 }
                 // Re-point every profile of this chunk at its owning group before saving.
                 chunk.forEach { profile -> profile.subscriptionId = subId }
+                val savedProfiles = chunk.associate { Utils.getUuid() to it }
                 MmkvManager.saveServerProfiles(
-                    profiles = chunk.associate { Utils.getUuid() to it },
+                    profiles = savedProfiles,
                     rawConfigs = emptyMap(),
                     subscriptionId = subId,
                     append = false,
                 )
+                // Hand the old generation's fresh results to the replacement profiles so
+                // the auto test pass only has to test genuinely new configs.
+                if (carriedResults.isNotEmpty()) {
+                    savedProfiles.forEach { (guid, profile) ->
+                        carriedResults[configIdentityKey(profile)]?.let { (delay, testedAt) ->
+                            MmkvManager.encodeServerTestResult(guid, delay, testedAt)
+                        }
+                    }
+                }
             }
 
             it.subscription.lastUpdated = System.currentTimeMillis()
@@ -668,12 +686,65 @@ object AngConfigManager {
             LogUtil.i(
                 AppConfig.TAG,
                 "Subscription updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
+                + if (carriedResults.isEmpty()) "" else ", ${carriedResults.size} fresh result(s) carried over"
             )
             return SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
             return SubscriptionUpdateResult(failureCount = 1)
         }
+    }
+
+    /**
+     * Snapshots the subscription's still-fresh speed-test results — the primary group
+     * plus its overflow chunk groups — keyed by config identity, ready to be handed to
+     * the re-imported replacement profiles. A result qualifies only when it exists
+     * (delay ≠ 0) and was measured within [AppConfig.DERAFSH_TEST_FRESH_MS]; legacy
+     * entries without a timestamp (testedAt = 0) never qualify, so the first import
+     * after the upgrade re-tests once and stamps everything from then on.
+     */
+    private fun snapshotFreshTestResults(
+        primarySubId: String,
+    ): Map<String, Pair<Long, Long>> {
+        val freshCutoff = System.currentTimeMillis() - AppConfig.DERAFSH_TEST_FRESH_MS
+        val carried = linkedMapOf<String, Pair<Long, Long>>()
+        val oldGroupIds = listOf(primarySubId) + chunkGroupsOf(primarySubId).map { it.guid }
+        oldGroupIds.forEach { groupId ->
+            MmkvManager.decodeServerList(groupId).forEach { guid ->
+                val aff = MmkvManager.decodeServerAffiliationInfo(guid) ?: return@forEach
+                if (aff.testDelayMillis != 0L && aff.testedAt >= freshCutoff) {
+                    val profile = MmkvManager.decodeServerConfig(guid) ?: return@forEach
+                    val key = configIdentityKey(profile)
+                    if (!carried.containsKey(key)) {
+                        carried[key] = aff.testDelayMillis to aff.testedAt
+                    }
+                }
+            }
+        }
+        return carried
+    }
+
+    /**
+     * Stable identity of a parsed config for result carry-over: protocol + endpoint +
+     * credentials + transport, ignoring cosmetic fields (remarks, subscription id, add
+     * time). The same server republished under a different name still matches, while any
+     * meaningful change (different port, uuid, sni, transport…) counts as a new config
+     * and is tested from scratch.
+     */
+    private fun configIdentityKey(p: ProfileItem): String = buildString {
+        append(p.configType.name); append('|')
+        append(p.server?.trim()); append('|')
+        append(p.serverPort?.trim()); append('|')
+        append(p.password?.trim()); append('|')
+        append(p.username?.trim()); append('|')
+        append(p.security?.trim()); append('|')
+        append(p.sni?.trim()); append('|')
+        append(p.network?.trim()); append('|')
+        append(p.headerType?.trim()); append('|')
+        append(p.host?.trim()); append('|')
+        append(p.path?.trim()); append('|')
+        append(p.flow?.trim()); append('|')
+        append(p.method?.trim())
     }
 
     /**

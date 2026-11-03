@@ -478,17 +478,34 @@ object MmkvManager {
     }
 
     /**
-     * Encodes the server test delay in milliseconds.
+     * Encodes the server test delay in milliseconds and stamps it as measured now.
      *
      * @param guid The server GUID.
      * @param testResult The test delay in milliseconds.
      */
     fun encodeServerTestDelayMillis(guid: String, testResult: Long) {
+        encodeServerTestResult(guid, testResult, System.currentTimeMillis())
+    }
+
+    /**
+     * Encodes the server test delay together with an explicit measurement timestamp.
+     *
+     * Used by fresh-test writes ([encodeServerTestDelayMillis]) and by subscription
+     * re-imports that carry a still-fresh result over to the replacement profile —
+     * the carried entry keeps its original [testedAt] so freshness decays naturally
+     * and the config is re-tested once the window expires.
+     *
+     * @param guid The server GUID.
+     * @param testResult The test delay in milliseconds.
+     * @param testedAt When the result was measured (epoch millis).
+     */
+    fun encodeServerTestResult(guid: String, testResult: Long, testedAt: Long) {
         if (guid.isBlank()) {
             return
         }
         val aff = decodeServerAffiliationInfo(guid) ?: ServerAffiliationInfo()
         aff.testDelayMillis = testResult
+        aff.testedAt = testedAt
         serverAffStorage.encode(guid, JsonUtil.toJson(aff))
     }
 
@@ -501,6 +518,7 @@ object MmkvManager {
         keys?.forEach { key ->
             decodeServerAffiliationInfo(key)?.let { aff ->
                 aff.testDelayMillis = 0
+                aff.testedAt = 0
                 serverAffStorage.encode(key, JsonUtil.toJson(aff))
             }
         }

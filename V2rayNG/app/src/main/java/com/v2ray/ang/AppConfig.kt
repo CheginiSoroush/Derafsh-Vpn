@@ -192,6 +192,12 @@ object AppConfig {
      *  namespaced chunk ids so they are rebuilt under the per-primary naming. */
     const val PREF_DERAFSH_CHUNK_NAMESPACED = "pref_derafsh_chunk_namespaced"
 
+    /** How long a stored speed-test result counts as fresh. Auto test passes (startup,
+     *  source switch, subscription refresh) skip configs whose result is younger than
+     *  this window and only test never-tested or stale ones, so switching sources or
+     *  reopening the app never re-tests the whole pool from scratch. */
+    const val DERAFSH_TEST_FRESH_MS = 12L * 60 * 60 * 1000
+
     /** One-time migration: collapse the old multi-pool seeding into the single active source. */
     const val PREF_DERAFSH_SINGLE_SOURCE_MIGRATED = "pref_derafsh_single_source_migrated"
 

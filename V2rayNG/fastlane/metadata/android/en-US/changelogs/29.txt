@@ -1,0 +1,3 @@
+Fixed: switching sources or reopening the app no longer re-tests every server from scratch — fresh results are kept, only new or stale configs get tested
+Improved: test results now carry a timestamp and survive subscription refreshes and source switches (12-hour freshness window), so delay badges appear instantly instead of a full re-test
+Improved: switching back to a recently-tested source is now almost instant — matching configs are recognized by their identity (protocol, server, port, credentials) and keep their results

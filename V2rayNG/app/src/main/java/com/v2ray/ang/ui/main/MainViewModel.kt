@@ -153,10 +153,10 @@ class MainViewModel(
     init {
         collectServiceEvents()
         viewModelScope.launch(ioDispatcher) {
-            // Derafsh: every open starts clean — the previous session's results are wiped
-            // BEFORE any group loads, so no stale delay badge is ever on screen, and the
-            // startup test then refills every badge with fresh numbers.
-            dataSource.clearAllTestDelayResults(dataSource.getServerGuidList(""))
+            // Derafsh: results persist across opens now — a stored speed-test result is
+            // kept until it expires (DERAFSH_TEST_FRESH_MS), so reopening the app shows
+            // the badges immediately and the startup pass only tests configs that are
+            // new or stale instead of wiping and re-testing the whole pool every time.
             cacheMutex.withLock { groupDataCache.clear() }
             setupGroupTab()
         }
@@ -447,14 +447,14 @@ class MainViewModel(
             dataSource.setLastAutoMaintenance(now)
         }
 
-        // Fresh delays on every open — the whole point of the startup pass. The WHOLE
-        // pool is tested no matter which tab is selected, so every config in every
-        // group gets a fresh delay badge and the card's percentage covers all of them
-        // (a tab-scoped pass would leave the other sources untested).
-        if (dataSource.getServerGuidList("").isNotEmpty()) {
-            testAllRealPing(allGroups = true)
+        // Auto pass: only configs without a fresh result are tested — new imports and
+        // results older than DERAFSH_TEST_FRESH_MS. Configs tested recently (this open or
+        // a previous one) keep their badges, so a quick reopen doesn't re-test 300+
+        // servers again; the manual test button still re-tests everything on demand.
+        if (pendingTestGuids(dataSource.getServerGuidList("")).isNotEmpty()) {
+            testAllRealPing(allGroups = true, skipTested = true)
         } else if (subRefreshDue) {
-            // Nothing to test — close the session so the card never hangs in "updating".
+            // Nothing new to test — close the session so the card never hangs in "updating".
             MaintenanceStatus.finish()
         }
     }
@@ -747,11 +747,15 @@ class MainViewModel(
                     if (result.configCount > 0) {
                         setupGroupTab(forceRefresh = true)
                         refreshSelectedGuid()
-                        // A freshly switched source is an untested pool: kick the full-pool
-                        // real-delay pass right away — the maintenance card takes over with
-                        // a live percentage and CoreTestService closes the session on finish.
-                        MaintenanceStatus.beginSession()
-                        testAllRealPing(allGroups = true)
+                        // Kick the real-delay pass right away for the configs that still
+                        // need one. Fresh results carried over from a previous import are
+                        // kept, so switching back to a recently-tested source re-tests
+                        // nothing — the pass only covers genuinely new or stale configs.
+                        // The card takes over only when there is something to test.
+                        if (pendingTestGuids(dataSource.getServerGuidList("")).isNotEmpty()) {
+                            MaintenanceStatus.beginSession()
+                            testAllRealPing(allGroups = true, skipTested = true)
+                        }
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -1020,41 +1024,50 @@ class MainViewModel(
     /**
      * Bulk real-ping test. Default scope is the selected tab; pass [allGroups] = true for
      * the full pool — every profile in every group, independent of the visible tab and of
-     * any keyword filter. The startup maintenance pass uses the full scope so the app-open
-     * percentage really covers all configs (a tab-scoped pass leaves the other sources
-     * untested), and its finish also counts as a fresh full-pool result for the connect pick.
+     * any keyword filter. The startup and source-switch passes use the full scope with
+     * [skipTested] = true: configs with a fresh stored result keep it, and only never-
+     * tested or expired ones are sent to the test service — so reopening the app or
+     * switching sources never re-tests the whole pool again. Manual passes (test button,
+     * keyword-filtered tab pass) always re-test their full scope.
      */
-    fun testAllRealPing(onlyTcp: Boolean = false, allGroups: Boolean = false) {
+    fun testAllRealPing(onlyTcp: Boolean = false, allGroups: Boolean = false, skipTested: Boolean = false) {
         cancelAllPing()
         val groupId = uiState.value.selectedGroupId
         val servers = currentServers()
         val poolGuids = if (allGroups) dataSource.getServerGuidList("") else servers.map { it.guid }
-        if (poolGuids.isEmpty()) {
+        // Auto passes keep fresh results: only configs with no result (or an expired one)
+        // are tested, so switching sources or reopening the app never re-tests everything.
+        val targetGuids = if (skipTested) pendingTestGuids(poolGuids) else poolGuids
+        if (targetGuids.isEmpty()) {
             return
         }
-        // Clear the visible tab's badges up front; cached groups follow inside the job.
-        mutableServerGroupState(groupId).update { current ->
-            current.copy(
-                servers = current.servers.map { server ->
-                    if (server.testDelayMillis == 0L) server
-                    else server.copy(testDelayMillis = 0L)
-                },
-                rows = current.rows.map { row ->
-                    if (row.testDelayMillis == 0L) row
-                    else row.copy(testDelayMillis = 0L)
-                }
-            )
+        if (!skipTested) {
+            // Full manual pass: clear the visible tab's badges up front; cached groups
+            // follow inside the job.
+            mutableServerGroupState(groupId).update { current ->
+                current.copy(
+                    servers = current.servers.map { server ->
+                        if (server.testDelayMillis == 0L) server
+                        else server.copy(testDelayMillis = 0L)
+                    },
+                    rows = current.rows.map { row ->
+                        if (row.testDelayMillis == 0L) row
+                        else row.copy(testDelayMillis = 0L)
+                    }
+                )
+            }
         }
         // Full-pool pass: empty subscriptionId + empty guids makes CoreTestService expand
-        // decodeAllServerList() — every profile in every group.
+        // decodeAllServerList() — every profile in every group. A skipTested pass sends
+        // the explicit pending guids instead — the service tests exactly those.
         val request = testRequests.beginBulk(if (allGroups) "" else groupId)
-        val message = if (allGroups) {
+        val message = if (allGroups && !skipTested) {
             TestServiceMessage(key = AppConfig.MSG_MEASURE_CONFIG_START, onlyTcp = onlyTcp)
         } else {
             TestServiceMessage(
                 key = AppConfig.MSG_MEASURE_CONFIG_START,
-                subscriptionId = groupId,
-                serverGuids = if (keywordFilter.isNotEmpty()) poolGuids else emptyList(),
+                subscriptionId = if (allGroups) "" else groupId,
+                serverGuids = if (skipTested || keywordFilter.isNotEmpty()) targetGuids else emptyList(),
                 onlyTcp = onlyTcp
             )
         }
@@ -1066,24 +1079,46 @@ class MainViewModel(
         }
         bulkTestJob = viewModelScope.launch {
             withContext(ioDispatcher) {
-                dataSource.clearAllTestDelayResults(poolGuids)
-                val resetGuids = poolGuids.toHashSet()
-                cacheMutex.withLock {
-                    val cachedGroupIds = groupDataCache.keys.toList()
-                    cachedGroupIds.forEach { key ->
-                        val cached = groupDataCache[key] ?: return@forEach
-                        // Tab passes only touch their own group; a full-pool pass resets
-                        // every loaded group so stale delays never survive into the pass.
-                        if (allGroups || key == groupId) {
-                            groupDataCache[key] = cached.map { server ->
-                                if (server.guid !in resetGuids || server.testDelayMillis == 0L) server
-                                else server.copy(testDelayMillis = 0L)
+                if (!skipTested) {
+                    dataSource.clearAllTestDelayResults(poolGuids)
+                    val resetGuids = poolGuids.toHashSet()
+                    cacheMutex.withLock {
+                        val cachedGroupIds = groupDataCache.keys.toList()
+                        cachedGroupIds.forEach { key ->
+                            val cached = groupDataCache[key] ?: return@forEach
+                            // Tab passes only touch their own group; a full-pool pass resets
+                            // every loaded group so stale delays never survive into the pass.
+                            if (allGroups || key == groupId) {
+                                groupDataCache[key] = cached.map { server ->
+                                    if (server.guid !in resetGuids || server.testDelayMillis == 0L) server
+                                    else server.copy(testDelayMillis = 0L)
+                                }
                             }
                         }
                     }
                 }
             }
             dataSource.sendMsg2TestService(message, request.id)
+        }
+    }
+
+    /**
+     * Derafsh: filters out configs whose speed-test result is still fresh — anything
+     * with a non-zero delay and a stamp inside [AppConfig.DERAFSH_TEST_FRESH_MS] is
+     * skipped, so the auto passes only spend time on never-tested or expired configs.
+     * Storage is the source of truth here: auto passes run right after an import (or
+     * at app open, before any test), so every fresh result is already persisted, and
+     * the pending flush loop drains any in-flight results within milliseconds.
+     */
+    private fun pendingTestGuids(poolGuids: List<String>): List<String> {
+        if (poolGuids.isEmpty()) return poolGuids
+        val freshCutoff = System.currentTimeMillis() - AppConfig.DERAFSH_TEST_FRESH_MS
+        return poolGuids.filter { guid ->
+            val aff = dataSource.decodeAffiliationInfo(guid)
+            val delay = aff?.testDelayMillis ?: 0L
+            val testedAt = aff?.testedAt ?: 0L
+            // delay 0 → never tested → pending; a stale result also counts as pending.
+            delay == 0L || testedAt < freshCutoff
         }
     }
 
