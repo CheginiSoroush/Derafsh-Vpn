@@ -81,6 +81,19 @@ object SettingsManager {
             MmkvManager.encodeSettings(AppConfig.PREF_DERAFSH_SINGLE_SOURCE_MIGRATED, "1")
         }
 
+        // One-time migration to per-primary chunk ids: overflow groups created with the old
+        // flat "__derafsh_chunk_<n>__" naming are dissolved once; every subscription's next
+        // refresh rebuilds its own groups under the new namespaced scheme.
+        if (MmkvManager.decodeSettingsString(AppConfig.PREF_DERAFSH_CHUNK_NAMESPACED) != "1") {
+            MmkvManager.decodeSubscriptions()
+                .filter { it.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX) }
+                .forEach { cache ->
+                    removeSubscription(cache.guid)
+                    LogUtil.i(AppConfig.TAG, "Dissolved legacy chunk group: ${cache.guid}")
+                }
+            MmkvManager.encodeSettings(AppConfig.PREF_DERAFSH_CHUNK_NAMESPACED, "1")
+        }
+
         // Ensure the single built-in subscription exists and tracks the active source.
         val activeIndex = DerafshSourceManager.activeIndex()
         val activeName = context.getString(R.string.derafsh_source_name, activeIndex + 1)
@@ -315,6 +328,15 @@ object SettingsManager {
      **/
     fun removeSubscriptionWithDefault(subid: String) {
         SubscriptionUpdater.cancelOne(subId = subid)
+        // Overflow chunk groups carved out of this subscription die with it.
+        val chunkPrefix = AppConfig.DERAFSH_POOL_CHUNK_PREFIX + subid + "_"
+        MmkvManager.decodeSubscriptions()
+            .filter { it.guid.startsWith(chunkPrefix) }
+            .forEach { chunk ->
+                SubscriptionUpdater.cancelOne(subId = chunk.guid)
+                removeSubscription(chunk.guid)
+                LogUtil.i(AppConfig.TAG, "Removed chunk group of deleted subscription: ${chunk.guid}")
+            }
         // Remove the subscription
         removeSubscription(subid)
 

@@ -1,0 +1,4 @@
+Fixed: the 200-config split now applies to EVERY subscription — user-added subscriptions are split into extra groups too, never a single giant list again
+Fixed: each overflow group ("name (2)", "(3)", …) keeps its subscription's settings (user agent, filter, headers) and updates cleanly on every refresh
+Improved: deleting a subscription now removes its overflow groups; legacy split groups are migrated once to the new scheme
+Subscription files are now published as sub1.txt … subN.txt with at most 200 configs per link (600 configs → 3 links) plus a manifest.json index

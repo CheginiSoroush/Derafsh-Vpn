@@ -183,8 +183,14 @@ object AppConfig {
     /** Max configs per built-in pool group; bigger sources split into "(k)" overflow groups. */
     const val DERAFSH_POOL_CHUNK_SIZE = 200
 
-    /** subId prefix of the overflow chunk groups carved out of the active built-in source. */
+    /** subId prefix of the overflow chunk groups carved out of any subscription with more
+     *  than [DERAFSH_POOL_CHUNK_SIZE] configs; group ids are namespaced per primary
+     *  subscription (see [AngConfigManager.chunkGroupId]). */
     const val DERAFSH_POOL_CHUNK_PREFIX = "__derafsh_chunk_"
+
+    /** One-time migration: dissolve overflow chunk groups created with the old, non-
+     *  namespaced chunk ids so they are rebuilt under the per-primary naming. */
+    const val PREF_DERAFSH_CHUNK_NAMESPACED = "pref_derafsh_chunk_namespaced"
 
     /** One-time migration: collapse the old multi-pool seeding into the single active source. */
     const val PREF_DERAFSH_SINGLE_SOURCE_MIGRATED = "pref_derafsh_single_source_migrated"

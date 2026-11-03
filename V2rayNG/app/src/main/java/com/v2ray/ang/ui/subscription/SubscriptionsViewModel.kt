@@ -136,8 +136,12 @@ class SubscriptionsViewModel(application: Application) : BaseViewModel(applicati
 
     fun updateSubscriptionsMore() {
         SettingsChangeManager.makeSetupGroupTab()
+        // Overflow chunk groups never fetch directly — their primary owns the refresh.
         val subIds = MmkvManager.decodeSubscriptions()
-            .filter { it.subscription.enabled && it.subscription.url.isNotEmpty() }
+            .filter {
+                it.subscription.enabled && it.subscription.url.isNotEmpty() &&
+                        !it.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX)
+            }
             .map { it.guid }
 
         if (subIds.isNotEmpty()) {

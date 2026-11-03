@@ -462,8 +462,8 @@ object AngConfigManager {
      */
     fun updateConfigViaSubAll(onSubStart: (String) -> Unit = {}): SubscriptionUpdateResult {
         return try {
-            // Derafsh pool: overflow chunk groups are never updated directly — the primary
-            // group owns the fetch and redistributes configs into fresh chunks itself.
+            // Overflow chunk groups are never updated directly — each primary group owns
+            // the fetch and redistributes configs into fresh chunks itself.
             val subscriptions = MmkvManager.decodeSubscriptions()
                 .filter { !it.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX) }
             subscriptions.fold(SubscriptionUpdateResult()) { acc, subscription ->
@@ -479,68 +479,39 @@ object AngConfigManager {
     /**
      * Updates the configuration via a subscription.
      *
+     * Every subscription — the built-in Derafsh pool and user-added ones alike — goes
+     * through the chunked importer, so no group ever holds more than
+     * [AppConfig.DERAFSH_POOL_CHUNK_SIZE] configs: larger payloads spill into additional
+     * "«name» (2)", "(3)", … overflow groups automatically.
+     *
      * @param it The subscription item.
      * @return Subscription update result.
      */
     fun updateConfigViaSub(it: SubscriptionCache): SubscriptionUpdateResult {
-        // Derafsh pool: overflow chunk groups are never fetched directly — the primary
-        // group owns the refresh and redistributes configs into 200-config chunks.
+        // Overflow chunk groups are never fetched directly — their primary group owns the
+        // refresh and redistributes configs into 200-config chunks itself.
         if (it.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX)) {
             return SubscriptionUpdateResult(skipCount = 1)
         }
-        if (it.guid == AppConfig.DEFAULT_SUBSCRIPTION_ID) {
-            return updateConfigViaSubChunked(it)
-        }
-        try {
-            // Check if disabled
-            if (!it.subscription.enabled) {
-                return SubscriptionUpdateResult(skipCount = 1)
-            }
-
-            // Validate subscription info
-            if (TextUtils.isEmpty(it.guid)
-                || TextUtils.isEmpty(it.subscription.remarks)
-                || TextUtils.isEmpty(it.subscription.url)
-            ) {
-                return SubscriptionUpdateResult(skipCount = 1)
-            }
-
-            val url = HttpUtil.toIdnUrl(it.subscription.url)
-            if (!Utils.isValidUrl(url)) {
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
-            if (!it.subscription.allowInsecureUrl) {
-                if (!Utils.isValidSubUrl(url)) {
-                    return SubscriptionUpdateResult(failureCount = 1)
-                }
-            }
-            LogUtil.i(AppConfig.TAG, url)
-
-            val (configText, usageInfo) = fetchSubscriptionContent(it, url)
-            if (configText.isEmpty()) {
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
-
-            val count = parseConfigViaSub(configText, it.guid, false)
-            if (count > 0) {
-                it.subscription.lastUpdated = System.currentTimeMillis()
-                // Replaced on every successful update so the box disappears if the panel stops sending the headers.
-                it.subscription.usageInfo = usageInfo
-                MmkvManager.encodeSubscription(it.guid, it.subscription)
-                LogUtil.i(AppConfig.TAG, "Subscription updated: ${it.subscription.remarks}, $count configs")
-                return SubscriptionUpdateResult(
-                    configCount = count,
-                    successCount = 1
-                )
-            } else {
-                // Got response but no valid configs parsed
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to update config via subscription", e)
-            return SubscriptionUpdateResult(failureCount = 1)
-        }
+        return updateConfigViaSubChunked(it)
     }
+
+    /**
+     * Subscription id of the [n]th overflow chunk group (n ≥ 2) carved out of
+     * [primarySubId]. Namespaced per primary so several chunked subscriptions can
+     * coexist without stealing each other's groups.
+     */
+    fun chunkGroupId(primarySubId: String, n: Int): String =
+        "${AppConfig.DERAFSH_POOL_CHUNK_PREFIX}${primarySubId}_$n"
+
+    /** Prefix shared by every overflow chunk group carved out of [primarySubId]. */
+    fun chunkGroupPrefixFor(primarySubId: String): String =
+        "${AppConfig.DERAFSH_POOL_CHUNK_PREFIX}${primarySubId}_"
+
+    /** Overflow chunk groups currently owned by [primarySubId]. */
+    fun chunkGroupsOf(primarySubId: String): List<SubscriptionCache> =
+        MmkvManager.decodeSubscriptions()
+            .filter { it.guid.startsWith(chunkGroupPrefixFor(primarySubId)) }
 
     /**
      * Fetches a subscription payload with the panel's traffic/expiry headers captured.
@@ -607,14 +578,16 @@ object AngConfigManager {
     }
 
     /**
-     * Derafsh pool import: fetches the active built-in source ONCE and redistributes the
+     * Chunked subscription import: fetches the subscription ONCE and redistributes the
      * parsed configs into groups of at most [AppConfig.DERAFSH_POOL_CHUNK_SIZE] — the
-     * primary subscription keeps the first chunk (its remarks stay "Derafsh N"), every
+     * primary subscription keeps the first chunk (its remarks are unchanged), every
      * further chunk lands in an overflow group named "«primary remarks» (2)", "(3)", …
-     * under a [AppConfig.DERAFSH_POOL_CHUNK_PREFIX] sub-id. Overflow groups from any
-     * previous refresh are removed first, so switching sources never leaves stale groups
-     * or stale servers behind. Only the primary subscription is ever fetched; overflow
-     * groups are skipped by [updateConfigViaSub] and [updateConfigViaSubAll].
+     * under a per-primary [AppConfig.DERAFSH_POOL_CHUNK_PREFIX] sub-id, so several
+     * primaries can coexist without stealing each other's groups. Overflow groups inherit
+     * the primary's settings but never auto-update. A primary's previous overflow groups
+     * are removed before redistribution, so a refresh never leaves stale groups or stale
+     * servers behind. Only the primary subscription is ever fetched; overflow groups are
+     * skipped by [updateConfigViaSub] and [updateConfigViaSubAll].
      */
     private fun updateConfigViaSubChunked(it: SubscriptionCache): SubscriptionUpdateResult {
         try {
@@ -650,10 +623,10 @@ object AngConfigManager {
                 return SubscriptionUpdateResult(failureCount = 1)
             }
 
-            // Drop the previous refresh's overflow groups (any source) before redistributing.
-            MmkvManager.decodeSubscriptions()
-                .filter { cache -> cache.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX) }
-                .forEach { cache -> MmkvManager.removeSubscription(cache.guid) }
+            // Drop THIS primary's previous overflow groups before redistributing.
+            chunkGroupsOf(primarySubId).forEach { cache ->
+                MmkvManager.removeSubscription(cache.guid)
+            }
 
             val chunks = profiles.chunked(AppConfig.DERAFSH_POOL_CHUNK_SIZE.coerceAtLeast(1))
             val baseRemarks = it.subscription.remarks
@@ -661,16 +634,20 @@ object AngConfigManager {
                 val subId = if (index == 0) {
                     primarySubId
                 } else {
-                    "${AppConfig.DERAFSH_POOL_CHUNK_PREFIX}${index + 1}__"
+                    chunkGroupId(primarySubId, index + 1)
                 }
                 if (index > 0) {
+                    // Overflow groups inherit the primary's settings (URL, filter, user agent,
+                    // request headers, TLS-bypass switch) so a manual refresh behaves
+                    // identically — but they never auto-update: the primary fetches for all.
                     MmkvManager.encodeSubscription(
                         subId,
-                        SubscriptionItem(
+                        it.subscription.copy(
                             remarks = "$baseRemarks (${index + 1})",
-                            url = it.subscription.url,
                             enabled = true,
                             autoUpdate = false,
+                            lastUpdated = -1,
+                            usageInfo = null,
                         )
                     )
                 }
@@ -690,11 +667,11 @@ object AngConfigManager {
             MmkvManager.encodeSubscription(primarySubId, it.subscription)
             LogUtil.i(
                 AppConfig.TAG,
-                "Derafsh pool updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
+                "Subscription updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
             )
             return SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
         } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to update Derafsh pool via subscription", e)
+            LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
             return SubscriptionUpdateResult(failureCount = 1)
         }
     }
@@ -720,6 +697,9 @@ object AngConfigManager {
      * (testDelayMillis < 0) — never-tested configs (delay 0) are always kept. Afterwards,
      * overflow chunk groups left with zero configs are dissolved so no dead tab remains.
      *
+     * Unhealthy-config removal is scoped to the built-in pool (the active source and its
+     * overflow groups); user subscriptions keep their configs regardless of test results.
+     *
      * Runs right after a bulk real-delay pass finishes (see MainViewModel.onTestsFinished).
      *
      * @return The number of unhealthy configs removed.
@@ -730,7 +710,7 @@ object AngConfigManager {
             MmkvManager.decodeSubscriptions()
                 .filter { cache ->
                     cache.guid == AppConfig.DEFAULT_SUBSCRIPTION_ID ||
-                            cache.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX)
+                            cache.guid.startsWith(chunkGroupPrefixFor(AppConfig.DEFAULT_SUBSCRIPTION_ID))
                 }
                 .forEach { cache ->
                     removed += removeInvalidServer(cache.guid)
@@ -772,25 +752,6 @@ object AngConfigManager {
             .map { it.first }
             .toMutableList()
         MmkvManager.encodeServerList(sorted, subId)
-    }
-
-    /**
-     * Parses the configuration via a subscription.
-     *
-     * @param server The server string.
-     * @param subid The subscription ID.
-     * @param append Whether to append the configurations.
-     * @return The number of configurations parsed.
-     */
-    private fun parseConfigViaSub(server: String?, subid: String, append: Boolean): Int {
-        var count = parseBatchConfig(Utils.decode(server), subid, append)
-        if (count <= 0) {
-            count = parseBatchConfig(server, subid, append)
-        }
-        if (count <= 0) {
-            count = parseCustomConfigServer(server, subid, append)
-        }
-        return count
     }
 
     /**
