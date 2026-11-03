@@ -1,0 +1,3 @@
+New: toasts redesigned to match the Derafsh Kaviani theme — brand pill with a semantic icon badge
+New: switching Derafsh sources starts the automatic speed test immediately
+Each source group keeps at most 200 configs; larger sources split into extra groups automatically
