@@ -91,7 +91,7 @@ jobs:
           echo "OK: release keystore unchanged"
 
       - name: Setup Android SDK (apksigner)
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           log-accepted-android-sdk-licenses: false
           packages: 'build-tools;35.0.0'
