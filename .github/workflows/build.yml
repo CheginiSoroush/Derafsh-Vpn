@@ -177,13 +177,16 @@ jobs:
       with:
         name: r8-mapping
         path: ${{ github.workspace }}/V2rayNG/app/build/outputs/mapping/*/mapping.txt
-        retention-days: 365
+        retention-days: 90
         if-no-files-found: warn
 
+  # Publishes a GitHub Release only when explicitly requested via a manual
+  # workflow_dispatch run with a release_tag input. Push builds stay
+  # artifact-only so the Releases page only carries curated, signed builds.
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: needs.build.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && needs.build.result == 'success'
 
     steps:
       - name: Download APK artifacts
@@ -207,7 +210,7 @@ jobs:
           file: release/**/*.apk
           tag: ${{ steps.tag.outputs.tag }}
           release_name: "درفش — Derafsh APK (${{ steps.tag.outputs.tag }})"
-          body: "بیلد خودکار GitHub Actions از کامیت `${{ github.sha }}` — Automated build.\n\n📲 اکثر گوشی‌های مدرن: `arm64-v8a` — قدیمی‌ها: `armeabi-v7a` — مطمئن نیستید: `universal`\n\n📜 سورس این نسخه (GPL-3.0): https://github.com/Soroushchq/Derafsh-Vpn/tree/${{ github.sha }}\n🔒 حریم خصوصی — Privacy Policy: https://github.com/Soroushchq/Derafsh-Vpn/blob/main/PRIVACY.md"
+          body: "بیلد خودکار GitHub Actions از کامیت `${{ github.sha }}` — Automated build.\n\n📲 اکثر گوشی‌های مدرن: `arm64-v8a` — قدیمی‌ها: `armeabi-v7a` — مطمئن نیستید: `universal`\n\n📜 سورس این نسخه (GPL-3.0): https://github.com/CheginiSoroush/Derafsh-Vpn/tree/${{ github.sha }}\n🔒 حریم خصوصی — Privacy Policy: https://github.com/CheginiSoroush/Derafsh-Vpn/blob/main/PRIVACY.md"
           file_glob: true
-          prerelease: true
+          prerelease: false
           overwrite: true
