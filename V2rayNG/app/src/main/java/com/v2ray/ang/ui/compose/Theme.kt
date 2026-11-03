@@ -116,14 +116,15 @@ val colorFabInactiveDark = Color(0xFF645E52) // Dark Warm Gray
 val dividerColorLight = Color(0xFFDCD2B8) // Light Parchment
 val dividerColorDark = Color(0xFF35294A) // Deep Violet
 
-// Toast Colors 85%
-val toastNormalBgLight = Color(0xD9353A3E) // Dark Gray
-val toastNormalBgDark = Color(0xD94A4F54) // Darker Gray
-val toastSuccessBg = Color(0xD9388E3C) // Green
-val toastErrorBg = Color(0xD9D50000) // Red
-val toastInfoBg = Color(0xD93F51B5) // Indigo Blue
-val toastIconCircleBg = Color(0x33FFFFFF) // Semi-transparent White
-val toastTextColor = Color.White // White
+// Toast semantic accents, tuned per theme against the inverse toast surface — the
+// parchment pill in dark mode carries deep accents, the deep-violet pill in light
+// mode carries light ones — so every badge stays readable on the brand surface.
+val toastSuccessAccentDark = Color(0xFF2F7D51) // Deep Jade on Parchment
+val toastSuccessAccentLight = Color(0xFF7CC79B) // Light Jade on Deep Violet
+val toastErrorAccentDark = Color(0xFFB0364E) // Kaviani Burgundy on Parchment
+val toastErrorAccentLight = Color(0xFFF095A5) // Soft Rose on Deep Violet
+val toastInfoAccentDark = Color(0xFF8F6A2A) // Aged Gold on Parchment
+val toastInfoAccentLight = Color(0xFFE9CF8F) // Champagne on Deep Violet
 
 object ThemeManager {
     private val _themeMode = MutableStateFlow(

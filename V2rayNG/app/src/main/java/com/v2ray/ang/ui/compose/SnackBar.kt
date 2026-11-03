@@ -1,16 +1,22 @@
 package com.v2ray.ang.ui.compose
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -24,13 +30,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import com.v2ray.ang.R
 import com.v2ray.ang.extension.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -149,12 +157,17 @@ fun AppSnackbarBridge(
     }
 }
 
-private val ToastCornerRadius = 24.dp
+// Derafsh Kaviani toast metrics — a floating brand pill above the navigation bars.
+private val ToastCornerRadius = 20.dp
 private val ToastHorizontalPad = 16.dp
-private val ToastVerticalPad = 12.dp
+private val ToastVerticalPad = 10.dp
+private val ToastShadowElevation = 6.dp
 private const val ToastMaxLines = 8
-private const val ToastMaxWidthFraction = 0.75f
+private const val ToastMaxWidthFraction = 0.86f
 private val ToastBottomOffset = 100.dp
+private val ToastIconBadgeSize = 28.dp
+private val ToastIconSize = 16.dp
+private val ToastIconGap = 10.dp
 private const val SnackbarThrottleMs = 2000L
 
 @Composable
@@ -174,13 +187,24 @@ fun AppSnackbarHost(
             modifier = Modifier.fillMaxSize()
         ) { data ->
             val type = (data.visuals as? AppSnackbarVisuals)?.type ?: ToastType.NORMAL
-
             val isDark = LocalDarkTheme.current
-            val bgColor = when (type) {
-                ToastType.NORMAL -> if (isDark) toastNormalBgDark else toastNormalBgLight
-                ToastType.SUCCESS -> toastSuccessBg
-                ToastType.ERROR -> toastErrorBg
-                ToastType.INFO -> toastInfoBg
+            val colorScheme = MaterialTheme.colorScheme
+
+            // Inverse brand pill: parchment on the violet night, deep violet on ivory —
+            // always on-palette, with a semantic badge carrying the message type.
+            val containerColor = colorScheme.inverseSurface
+            val contentColor = colorScheme.inverseOnSurface
+            val accent = when (type) {
+                ToastType.SUCCESS -> if (isDark) toastSuccessAccentDark else toastSuccessAccentLight
+                ToastType.ERROR -> if (isDark) toastErrorAccentDark else toastErrorAccentLight
+                ToastType.INFO -> if (isDark) toastInfoAccentDark else toastInfoAccentLight
+                ToastType.NORMAL -> colorScheme.primary
+            }
+            val iconRes = when (type) {
+                ToastType.SUCCESS -> R.drawable.ic_toast_success_24dp
+                ToastType.ERROR -> R.drawable.ic_toast_error_24dp
+                ToastType.INFO -> R.drawable.ic_toast_info_24dp
+                ToastType.NORMAL -> null
             }
 
             Box(
@@ -194,24 +218,40 @@ fun AppSnackbarHost(
                         .wrapContentWidth()
                         .widthIn(max = maxSnackbarWidth),
                     shape = RoundedCornerShape(ToastCornerRadius),
-                    color = bgColor,
-                    shadowElevation = 0.dp,
+                    color = containerColor,
+                    contentColor = contentColor,
+                    shadowElevation = ToastShadowElevation,
                 ) {
                     Row(
                         modifier = Modifier.padding(
                             horizontal = ToastHorizontalPad,
                             vertical = ToastVerticalPad
                         ),
-                        horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (iconRes != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(ToastIconBadgeSize)
+                                    .clip(CircleShape)
+                                    .background(accent.copy(alpha = 0.18f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(iconRes),
+                                    contentDescription = null,
+                                    tint = accent,
+                                    modifier = Modifier.size(ToastIconSize)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(ToastIconGap))
+                        }
                         Text(
                             text = data.visuals.message,
-                            color = toastTextColor,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = contentColor,
                             maxLines = ToastMaxLines,
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.wrapContentWidth()
                         )
                     }
                 }
