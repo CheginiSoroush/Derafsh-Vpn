@@ -17,6 +17,11 @@ android {
         versionCode = 25
         versionName = "1.2.21"
 
+        // Package only the locales that actually ship (en + fa). The AGP 9
+        // `androidResources.localeFilters` DSL is not available on AGP 8.x;
+        // `resourceConfigurations` is the equivalent for this line.
+        resourceConfigurations += listOf("en", "fa")
+
         // Ad placement provider: "house" = first-party Derafsh promo surfaces (current);
         // "admob" = Google AdMob with the IDs below (enable when production IDs are ready).
         buildConfigField("String", "ADS_PROVIDER", "\"house\"")
@@ -154,10 +159,6 @@ android {
 
     androidResources {
         generateLocaleConfig = true
-        localeFilters += listOf(
-            "en",
-            "fa"
-        )
     }
 
     packaging {
