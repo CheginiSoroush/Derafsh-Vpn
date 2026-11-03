@@ -1,0 +1,3 @@
+New: developer profile slide at the end of onboarding, with a direct GitHub link
+New: developer identity card in the About screen
+Fixed: integrity check now matches the official release signing key
