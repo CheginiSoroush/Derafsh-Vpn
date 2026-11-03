@@ -160,8 +160,8 @@ object AppConfig {
     const val TG_CHANNEL_URL = "https://github.com/CheginiSoroush/Derafsh-Vpn"
 
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
-     *  Must match signing/derafsh-release.jks — verify with: python3 tools/verify_sig.py <apk> */
-    const val RELEASE_CERT_SHA256 = "FF8635B8E04424DC5DF5CC1F53D946B799E0FABDB084B80ACE836E448B00C889"
+     *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */
+    const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"
 
     /** Latest release metadata used by the in-app auto-updater (first entry = newest, includes prereleases). */
     const val DERAFSH_UPDATE_API_URL = "$APP_API_URL?per_page=1"
