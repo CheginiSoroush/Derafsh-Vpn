@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: '0'
 
@@ -91,10 +91,10 @@ jobs:
           echo "OK: release keystore unchanged"
 
       - name: Setup Android SDK (apksigner)
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           log-accepted-android-sdk-licenses: false
-          packages: 'build-tools;35.0.0'
+          packages: 'build-tools;37.0.0'
 
       - name: Verify latest release APK signature
         env:

@@ -7,20 +7,15 @@ plugins {
 
 android {
     namespace = "com.v2ray.ang"
-    compileSdk = 35
-    ndkVersion = "27.2.12479018"
+    compileSdk = 37
+    ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "com.derafsh.vpn"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 37
         versionCode = 25
         versionName = "1.2.21"
-
-        // Package only the locales that actually ship (en + fa). The AGP 9
-        // `androidResources.localeFilters` DSL is not available on AGP 8.x;
-        // `resourceConfigurations` is the equivalent for this line.
-        resourceConfigurations += listOf("en", "fa")
 
         // Ad placement provider: "house" = first-party Derafsh promo surfaces (current);
         // "admob" = Google AdMob with the IDs below (enable when production IDs are ready).
@@ -159,6 +154,10 @@ android {
 
     androidResources {
         generateLocaleConfig = true
+        localeFilters += listOf(
+            "en",
+            "fa"
+        )
     }
 
     packaging {
@@ -170,12 +169,12 @@ android {
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
-            // NOTE: unlike JUnit 4 (which failed on an invalid @Test method, e.g. one that
-            // returns a value), Jupiter only logs and skips such methods. The
-            // `junit.platform.discovery.issue.severity.*` configuration only exists in
-            // JUnit Platform 1.13+, so it is intentionally NOT set here — on 5.11.x it
-            // would be a silent no-op. Revisit after a future JUnit upgrade if strict
-            // discovery-issue handling is needed.
+            // NOTE: on JUnit Platform 6.x a critical discovery issue (e.g. an invalid
+            // @Test method that returns a value) already fails the build by default
+            // (severity ERROR). An earlier version explicitly set
+            // `junit.platform.discovery.issue.severity.critical=WARNING`, which
+            // downgraded those issues to warnings — the opposite of the intended
+            // strictness — so the override is intentionally gone. Keep the default.
         }
     }
 
