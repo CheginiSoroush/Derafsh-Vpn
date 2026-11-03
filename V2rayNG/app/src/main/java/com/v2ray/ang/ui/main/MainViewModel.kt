@@ -747,6 +747,11 @@ class MainViewModel(
                     if (result.configCount > 0) {
                         setupGroupTab(forceRefresh = true)
                         refreshSelectedGuid()
+                        // A freshly switched source is an untested pool: kick the full-pool
+                        // real-delay pass right away — the maintenance card takes over with
+                        // a live percentage and CoreTestService closes the session on finish.
+                        MaintenanceStatus.beginSession()
+                        testAllRealPing(allGroups = true)
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
