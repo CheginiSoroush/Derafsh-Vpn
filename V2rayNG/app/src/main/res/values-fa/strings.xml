@@ -630,6 +630,12 @@
     <string name="onboarding_5_body">درفش داده مرور شما را جمع نمی‌کند. تبلیغات داخل برنامه توسط شبکه‌های ثالث و طبق سیاست‌های خودشان نمایش داده می‌شوند.</string>
     <string name="onboarding_consent_checkbox">سیاست حریم خصوصی و شرایط استفاده را خوانده‌ام و می‌پذیرم</string>
     <string name="onboarding_read_policy">مطالعه سیاست حریم خصوصی</string>
+    <string name="onboarding_6_title">توسعه‌دهنده را بشناسید</string>
+    <string name="onboarding_6_body">درفش توسط سروش ساخته و نگهداری می‌شود. برای دنبال‌کردن به‌روزرسانی‌ها، گزارش مشکلات یا دیدن سورس‌کد، پروژه را در گیت‌هاب دنبال کنید.</string>
+    <string name="onboarding_open_github">مشاهده پروفایل گیت‌هاب</string>
+    <string name="onboarding_back_to_consent">بازگشت به تأیید قوانین</string>
+    <string name="about_developer_name">سروش</string>
+    <string name="about_developer_handle">\@CheginiSoroush — توسعه‌دهنده</string>
 
     <string name="derafsh_sources_title">منابع درفش</string>
     <string name="derafsh_source_name">درفش %d</string>

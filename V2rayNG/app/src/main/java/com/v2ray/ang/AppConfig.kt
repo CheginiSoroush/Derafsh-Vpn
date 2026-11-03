@@ -158,6 +158,7 @@ object AppConfig {
     const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/CheginiSoroush/Derafsh-Vpn/main/PRIVACY.md"
     const val APP_PROMOTION_URL = "aHR0cHM6Ly9naXRodWIuY29tL1Nvcm91c2hjcS9EZXJhZnNoLVZwbg=="
     const val TG_CHANNEL_URL = "https://github.com/CheginiSoroush/Derafsh-Vpn"
+    const val DEV_PROFILE_URL = "$GITHUB_URL/CheginiSoroush"
 
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */

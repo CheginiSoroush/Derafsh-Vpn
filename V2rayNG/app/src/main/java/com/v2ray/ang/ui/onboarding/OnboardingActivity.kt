@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -51,11 +53,12 @@ import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.launch
 
 /**
- * First-launch onboarding for Derafsh: a five-slide intro carousel that presents the app
- * (welcome, smart speed test, privacy, free-with-ads) and collects explicit consent to
- * the Privacy Policy and Terms of Use before the app is used — the disclosure Google Play
- * expects from ad-supported apps. "Skip" jumps to the consent slide; consent is required,
- * never bypassed. Completion is persisted through [OnboardingManager].
+ * First-launch onboarding for Derafsh: a six-slide intro carousel that presents the app
+ * (welcome, smart speed test, privacy, free-with-ads, developer profile) and collects
+ * explicit consent to the Privacy Policy and Terms of Use before the app is used — the
+ * disclosure Google Play expects from ad-supported apps. "Skip" jumps to the consent
+ * slide; consent is required, never bypassed. Completion is persisted through
+ * [OnboardingManager].
  */
 class OnboardingActivity : BaseComponentActivity() {
 
@@ -83,10 +86,10 @@ class OnboardingActivity : BaseComponentActivity() {
                         .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    if (pagerState.currentPage < PAGE_COUNT - 1) {
+                    if (pagerState.currentPage < PAGE_CONSENT) {
                         TextButton(onClick = {
                             // Skip never bypasses consent: it lands on the consent slide.
-                            scope.launch { pagerState.animateScrollToPage(PAGE_COUNT - 1) }
+                            scope.launch { pagerState.animateScrollToPage(PAGE_CONSENT) }
                         }) {
                             Text(stringResource(R.string.onboarding_skip))
                         }
@@ -129,17 +132,22 @@ class OnboardingActivity : BaseComponentActivity() {
                 val isLast = pagerState.currentPage == PAGE_COUNT - 1
                 Button(
                     onClick = {
-                        if (isLast) {
-                            OnboardingManager.markCompleted()
-                            context.startActivity(Intent(context, MainActivity::class.java))
-                            finish()
-                        } else {
-                            scope.launch {
+                        when {
+                            isLast && consentAccepted -> {
+                                OnboardingManager.markCompleted()
+                                context.startActivity(Intent(context, MainActivity::class.java))
+                                finish()
+                            }
+                            // On the closing profile slide consent is still pending:
+                            // route back to the consent slide instead of blocking.
+                            isLast -> scope.launch {
+                                pagerState.animateScrollToPage(PAGE_CONSENT)
+                            }
+                            else -> scope.launch {
                                 pagerState.animateScrollToPage(pagerState.currentPage + 1)
                             }
                         }
                     },
-                    enabled = !isLast || consentAccepted,
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -148,7 +156,11 @@ class OnboardingActivity : BaseComponentActivity() {
                 ) {
                     Text(
                         text = stringResource(
-                            if (isLast) R.string.onboarding_start else R.string.onboarding_next
+                            when {
+                                isLast && consentAccepted -> R.string.onboarding_start
+                                isLast -> R.string.onboarding_back_to_consent
+                                else -> R.string.onboarding_next
+                            }
                         ),
                         style = MaterialTheme.typography.titleMedium,
                     )
@@ -204,6 +216,8 @@ class OnboardingActivity : BaseComponentActivity() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+            } else if (page == PAGE_PROFILE) {
+                ProfileSlide()
             } else {
                 ConsentSlide(consentAccepted = consentAccepted, onConsentChanged = onConsentChanged)
             }
@@ -249,6 +263,44 @@ class OnboardingActivity : BaseComponentActivity() {
         }
     }
 
+    /** Closing slide: the developer behind Derafsh, with a direct link to the GitHub profile. */
+    @Composable
+    private fun ProfileSlide() {
+        val context = LocalContext.current
+        Image(
+            painter = painterResource(R.drawable.img_developer_avatar),
+            contentDescription = stringResource(R.string.about_developer_name),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(112.dp)
+                .clip(CircleShape),
+        )
+        Spacer(Modifier.height(32.dp))
+        Text(
+            text = stringResource(R.string.onboarding_6_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.onboarding_6_body),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = { Utils.openUri(context, AppConfig.DEV_PROFILE_URL) }) {
+            Icon(
+                painter = painterResource(R.drawable.ic_github_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(text = stringResource(R.string.onboarding_open_github))
+        }
+    }
+
     private data class OnboardingSlide(
         val emoji: String,
         val titleRes: Int,
@@ -256,9 +308,15 @@ class OnboardingActivity : BaseComponentActivity() {
     )
 
     private companion object {
-        const val PAGE_COUNT = 5
+        const val PAGE_COUNT = 6
 
-        /** Intro slides; slide five is the consent screen and lives in [ConsentSlide]. */
+        /** Consent stays the gate before the final slide; consent can never be skipped past. */
+        const val PAGE_CONSENT = 4
+
+        /** Closing developer-profile slide. */
+        const val PAGE_PROFILE = 5
+
+        /** Intro slides; the consent screen and developer profile live in their own composables. */
         val SLIDES = listOf(
             OnboardingSlide("", R.string.onboarding_1_title, R.string.onboarding_1_body),
             OnboardingSlide("⚡", R.string.onboarding_2_title, R.string.onboarding_2_body),
