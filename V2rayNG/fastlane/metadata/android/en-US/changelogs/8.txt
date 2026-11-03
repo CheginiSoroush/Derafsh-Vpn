@@ -1,0 +1,2 @@
+• Fixed false "Unofficial build detected" warning — integrity check now validates against the real Derafsh release signature
+• No other changes; same house-ads mode and connection flow

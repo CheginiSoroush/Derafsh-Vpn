@@ -1,0 +1,2 @@
+New monetization loop: sessions are 30 minutes and a rewarded ad adds 30 more — connect is never gated by ads (the interstitial appears right after a successful connection instead)
+Ad waterfall at every slot: Iranian (rial) network first, then international (USD), with the branded Derafsh ad as the always-fill fallback — banner included, right beside the startup-test progress

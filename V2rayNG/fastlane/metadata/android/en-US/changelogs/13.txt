@@ -1,0 +1,5 @@
+Updated the built-in VPN core to Xray 26.10.29 — better speed and stronger anti-DPI
+Iran-optimized routing now on by default: domestic (.ir) sites go direct via Iranian DNS (Shecan)
+Geo databases bundled in the app — Iran routing works out of the box, no manual download
+DNS prefers Iranian IPs for domestic domains; domestic DNS default is now Shecan
+VPN core now updates itself automatically in future releases

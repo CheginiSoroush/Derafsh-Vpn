@@ -1,0 +1,2 @@
+The speed test now starts automatically the moment the app opens (progress bar fills on the main screen) — no need to press connect first
+Connecting right after the startup test no longer re-tests everything; it picks the fastest server instantly from the fresh results

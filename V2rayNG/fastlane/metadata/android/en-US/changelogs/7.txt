@@ -1,0 +1,3 @@
+• Ad slots now show Derafsh's own promo banner (house ads) instead of network test ads
+• Faster app start — no third-party ad SDK initialization in this mode
+• Same flow preserved: tap connect, brief branded screen, then the fastest server connects

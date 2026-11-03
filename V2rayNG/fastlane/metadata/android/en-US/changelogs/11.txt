@@ -1,0 +1,3 @@
+Added 3 more built-in free subscription sources (Derafsh Plus 1, Plus 2, Turbo) alongside Derafsh Free
+All built-in sources auto-update every 4 hours and get a fresh real-delay test automatically
+Connect still picks the fastest tested server across every source

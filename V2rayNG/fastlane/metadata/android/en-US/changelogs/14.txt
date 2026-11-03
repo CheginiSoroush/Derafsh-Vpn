@@ -1,0 +1,2 @@
+Live status cards on the main screen: subscription refresh and server speed-test now announce themselves with a brand progress bar
+Smoother update download bar

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Derafsh Kaviani brand mark — an original, vector abstraction of the raised standard:
+  a finial-tipped pole, a flowing swallow-tailed pennant, and a four-pointed shamsa
+  star shining through the cloth. Drawn for Derafsh Kaviani; not copied from any artwork.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Ground mound -->
+    <path
+        android:fillColor="#FFD8B66A"
+        android:pathData="M7.2,21.2 C8.4,19.7 15.2,19.7 16.4,21.2 Z" />
+
+    <!-- Pole -->
+    <path
+        android:fillColor="#FFD8B66A"
+        android:pathData="M11.1,4 h1.4 v15.9 h-1.4 z" />
+
+    <!-- Finial: the raised tip of the standard -->
+    <path
+        android:fillColor="#FFD8B66A"
+        android:pathData="M11.8,1.6 L13.1,2.9 L11.8,4.2 L10.5,2.9 Z" />
+
+    <!-- Pennant with shamsa star (even-odd leaves the star as a cut-out) -->
+    <path
+        android:fillColor="#FFD8B66A"
+        android:fillType="evenOdd"
+        android:pathData="M12.5,4.8 C15.6,4.0 19.4,4.6 21.6,6.2 C20.2,7.8 19.4,9.4 19.2,11.4 L16.9,10.0 L16.2,12.4 C15.1,11.6 13.8,11.2 12.5,11.2 Z M16.0,5.7 L16.7,7.2 L18.2,7.9 L16.7,8.6 L16.0,10.1 L15.3,8.6 L13.8,7.9 L15.3,7.2 Z" />
+</vector>

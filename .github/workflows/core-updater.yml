@@ -1,0 +1,110 @@
+name: Core Auto-Update
+
+# Keeps the Xray core (libv2ray.aar) always fresh:
+# daily check of 2dust/AndroidLibXrayLite releases → if newer than the pinned
+# submodule commit, bump the submodule pointer + app version, commit & push —
+# which triggers the "Build Derafsh APK" workflow and publishes a new release
+# that the in-app auto-updater delivers to users automatically.
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # daily, 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: core-updater
+  cancel-in-progress: false
+
+jobs:
+  update-core:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.DERAFSH_TOKEN }}
+
+      - name: Resolve latest core release
+        id: latest
+        env:
+          GH_TOKEN: ${{ secrets.DERAFSH_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, urllib.request
+
+          tok = os.environ["GH_TOKEN"]
+          def api(url):
+              req = urllib.request.Request(url, headers={
+                  "Authorization": f"Bearer {tok}",
+                  "User-Agent": "derafsh-core-updater",
+              })
+              return json.load(urllib.request.urlopen(req, timeout=30))
+
+          rel = api("https://api.github.com/repos/2dust/AndroidLibXrayLite/releases/latest")
+          tag = rel["tag_name"]
+          ref = api(f"https://api.github.com/repos/2dust/AndroidLibXrayLite/git/ref/tags/{tag}")
+          obj = ref["object"]
+          sha, typ = obj["sha"], obj["type"]
+          if typ == "tag":  # annotated tag → resolve to commit
+              sha = api(f"https://api.github.com/repos/2dust/AndroidLibXrayLite/git/tags/{sha}")["object"]["sha"]
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              env.write(f"CORE_TAG={tag}\nCORE_SHA={sha}\n")
+          print(f"Latest core: {tag} @ {sha}")
+          EOF
+
+      - name: Check if core is up to date
+        id: check
+        run: |
+          CURRENT=$(git ls-tree HEAD AndroidLibXrayLite | awk '{print $3}')
+          echo "current=$CURRENT"
+          echo "latest=${CORE_SHA}"
+          if [ "$CURRENT" = "${CORE_SHA}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Core already at ${CORE_TAG} — nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git update-index --cacheinfo 160000,${CORE_SHA},AndroidLibXrayLite
+            echo "Submodule pointer → ${CORE_SHA}"
+          fi
+
+      - name: Bump version + changelogs
+        id: bump
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          python3 - <<'EOF'
+          import os, re
+
+          gradle = "V2rayNG/app/build.gradle.kts"
+          src = open(gradle).read()
+          code = int(re.search(r"versionCode\s*=\s*(\d+)", src).group(1)) + 1
+          name = re.search(r'versionName\s*=\s*"([^"]+)"', src).group(1)
+          parts = name.split(".")
+          parts[-1] = str(int(parts[-1]) + 1)
+          new_name = ".".join(parts)
+          src = re.sub(r"versionCode\s*=\s*\d+", f"versionCode = {code}", src)
+          src = re.sub(r'versionName\s*=\s*"[^"]+"', f'versionName = "{new_name}"', src)
+          open(gradle, "w").write(src)
+
+          tag = os.environ["CORE_TAG"]
+          xray = tag.lstrip("v")
+          en = f"Updated the built-in VPN core (Xray {xray}) for better speed and anti-DPI\nImproved Iran routing: domestic sites go direct with Iranian DNS\n"
+          fa = f"هسته VPN داخلی به‌روزرسانی شد (Xray {xray}) — سرعت و عبور از فیلترینگ بهتر\nبهبود روتینگ ایران: سایت‌های داخلی مستقیم و با DNS ایرانی\n"
+          open(f"V2rayNG/fastlane/metadata/android/en-US/changelogs/{code}.txt", "w").write(en)
+          open(f"V2rayNG/fastlane/metadata/android/fa-IR/changelogs/{code}.txt", "w").write(fa)
+
+          with open(os.environ["GITHUB_ENV"], "a") as env:
+              env.write(f"NEW_VERSION={new_name}\nNEW_CODE={code}\n")
+          print(f"Bumped to {new_name} (code {code})")
+          EOF
+
+      - name: Commit & push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "derafsh-bot"
+          git config user.email "bot@derafsh.local"
+          git add AndroidLibXrayLite V2rayNG/app/build.gradle.kts V2rayNG/fastlane/metadata
+          git commit -m "core: update Xray core to ${CORE_TAG}; bump ${NEW_VERSION} (code ${NEW_CODE})"
+          git push https://x-access-token:${{ secrets.DERAFSH_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main

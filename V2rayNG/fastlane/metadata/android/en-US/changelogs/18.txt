@@ -1,0 +1,1 @@
+Every app open now starts from a clean slate: previous speed-test results are wiped before the startup test begins, so no stale delay badge is ever shown — fresh numbers arrive as the whole pool is re-tested

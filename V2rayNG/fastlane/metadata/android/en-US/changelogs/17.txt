@@ -1,0 +1,2 @@
+The app-open speed test now covers ALL configs from every source, no matter which tab is open — the percentage bar counts the entire pool instead of just the visible group
+Delay badges tick in live on the open tab while the whole pool is tested, and every tab refreshes with fresh results when the pass finishes

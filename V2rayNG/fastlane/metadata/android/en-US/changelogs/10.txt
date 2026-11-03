@@ -1,0 +1,3 @@
+• Fully automatic maintenance: the subscription refreshes and a real-delay test runs every 4 hours and on launch — the manual update/test header buttons are gone
+• Tapping connect still tests every server and connects to the fastest one
+• Subscription auto-update interval tightened from 6 to 4 hours (applies to existing installs too)

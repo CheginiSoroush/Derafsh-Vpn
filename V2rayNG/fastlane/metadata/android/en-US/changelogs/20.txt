@@ -1,0 +1,1 @@
+First-launch onboarding: five intro screens present Derafsh (smart speed test, privacy, free-with-ads model) and collect explicit consent to the Privacy Policy and Terms before first use. Privacy Policy document added (PRIVACY.md, linked from the app). Prepares Derafsh for Google Play submission. Minor fixes.

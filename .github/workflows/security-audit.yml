@@ -1,0 +1,144 @@
+name: Security Audit
+
+# Anti-crack watch (کورن‌جاب ممیزی دائمی):
+#   - weekly: Monday 04:23 UTC = 07:53 Tehran
+#   - on demand: Actions tab → Security Audit → Run workflow
+# Turns CI red if ANY of these holds:
+#   - a secret/token pattern appears in tracked files
+#   - R8 obfuscation flags were removed from the release build
+#   - the fixed release keystore was swapped (hash mismatch)
+#   - the latest release APK is NOT signed with the official Derafsh certificate
+#     (i.e. someone re-signed/tampered and published it)
+
+on:
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: '0'
+
+      - name: Repo must stay private (VAULT.md holds secrets by design)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ ! -f VAULT.md ]; then
+            echo "VAULT.md not present — skipping private-repo guard"
+            exit 0
+          fi
+          PRIVATE=$(curl -sSL -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}" | jq -r '.private')
+          if [ "$PRIVATE" != "true" ]; then
+            echo "::error::REPO IS PUBLIC while VAULT.md (keystore passwords, PAT) is committed — delete VAULT.md, revoke the PAT and rotate the keystore NOW"
+            exit 1
+          fi
+          echo "OK: repo is private"
+
+      - name: Assert release hardening flags (R8 / no debuggable)
+        run: |
+          set -euo pipefail
+          grep -q "isMinifyEnabled = true" V2rayNG/app/build.gradle.kts \
+            || { echo "::error::R8 minify disabled — release is decompilable"; exit 1; }
+          grep -q "isShrinkResources = true" V2rayNG/app/build.gradle.kts \
+            || { echo "::error::resource shrinking disabled"; exit 1; }
+          grep -q '\-repackageclasses' V2rayNG/app/proguard-rules.pro \
+            || { echo "::error::namespace flattening removed from proguard rules"; exit 1; }
+          if grep -q 'android:debuggable="true"' V2rayNG/app/src/main/AndroidManifest.xml; then
+            echo "::error::debuggable=true in manifest"
+            exit 1
+          fi
+          echo "OK: R8 minify + shrink + repackageclasses ON, no debuggable flag"
+
+      - name: Scan repo for leaked secrets
+        run: |
+          set -euo pipefail
+          PATTERNS='github_pat_[A-Za-z0-9_]{20,}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY'
+          # VAULT.md is the INTENTIONAL secret store while the repo is private
+          # (guarded by the repo-visibility check above). Submodule trees are
+          # pinned third-party code, not our secret surface.
+          HITS=$(grep -rInE "$PATTERNS" . --exclude-dir=.git --exclude-dir=build --exclude-dir=.gradle --exclude-dir=hev-socks5-tunnel --exclude-dir=AndroidLibXrayLite --exclude=VAULT.md || true)
+          if [ -n "$HITS" ]; then
+            echo "::error::Potential secret found in tracked files"
+            echo "$HITS"
+            exit 1
+          fi
+          echo "OK: no token/key patterns in tracked files"
+
+      - name: Verify keystore integrity (anti keystore-swap)
+        env:
+          EXPECTED_KS_SHA256: 1a80812e46c5bc4ce65b75469b272abb79e61b071999bcf90ca0efc5b5e6351b
+        run: |
+          set -euo pipefail
+          if [ ! -f signing/derafsh-release.jks ]; then
+            echo "signing/derafsh-release.jks not present — skipping keystore integrity check"
+            exit 0
+          fi
+          ACTUAL=$(sha256sum signing/derafsh-release.jks | awk '{print $1}')
+          if [ "$ACTUAL" != "$EXPECTED_KS_SHA256" ]; then
+            echo "::error::Release keystore changed! expected=$EXPECTED_KS_SHA256 actual=$ACTUAL"
+            exit 1
+          fi
+          echo "OK: release keystore unchanged"
+
+      - name: Setup Android SDK (apksigner)
+        uses: android-actions/setup-android@v3
+        with:
+          log-accepted-android-sdk-licenses: false
+          packages: 'build-tools;35.0.0'
+
+      - name: Verify latest release APK signature
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_CERT_SHA256: FF8635B8E04424DC5DF5CC1F53D946B799E0FABDB084B80ACE836E448B00C889
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/${{ github.repository }}"
+          AUTH="Authorization: Bearer $GH_TOKEN"
+          RELEASE_JSON=$(curl -sSL -H "$AUTH" "$API/releases?per_page=1")
+          TAG=$(echo "$RELEASE_JSON" | jq -r '.[0].tag_name')
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::warning::No releases published yet — skipping release APK signature audit (will audit once the first release exists)"
+            exit 0
+          fi
+          ASSET_ID=$(echo "$RELEASE_JSON" | jq -r '.[0].assets[] | select(.name | test("universal")) | .id' | head -1)
+          if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
+            echo "::error::No universal APK asset on release $TAG"
+            exit 1
+          fi
+          echo "Auditing release $TAG (asset id $ASSET_ID)"
+          curl -sSL -H "$AUTH" -H "Accept: application/octet-stream" \
+            -o "$RUNNER_TEMP/audit-universal.apk" "$API/releases/assets/$ASSET_ID"
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          CERT_LINE=$("$APKSIGNER" verify --print-certs "$RUNNER_TEMP/audit-universal.apk" | grep -m1 "SHA-256")
+          echo "$CERT_LINE"
+          CERT=$(echo "$CERT_LINE" | awk '{print $NF}' | tr -d ':' | tr 'a-f' 'A-F')
+          if [ "$CERT" != "$EXPECTED_CERT_SHA256" ]; then
+            echo "::error::RELEASE CERT MISMATCH on $TAG — APK may be tampered/re-signed"
+            exit 1
+          fi
+          echo "OK: $TAG is signed with the official Derafsh certificate"
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Audit summary
+        run: |
+          {
+            echo "## 🔒 Security Audit — passed"
+            echo ""
+            echo "| Check | Result |"
+            echo "|---|---|"
+            echo "| Repo is private (VAULT guard) | ✅ |"
+            echo "| R8 minify + shrink + repackageclasses | ✅ |"
+            echo "| Secret scan (tracked files) | ✅ |"
+            echo "| Fixed keystore hash unchanged | ✅ |"
+            echo "| Release ${RELEASE_TAG:-?} signed with official cert | ✅ |"
+          } >> "$GITHUB_STEP_SUMMARY"

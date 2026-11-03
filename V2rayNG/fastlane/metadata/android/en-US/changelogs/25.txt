@@ -1,0 +1,2 @@
+Updated the built-in VPN core (Xray 26.10.31) for better speed and anti-DPI
+Improved Iran routing: domestic sites go direct with Iranian DNS

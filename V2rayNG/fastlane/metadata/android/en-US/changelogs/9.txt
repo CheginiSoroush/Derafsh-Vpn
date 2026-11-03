@@ -1,0 +1,2 @@
+• Notification privacy: the status bar notification no longer shows server/config names — only "Derafsh" and the connection state
+• No other changes

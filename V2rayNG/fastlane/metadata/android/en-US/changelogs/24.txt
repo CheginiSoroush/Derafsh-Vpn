@@ -1,0 +1,1 @@
+New header branding: the main screen title now reads "Derafsh Vpn" in both Persian and English. The launcher name, notifications and all other surfaces remain unchanged.

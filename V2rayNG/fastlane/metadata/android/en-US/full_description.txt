@@ -1,0 +1,26 @@
+Derafsh VPN — simple, fast, private.
+
+Derafsh is a modern VPN client built on the battle-tested Xray core, redesigned from the ground up to feel like a mainstream app, not an engineer's tool.
+
+WHAT MAKES DERAFSH DIFFERENT
+
+• One big button. Tap Connect — that's it. No logs, no protocol jargon, no complex routing screens.
+• Speed-test assisted connect: every connect runs a parallel speed test and picks the fastest working server automatically.
+• Free built-in servers: a public, community-maintained free config list is bundled and refreshed, so the app works out of the box — no account, no sign-up.
+• Honest 30-minute sessions: sessions last 30 minutes; extend with a rewarded ad in one tap.
+• Persian + English, fully localized with RTL support.
+• Always-on status: a persistent notification and a live countdown ring show exactly how long your session lasts.
+
+PRIVACY FIRST
+
+• The tunnel is processed entirely on your device with the open-source Xray core — no middleman servers from us.
+• No account, no personal data, no traffic logs.
+• The app is funded by unobtrusive ads (Google AdMob, test ads in this build); ad personalization can be disabled in Android settings.
+
+TECHNICAL FOUNDATIONS
+
+• Xray core with VLESS / VMess / Trojan / Shadowsocks support
+• R8 minification and integrity checks to keep the app tamper-resistant
+• Automatic in-app updates (for builds distributed outside app stores)
+
+Derafsh is open source (GPL-3.0), forked from v2rayNG with gratitude to its authors.

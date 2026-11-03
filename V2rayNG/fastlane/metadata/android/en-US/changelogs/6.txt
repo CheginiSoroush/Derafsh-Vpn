@@ -1,0 +1,3 @@
+• Privacy Policy added (in-app link now points to the official Derafsh policy)
+• AdMob IDs centralized in one place for a clean switch to production ads
+• Release notes now include source (GPL-3.0) and privacy links

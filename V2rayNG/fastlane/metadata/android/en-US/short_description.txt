@@ -1,0 +1,1 @@
+One-tap VPN with free auto-updated servers. Picks the fastest config for you.

@@ -1,0 +1,213 @@
+name: Build Derafsh APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        required: false
+        type: string
+        description: "Optional tag to attach APKs to a GitHub Release"
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.appversion.outputs.version }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        fetch-depth: '0'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        log-accepted-android-sdk-licenses: false
+        cmdline-tools-version: '14742923'
+        packages: 'platforms;android-35 build-tools;35.0.0 platform-tools'
+
+    - name: Install NDK
+      run: |
+        echo "y" | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          --channel=0 \
+          --install "ndk;27.2.12479018"
+        echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> $GITHUB_ENV
+
+    - name: Restore cached libhevtun
+      id: cache-libhevtun-restore
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ github.workspace }}/libs
+        key: libhevtun-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('.git/modules/hev-socks5-tunnel/HEAD') }}-${{ hashFiles('compile-hevtun.sh') }}
+
+    - name: Build libhevtun
+      if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
+      run: |
+        bash compile-hevtun.sh
+
+    - name: Save libhevtun
+      if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ github.workspace }}/libs
+        key: libhevtun-${{ runner.os }}-${{ env.NDK_HOME }}-${{ hashFiles('.git/modules/hev-socks5-tunnel/HEAD') }}-${{ hashFiles('compile-hevtun.sh') }}
+
+    - name: Copy libhevtun
+      run: |
+        cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
+
+    - name: Fetch AndroidLibXrayLite tag
+      run: |
+        pushd AndroidLibXrayLite
+        CURRENT_TAG=$(git describe --tags --abbrev=0)
+        echo "Current tag in this repo: $CURRENT_TAG"
+        echo "CURRENT_TAG=$CURRENT_TAG" >> $GITHUB_ENV
+        popd
+
+    - name: Download libv2ray
+      uses: robinraju/release-downloader@v1.13
+      with:
+        repository: '2dust/AndroidLibXrayLite'
+        tag: ${{ env.CURRENT_TAG }}
+        fileName: 'libv2ray.aar'
+        out-file-path: V2rayNG/app/libs/
+
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Determine app version
+      id: appversion
+      run: |
+        VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' V2rayNG/app/build.gradle.kts | head -1)
+        echo "App version: $VERSION"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Prepare signing keystore
+      id: keystore
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'derafsh' }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        set -euo pipefail
+        KS_FILE="$RUNNER_TEMP/derafsh-release.jks"
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KS_FILE"
+          KS_SOURCE="secrets"
+        elif [ -f "$GITHUB_WORKSPACE/signing/derafsh-release.jks" ]; then
+          cp "$GITHUB_WORKSPACE/signing/derafsh-release.jks" "$KS_FILE"
+          KS_SOURCE="repo-backup"
+        else
+          echo "::warning::No KEYSTORE_BASE64 secret — building UNSIGNED release APK"
+          exit 0
+        fi
+        keytool -list -keystore "$KS_FILE" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+        echo "Fixed release keystore OK (source: $KS_SOURCE, alias: $KEY_ALIAS)"
+        {
+          echo "DERAFSH_KEYSTORE_PATH=$KS_FILE"
+          echo "DERAFSH_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD"
+          echo "DERAFSH_KEY_ALIAS=$KEY_ALIAS"
+          echo "DERAFSH_KEY_PASSWORD=$KEY_PASSWORD"
+        } >> "$GITHUB_ENV"
+
+    - name: Build APK
+      run: |
+        cd ${{ github.workspace }}/V2rayNG
+        echo "sdk.dir=${ANDROID_HOME}" > local.properties
+        chmod 755 gradlew
+        ./gradlew licenseFdroidReleaseReport
+        if [ -n "$DERAFSH_KEYSTORE_PATH" ]; then
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file="$DERAFSH_KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$DERAFSH_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$DERAFSH_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$DERAFSH_KEY_PASSWORD"
+        else
+          echo "::warning::No signing keystore configured — building UNSIGNED release APK"
+          ./gradlew assembleRelease
+        fi
+
+    - name: Upload arm64-v8a APK
+      uses: actions/upload-artifact@v4
+      if: ${{ success() }}
+      with:
+        name: arm64-v8a
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*arm64-v8a*.apk
+
+    - name: Upload armeabi-v7a APK
+      uses: actions/upload-artifact@v4
+      if: ${{ success() }}
+      with:
+        name: armeabi-v7a
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*armeabi-v7a*.apk
+
+    - name: Upload x86 APK
+      uses: actions/upload-artifact@v4
+      if: ${{ success() }}
+      with:
+        name: x86-apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*x86*.apk
+
+    - name: Upload universal APK
+      uses: actions/upload-artifact@v4
+      if: ${{ success() }}
+      with:
+        name: universal-apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*universal*.apk
+
+    # R8 mapping.txt = the deobfuscation map for obfuscated release builds.
+    # Kept as a PRIVATE repo artifact only — never attach it to the public
+    # release (it would hand crackers the original class names). Needed to
+    # retrace user crash stack traces for every shipped build.
+    - name: Upload R8 mapping (private artifact)
+      uses: actions/upload-artifact@v4
+      if: ${{ success() }}
+      with:
+        name: r8-mapping
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/mapping/*/mapping.txt
+        retention-days: 365
+        if-no-files-found: warn
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: needs.build.result == 'success'
+
+    steps:
+      - name: Download APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
+      - name: Determine release tag
+        id: tag
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v${{ needs.build.outputs.version }}-build.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload APKs to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: release/**/*.apk
+          tag: ${{ steps.tag.outputs.tag }}
+          release_name: "درفش — Derafsh APK (${{ steps.tag.outputs.tag }})"
+          body: "بیلد خودکار GitHub Actions از کامیت `${{ github.sha }}` — Automated build.\n\n📲 اکثر گوشی‌های مدرن: `arm64-v8a` — قدیمی‌ها: `armeabi-v7a` — مطمئن نیستید: `universal`\n\n📜 سورس این نسخه (GPL-3.0): https://github.com/Soroushchq/Derafsh-Vpn/tree/${{ github.sha }}\n🔒 حریم خصوصی — Privacy Policy: https://github.com/Soroushchq/Derafsh-Vpn/blob/main/PRIVACY.md"
+          file_glob: true
+          prerelease: true
+          overwrite: true

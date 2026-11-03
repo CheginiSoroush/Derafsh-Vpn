@@ -1,0 +1,3 @@
+Simplified settings: only the essentials remain (language, theme, speed display, confirm-remove, start on boot, system VPN shortcut)
+Removed dynamic color — the Derafsh brand theme is now always consistent
+"All" group now shown by default so auto-test and fastest-connect cover every built-in source

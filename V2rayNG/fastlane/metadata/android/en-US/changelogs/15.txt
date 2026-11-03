@@ -1,0 +1,2 @@
+Speed-test progress bar now shows the live percentage of configs tested, rolling forward like a loading screen
+Auto maintenance (subscription refresh + speed test) is now fully visible on the main screen, including which source is being refreshed
