@@ -20,12 +20,12 @@
 
 ## 📥 Download
 
-Grab the latest APK from [Releases](https://github.com/Soroushchq/Derafsh-Vpn/releases) or build it yourself with GitHub Actions (`Actions → Build Derafsh APK`).
+Grab the latest APK from [Releases](https://github.com/CheginiSoroush/Derafsh-Vpn/releases) or build it yourself with GitHub Actions (`Actions → Build Derafsh APK`).
 
 ## 🛠️ Build
 
 ```bash
-git clone --recurse-submodules https://github.com/Soroushchq/Derafsh-Vpn.git
+git clone --recurse-submodules https://github.com/CheginiSoroush/Derafsh-Vpn.git
 cd Derafsh-Vpn
 # open the V2rayNG/ folder in Android Studio, or:
 cd V2rayNG && ./gradlew assembleRelease

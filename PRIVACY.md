@@ -63,7 +63,7 @@
 
 ### ۸. تماس
 
-هر پرسشی درباره حریم خصوصی دارید، از طریق [Issues مخزن پروژه](https://github.com/Soroushchq/Derafsh-Vpn/issues) بپرسید.
+هر پرسشی درباره حریم خصوصی دارید، از طریق [Issues مخزن پروژه](https://github.com/CheginiSoroush/Derafsh-Vpn/issues) بپرسید.
 
 ---
 
@@ -126,4 +126,4 @@ If this policy changes, the new version is published at this address (the projec
 
 ### 8. Contact
 
-For any privacy question, please open an issue at the [project repository](https://github.com/Soroushchq/Derafsh-Vpn/issues).
+For any privacy question, please open an issue at the [project repository](https://github.com/CheginiSoroush/Derafsh-Vpn/issues).

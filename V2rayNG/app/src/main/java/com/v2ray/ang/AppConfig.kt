@@ -151,13 +151,13 @@ object AppConfig {
     const val GITHUB_RAW_URL = "https://raw.githubusercontent.com"
     const val GITHUB_DOWNLOAD_URL = "$GITHUB_URL/%s/releases/latest/download"
     const val ANDROID_PACKAGE_NAME_LIST_URL = "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
-    const val APP_URL = "$GITHUB_URL/Soroushchq/Derafsh-Vpn"
-    const val APP_API_URL = "https://api.github.com/repos/Soroushchq/Derafsh-Vpn/releases"
+    const val APP_URL = "$GITHUB_URL/CheginiSoroush/Derafsh-Vpn"
+    const val APP_API_URL = "https://api.github.com/repos/CheginiSoroush/Derafsh-Vpn/releases"
     const val APP_ISSUES_URL = "$APP_URL/issues"
     const val APP_WIKI_MODE = "$APP_URL/wiki/Mode"
-    const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/Soroushchq/Derafsh-Vpn/main/PRIVACY.md"
+    const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/CheginiSoroush/Derafsh-Vpn/main/PRIVACY.md"
     const val APP_PROMOTION_URL = "aHR0cHM6Ly9naXRodWIuY29tL1Nvcm91c2hjcS9EZXJhZnNoLVZwbg=="
-    const val TG_CHANNEL_URL = "https://github.com/Soroushchq/Derafsh-Vpn"
+    const val TG_CHANNEL_URL = "https://github.com/CheginiSoroush/Derafsh-Vpn"
 
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match signing/derafsh-release.jks — verify with: python3 tools/verify_sig.py <apk> */
@@ -173,7 +173,7 @@ object AppConfig {
     const val DERAFSH_SUB_URL = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
 
     /** Previous built-in sub URL; existing installs are migrated from it on startup. */
-    const val DERAFSH_LEGACY_SUB_URL = "https://raw.githubusercontent.com/Soroushchq/Derafsh-Vpn/sub/sub.txt"
+    const val DERAFSH_LEGACY_SUB_URL = "https://raw.githubusercontent.com/CheginiSoroush/Derafsh-Vpn/sub/sub.txt"
     const val PREF_DEFAULT_SUB_SEEDED = "pref_default_sub_seeded"
 
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
