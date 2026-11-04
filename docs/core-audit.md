@@ -316,3 +316,39 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 11 — 2026-11-04
+
+### Files reviewed
+- `fmt/WireguardFmt.kt` (132 lines) — full review of `parse` (URI path), `parseWireguardConfFile` (INI-style section parser) and `toUri`; downstream trace of the WG outbound block (`CoreOutboundBuilder` 265-293: secretKey/addresses/peers/reserved/remoteDNS/finalmask) + upstream diff.
+- `fmt/SocksFmt.kt` (57 lines) — **byte-identical to upstream**; full review + roundtrip proof.
+- `fmt/CustomFmt.kt` (26 lines) — **byte-identical to upstream**; full review of the raw-JSON path.
+- Helper contracts re-verified: `removeWhiteSpace` (defined on `String?` — null-safe, StringExt.kt:8), `Utils.parseInt` (toIntOrNull ?: default — never throws), `parseWireguardConfFile` containment at AngConfigManager:393-409 (try/catch, ProfileStorageException rethrown), `ProfileItem.getServerAddressAndPort` CUSTOM loopback fallback (ProfileItem.kt:85-88).
+
+### Upstream diff
+- `WireguardFmt.kt`: exactly **2 hunks**, both the same deliberate fork default: `remoteDNS = queryParam["dns"] ?: AppConfig.WIREGUARD_LOCAL_REMOTE_DNS` (and the conf-file equivalent) where upstream falls back to `""`. Pre-existing fork behavior (the fork presets WG remote DNS instead of leaving it empty) — same constant Run 1 repaired. NOT a bug; changing it would remove an intentional fork default. **No action.**
+- `SocksFmt.kt`, `CustomFmt.kt`: zero hunks.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | **Containment upgrade (revisits Run 1 #2)** | CoreConfigManager.kt:39-54, 60-84 | The top-level config-build entries (`getV2rayConfig`, speedtest variant) wrap the ENTIRE build in `try/catch(Exception)` → `ConfigResult(status=false, errorMessage=...)`. So the previously-deferred "convert() throws on malformed port" class (Run 1 #2) — and its new WG sibling below — lands in a GRACEFUL failure (toast / failed test), not a crash. Per-profile real-ping tests fail individually → pool sweep still works. | Re-verified: deferral is safe; no crash path. |
+| 2 | Edge (upstream quirk) | CoreOutboundBuilder:288 | WG `reserved` consumed via `map { it.trim().toInt() }` — malformed (`reserved=a,b,c` or overflow) throws NumberFormatException → caught by finding #1's top-level catch → graceful failure. In a user policy group, one malformed member fails the WHOLE group's config build (members convert in one build); in the pool, per-profile tests fail → sweep. Upstream-identical. | Noted (parity; contained by #1). |
+| 3 | Edge (upstream quirk) | WireguardFmt.parseWireguardConfFile:90 | IPv6 endpoint (`[2001:db8::1]:51820`) split on first `:` → garbage server/port (`server="[2001"`) → dead config, graceful failure at connect. IPv4 endpoints fine. No `removeSurrounding("[","]")` like the legacy SS regex has. Upstream-identical. | Noted (parity). |
+| 4 | CLEAN | WireguardFmt.toUri | `removeWhiteSpace()` is `String?.`-safe; `mtu!=null` skip re-defaults on re-import; `preSharedKey`/`dns`/`reserved` null-guards emit only set fields; `fm` roundtrips via `nullIfBlank`. Parse↔export consistent. | No action. |
+| 5 | CLEAN (roundtrip) | SocksFmt | No-auth export encodes `":"` → base64 `"Og"` → re-import decodes to `["",""]` → username/password = "" (harmless = no auth). User+pass roundtrip via limit=2 split. Guards: host empty / port ≤ 0 → null → line dropped. The `"${username}:null"` template edge requires username set + password null — unreachable from UI (both set together) and import (both set together). | No action. |
+| 6 | CLEAN | CustomFmt | `fromJson` null-tolerant → server/port null → CUSTOM loopback fallback (`ProfileItem.kt:85-88`) → remarks fall back to timestamp. Raw-JSON import cannot crash (caller try/catch, AngConfigManager:376-391). | No action. |
+| 7 | Info | WireguardFmt.parse:23 | WG URI without query (`wireguard://key@host:port`) → rejected (`rawQuery` null check) → line dropped. Portless URI → port "-1" (same class as TrojanFmt, Run 10 #1) → graceful failure via #1. Upstream-identical. | Noted (parity). |
+| 8 | Info | AngConfigManager:393 | Conf-file detection requires `startsWith("[Interface]") && contains("[Peer]")` — an [Interface]-only conf is silently not imported (return 0). Upstream-identical. | Noted (parity). |
+
+### Milestone
+- **The parse/import layer is now fully reviewed** (all 9 fmt parsers + FmtBase): Vmess, Vless, V2rayN, Trojan, Hysteria2, Shadowsocks, Socks, Wireguard, Custom. Verified end-to-end property: no parser can abort a batch import; worst case is one dropped line; malformed profiles that DO import fail gracefully at build time (top-level catch) and are swept from the pool by the ping cycle.
+
+### Next run starting point (Run 12)
+- **`handler/SettingsManager.kt` (682 lines)** — the settings→context bridge that feeds `CoreConfigContextBuilder` (DNS mode, routing rules, per-app proxy); highest-risk remaining unreviewed file. Then Run 13 = `util/HttpUtil.kt` (311, subscription fetch/timeouts) or `dto/V2rayConfig.kt` (470, JSON contract) — pick per risk.
+
+### Release
+- None this run (no code changes; docs-only commit).
