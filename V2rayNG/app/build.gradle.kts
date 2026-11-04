@@ -14,8 +14,8 @@ android {
         applicationId = "com.derafsh.vpn"
         minSdk = 24
         targetSdk = 37
-        versionCode = 33
-        versionName = "1.2.29"
+        versionCode = 34
+        versionName = "1.2.30"
 
         // Ad placement provider: "house" = first-party Derafsh promo surfaces (current);
         // "admob" = Google AdMob with the IDs below (enable when production IDs are ready).

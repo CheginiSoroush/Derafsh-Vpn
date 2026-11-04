@@ -494,7 +494,20 @@ object AngConfigManager {
         if (it.guid.startsWith(AppConfig.DERAFSH_POOL_CHUNK_PREFIX)) {
             return SubscriptionUpdateResult(skipCount = 1)
         }
-        return updateConfigViaSubChunked(it)
+        // Per-subscription containment (upstream parity): upstream wraps the whole per-sub
+        // body in try/catch so one malformed subscription — e.g. a scheme-less URL that
+        // passes UI validation (Patterns.WEB_URL) but throws MalformedURLException inside
+        // HttpUtil.toIdnUrl's java.net.URL() — fails alone as failureCount=1 and the rest
+        // of the updateAll fold keeps running. The chunked refactor kept a catch only for
+        // the lock-protected mutation phase, so a single bad subscription URL aborted the
+        // entire refresh cycle: every later subscription stayed un-refreshed and even the
+        // failure count was swallowed by updateConfigViaSubAll's outer catch.
+        return try {
+            updateConfigViaSubChunked(it)
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
+            SubscriptionUpdateResult(failureCount = 1)
+        }
     }
 
     /**

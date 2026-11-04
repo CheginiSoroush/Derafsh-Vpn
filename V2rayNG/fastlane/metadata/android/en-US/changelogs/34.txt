@@ -1,0 +1,2 @@
+- Fix: a single subscription with a malformed URL no longer aborts the whole "update all" refresh cycle — per-subscription error isolation restored (upstream parity); the affected subscription now fails alone and the rest keep updating
+- Hardening: pool refresh diagnostics unchanged; chunked import, test-result carry-over and selection re-anchor behavior untouched
