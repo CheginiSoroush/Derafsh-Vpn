@@ -150,3 +150,35 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 6 — 2026-11-04
+
+### Files reviewed
+- `handler/AngConfigManager.kt` **lines 458-870** (updateConfigViaSubAll 463, updateConfigViaSub 490, chunkGroupId/chunkGroupPrefixFor/chunkGroupsOf 504-514, fetchSubscriptionContent 524-578, updateConfigViaSubChunked 592-696 — the Derafsh pool-chunking core, snapshotFreshTestResults 706-725, configIdentityKey 734-748, removeInvalidServer 756-764, sweepUnhealthyPoolConfigs 778-805, sortByTestResultsForSub 812-826, importUrlAsSubscription 834-847, generateDescription 854-868) — full line-by-line review + upstream diff classification.
+- **Cross-checked MMKV contracts in `MmkvManager.kt`** to validate the chunked-refresh lifecycle: `saveServerProfiles` (308-385), `removeServer`/`removeServerViaSubid` (392-436), `removeServers` (444-461), `removeSubscription` (688-695), `encodeSubscription` (703-712), `encodeServerTestResult` (502-510).
+
+### Findings
+
+| # | Severity | Lines | Finding | Action |
+|---|---|---|---|---|
+| 1 | **CLEAN** | AngConfigManager 592-696 | **Chunked refresh lifecycle verified end-to-end, no orphan leak:** (a) `snapshotFreshTestResults` runs BEFORE any deletion (correct order); (b) old overflow groups removed via `removeSubscription` → which calls `removeServerViaSubid` → deletes profile/aff/raw payloads AND clears selected-server if removed; (c) `saveServerProfiles(append=false)` computes `replacedServers`, protects the selected profile via `ProfileReplacement.findSelectedReplacement`/`findRemovablePayloads` (incl. cross-group references) before `removeProfilePayloads`; (d) carry-over `encodeServerTestResult` writes fresh aff entries AFTER old payloads are removed — no overwrite risk. Mid-loop exception → lastUpdated not bumped → next refresh retries (self-healing). | No action. |
+| 2 | CLEAN (design) | 706-725 | Fresh-result snapshot **carries failures too** (`testDelayMillis != 0` includes < 0): deliberate — the post-test sweep (`sweepUnhealthyPoolConfigs`) then removes the failed re-imports; after sweep-removal the next refresh's snapshot can't carry them (gone from storage) → each dead config gets exactly one re-test per refresh cycle. Steady state = healthy pool, no unbounded re-testing. | No action (correct). |
+| 3 | Info | 734-748 | `configIdentityKey` omits reality pbk, fingerprint, alpn: two configs differing only in those share an identity → delay carried across. Same server+sni in practice → negligible drift. Heuristic documented. | Noted. |
+| 4 | Info | 504-514 | `chunkGroupsOf` prefix `derafsh_chunk_<primary>_` could theoretically match chunks of another primary whose guid starts with `<primary>_` — impossible in practice: primaries are UUIDs or DEFAULT_SUBSCRIPTION_ID (no underscore-suffix relationships). | Noted. |
+| 5 | Info (parity) | 834-847 | `importUrlAsSubscription`: `URI(fixIllegalUrl(url))` throws on a malformed URL → caught by `parseBatchSubscription`'s outer try → **remaining URLs of the batch are skipped**. Upstream-identical structure (function not in diff). | Noted (upstream parity). |
+| 6 | Info (parity) | 490-497 | Fork dropped upstream's defensive `TextUtils.isEmpty(it.guid)` check (guid is the MMKV key — always non-empty from `decodeSubscriptions`). Also dropped upstream's `LogUtil.i(TAG, url)` before fetch (privacy-positive). | No action. |
+| 7 | Info | 778-805 | `sweepUnhealthyPoolConfigs` scope: removeInvalidServer only for DEFAULT sub + its chunks; empty-chunk dissolution runs for ALL chunk groups (any primary) — harmless cleanup (user chunks are only empty between refresh phases). Comment "(the active source …)" refers to the built-in pool being the active source by default. | Noted. |
+| 8 | Info | 812-826 | `sortByTestResultsForSub`: untested (delay ≤ 0) sorted last via MAX_VALUE, `sortedBy` stable → original order kept within equal delays. | OK. |
+| 9 | Info | 854-868 | `generateDescription`: single-label hosts produce ".*** : port" (odd but harmless); IPv6 masked to first 2 groups. Upstream-identical. | Noted. |
+
+### Upstream comparison result
+- All Run-6-region code is either upstream-identical (`removeInvalidServer` logic — fork only added Int return, `sortByTestResultsForSub`, `importUrlAsSubscription`, `generateDescription`) or deliberate Derafsh features (chunked import, smart-test carry-over, sweep, onSubStart progress). **Zero fork regressions, zero missing upstream fixes.**
+- `fetchSubscriptionContent` is a verbatim extraction of upstream's inline fetch logic (proxy attempt → direct attempt → usage-info capture) — semantics preserved, captured twice-by-design (last successful response wins).
+
+### Next run starting point (Run 7)
+- Priority list exhausted (all 5 core/handler files reviewed). Second pass begins with the fork's most-touched supporting code: **`handler/MmkvManager.kt` (1074 lines) Run 7 = lines 1-540** (server profile storage: saveServerProfiles, ProfileReplacement contract, removeServers/subscription, test-result encoding) — Run 8 = lines 540-1074 (subscriptions, settings, routing rules storage) + `handler/ProfileReplacement.kt` (76 lines) full review. Run 9+ = fmt parsers (`VmessFmt` 177, `VlessFmt` 47, then Trojan/Hysteria2/SS/Socks/Wireguard) focusing on parse-roundtrip correctness for the 9k-config pool.
+
+### Release
+- None this run (no code changes; docs-only commit).
