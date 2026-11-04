@@ -164,6 +164,15 @@ class MainActivity : HelperBaseComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        // Hot re-open with the process still alive (e.g. the app sat in recents for days):
+        // refresh the silent update check so a release published meanwhile is still offered.
+        // UpdateManager throttles internally (30s), so this never double-fires the
+        // cold-open check launched in onCreate above.
+        lifecycleScope.launch { UpdateManager.checkForUpdate() }
+    }
+
     /**
      * Anti-tamper gate: warn on modified/rooted installs. Monetization hardening only —
      * the app remains fully functional for VPN use.

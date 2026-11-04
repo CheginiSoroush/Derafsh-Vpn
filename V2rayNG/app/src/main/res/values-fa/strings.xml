@@ -598,6 +598,7 @@
     <string name="update_install">همین حالا نصب کن</string>
     <string name="update_failed">دانلود به‌روزرسانی ناموفق بود. برای تلاش مجدد، دانلود را بزنید.</string>
     <string name="update_later">بعداً</string>
+    <string name="update_dialog_message">برای دریافت جدیدترین سرورها و اصلاحات، همین حالا دانلود و نصبش کنید.</string>
 
     <!-- وضعیت نگهداری در صفحهٔ اصلی (به‌روزرسانی اشتراک + تست سرعت) -->
     <string name="maint_title_updating">در حال دریافت سرورهای تازه…</string>

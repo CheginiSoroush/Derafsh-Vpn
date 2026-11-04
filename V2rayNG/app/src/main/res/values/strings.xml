@@ -599,6 +599,7 @@
     <string name="update_install">Install now</string>
     <string name="update_failed">Update download failed. Tap download to retry.</string>
     <string name="update_later">Later</string>
+    <string name="update_dialog_message">Download and install it now to get the latest servers and fixes.</string>
 
     <!-- Derafsh main-screen maintenance status (subscription refresh + speed test) -->
     <string name="maint_title_updating">Fetching fresh servers…</string>

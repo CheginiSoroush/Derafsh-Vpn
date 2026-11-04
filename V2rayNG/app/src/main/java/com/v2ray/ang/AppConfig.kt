@@ -167,6 +167,13 @@ object AppConfig {
     /** Latest release metadata used by the in-app auto-updater (first entry = newest, includes prereleases). */
     const val DERAFSH_UPDATE_API_URL = "$APP_API_URL?per_page=1"
 
+    /** Rate-limit-proof self-update fallback (used when the API above fails, e.g. the
+     *  60 req/hour/IP unauthenticated quota exhausted behind carrier-grade NAT): the
+     *  releases atom feed for the newest tag, then the per-tag expanded_assets fragment
+     *  for APK download paths. Both live on github.com and carry no API quota. */
+    const val DERAFSH_UPDATE_FEED_URL = "$APP_URL/releases.atom"
+    const val DERAFSH_UPDATE_ASSETS_URL = "$APP_URL/releases/expanded_assets"
+
     /**
      * Legacy single built-in source (primary of the built-in sources below; also used for
      * migration of old installs).

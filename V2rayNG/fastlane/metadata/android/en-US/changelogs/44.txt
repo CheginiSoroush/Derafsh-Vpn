@@ -1,0 +1,3 @@
+- Update check at app open is now fast (4s timeouts), so the prompt lands during the splash window on healthy networks, and the check re-runs on every app reopen — not just cold starts.
+- New rate-limit-proof fallback: when GitHub's api quota is exhausted (common on carrier networks), the check silently retries through github.com web endpoints, so the update notice still appears.
+- A new version is now announced with a proper popup at startup — one tap on "Download" starts the in-app update immediately.

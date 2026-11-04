@@ -298,6 +298,12 @@ fun MainScreen(
                 .padding(bottom = 12.dp),
         )
 
+        // One-shot prominent notice when the startup check found a newer release: the dialog
+        // pops over the freshly revealed screen ("Download" fires the in-app update right
+        // away, "Later" only closes it) while the persistent card above keeps the download
+        // reachable afterwards.
+        UpdateStartupDialog()
+
         SelectedServerCard(
             selectedRow = selectedRow,
             onClick = { showServerPicker = true },
@@ -825,6 +831,43 @@ private fun UpdateCard(
             else -> {}
         }
     }
+}
+
+/**
+ * Prominent one-shot message at app open when the startup check found a newer release:
+ * version in the title, a "Download" action that starts the in-app update immediately and
+ * a "Later" that only closes the dialog. The persistent [UpdateCard] banner stays visible
+ * either way, so the download remains one tap away after dismissal.
+ */
+@Composable
+private fun UpdateStartupDialog() {
+    val state by UpdateManager.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var dialogHandled by rememberSaveable { mutableStateOf(false) }
+
+    val available = state as? UpdateManager.UpdateState.Available ?: return
+    if (dialogHandled) return
+
+    AlertDialog(
+        onDismissRequest = { dialogHandled = true },
+        title = {
+            Text(stringResource(R.string.update_available, available.info.versionName))
+        },
+        text = { Text(stringResource(R.string.update_dialog_message)) },
+        confirmButton = {
+            TextButton(onClick = {
+                dialogHandled = true
+                UpdateManager.downloadUpdate(context)
+            }) {
+                Text(stringResource(R.string.update_download), fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { dialogHandled = true }) {
+                Text(stringResource(R.string.update_later))
+            }
+        },
+    )
 }
 
 @Composable

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import androidx.core.content.FileProvider
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
@@ -33,9 +34,15 @@ import java.util.concurrent.TimeUnit
  * progress reporting and hands it to the system package installer through FileProvider.
  *
  * - F-Droid flavor never self-updates (store policy).
- * - The check is silent: on private repos / offline it just resolves to no update.
- * - Releases are published as prereleases, so the list endpoint (`?per_page=1`) is used
- *   instead of `releases/latest`, which excludes them.
+ * - The check is silent and fast: 4s/6s timeouts so the prompt lands during the splash
+ *   window on healthy networks and fails quickly on dead ones; offline / private repo
+ *   simply resolves to no update.
+ * - Primary source is the api.github.com releases list (`?per_page=1`, newest first, so
+ *   prereleases are caught too). api.github.com caps unauthenticated traffic at 60
+ *   requests/hour/IP — routinely exhausted behind carrier-grade NAT (whole countries
+ *   behind a handful of IPs) — so on any API failure the check retries through the
+ *   quota-free github.com web endpoints: the releases atom feed for the newest tag,
+ *   then the per-tag `expanded_assets` fragment for the APK download path.
  */
 object UpdateManager {
 
@@ -63,9 +70,18 @@ object UpdateManager {
     /** Hard ceiling for a downloaded update APK (mirrors ZipUtil's archive budget). */
     private const val APP_DOWNLOAD_LIMIT_BYTES = 256L * 1024 * 1024
 
+    /** Minimum spacing between startup checks: onCreate and onStart both fire on a cold open. */
+    private const val CHECK_MIN_INTERVAL_MS = 30_000L
+
+    /** Atom feed entry links: .../releases/tag/v1.2.39 (served from github.com, no API quota). */
+    private val FEED_TAG_REGEX = Regex("""releases/tag/(v[^"&<\s]+)""")
+
+    /** expanded_assets fragment: href="/<owner>/<repo>/releases/download/<tag>/<file>.apk" */
+    private val FEED_ASSET_REGEX = Regex("""href="([^"]+releases/download/[^"]+\.apk)"""")
+
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(4, TimeUnit.SECONDS)
+        .readTimeout(6, TimeUnit.SECONDS)
         .build()
 
     private val downloadClient: OkHttpClient = OkHttpClient.Builder()
@@ -77,41 +93,138 @@ object UpdateManager {
     @Volatile
     private var pendingInfo: UpdateInfo? = null
 
+    /** [SystemClock.elapsedRealtime] of the last check start, backing [CHECK_MIN_INTERVAL_MS]. */
+    @Volatile
+    private var lastCheckAtMs = 0L
+
     /**
-     * Silently checks for a newer release. Safe to call on every app start; any failure
-     * (offline, private repo, rate limit) leaves the state at [UpdateState.Idle].
+     * Silently checks for a newer release. Safe to call on every app open (onCreate and
+     * onStart): the internal throttle collapses the cold-open double-fire and rate-limits
+     * hot re-opens; any failure (offline, rate limit, private repo) leaves the state at
+     * [UpdateState.Idle].
      */
-    suspend fun checkForUpdate() = withContext(Dispatchers.IO) {
-        if (BuildConfig.DISTRIBUTION == "F-Droid") return@withContext
+    suspend fun checkForUpdate() {
         val current = _state.value
-        if (current is UpdateState.Downloading || current is UpdateState.Ready) return@withContext
+        if (current is UpdateState.Downloading || current is UpdateState.Ready) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastCheckAtMs < CHECK_MIN_INTERVAL_MS) return
+        lastCheckAtMs = now
 
-        try {
-            val request = Request.Builder()
-                .url(AppConfig.DERAFSH_UPDATE_API_URL)
-                .header("Accept", "application/vnd.github+json")
-                .header("User-Agent", "Derafsh-VPN")
-                .build()
+        withContext(Dispatchers.IO) {
+            if (BuildConfig.DISTRIBUTION == "F-Droid") return@withContext
 
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    LogUtil.i(AppConfig.TAG, "Update check skipped: HTTP ${response.code}")
-                    return@withContext
-                }
-                val body = response.body?.string() ?: return@withContext
-                val info = parseLatestRelease(JSONArray(body)) ?: return@withContext
-                if (!isNewerVersion(info.versionName, BuildConfig.VERSION_NAME)) return@withContext
-
-                pendingInfo = info
-                _state.value = UpdateState.Available(info)
-                LogUtil.i(
-                    AppConfig.TAG,
-                    "Update available: ${info.versionName} (${info.tag}) — ${info.apkUrl}"
-                )
+            var info: UpdateInfo? = null
+            try {
+                info = fetchLatestViaApi()
+            } catch (e: Exception) {
+                LogUtil.w(AppConfig.TAG, "Update check via API failed, falling back to feed", e)
             }
-        } catch (e: Exception) {
-            LogUtil.w(AppConfig.TAG, "Update check failed", e)
+            if (info == null) {
+                try {
+                    info = fetchLatestViaFeed()
+                } catch (e: Exception) {
+                    LogUtil.w(AppConfig.TAG, "Update check via feed failed", e)
+                }
+            }
+            if (info == null || !isNewerVersion(info.versionName, BuildConfig.VERSION_NAME)) {
+                return@withContext
+            }
+
+            pendingInfo = info
+            _state.value = UpdateState.Available(info)
+            LogUtil.i(
+                AppConfig.TAG,
+                "Update available: ${info.versionName} (${info.tag}) — ${info.apkUrl}"
+            )
         }
+    }
+
+    /**
+     * API path — rich metadata (exact asset size) in one request, but subject to the
+     * api.github.com unauthenticated quota (see class doc).
+     */
+    private fun fetchLatestViaApi(): UpdateInfo? {
+        val request = Request.Builder()
+            .url(AppConfig.DERAFSH_UPDATE_API_URL)
+            .header("Accept", "application/vnd.github+json")
+            .header("User-Agent", "Derafsh-VPN")
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                LogUtil.i(AppConfig.TAG, "Update API skipped: HTTP ${response.code}")
+                return null
+            }
+            val body = response.body?.string() ?: return null
+            return parseLatestRelease(JSONArray(body))
+        }
+    }
+
+    /**
+     * Rate-limit-proof fallback through github.com web endpoints instead of api.github.com:
+     * the releases atom feed names every published tag (newest entries first), then the
+     * per-tag `expanded_assets` fragment lists the APK download paths. Asset size is
+     * unknown here — the downloader falls back to the HTTP Content-Length.
+     */
+    private fun fetchLatestViaFeed(): UpdateInfo? {
+        val tag = newestTagFromFeed(fetchBody(AppConfig.DERAFSH_UPDATE_FEED_URL) ?: return null)
+            ?: return null
+        val versionName = versionIn(tag)
+        if (versionName.isBlank()) return null
+        val assetsHtml = fetchBody("${AppConfig.DERAFSH_UPDATE_ASSETS_URL}/$tag") ?: return null
+        val apkUrl = pickFeedAssetUrl(assetsHtml) ?: return null
+        return UpdateInfo(versionName = versionName, tag = tag, apkUrl = apkUrl, sizeBytes = 0L)
+    }
+
+    /** GET helper shared by the feed path; any non-2xx yields null (the check stays silent). */
+    private fun fetchBody(url: String): String? {
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", "Derafsh-VPN")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                LogUtil.i(AppConfig.TAG, "Update check skipped: HTTP ${response.code} ($url)")
+                return null
+            }
+            return response.body?.string()
+        }
+    }
+
+    /**
+     * Picks the newest valid tag mentioned in the feed. Entries are ordered by update time
+     * and release notes can reference older tags, so every tag is a candidate and the max
+     * version wins (a stale note can never trigger a downgrade or a phantom prompt).
+     */
+    private fun newestTagFromFeed(feed: String): String? {
+        val tags = FEED_TAG_REGEX.findAll(feed)
+            .map { it.groupValues[1] }
+            .distinct()
+            .toList()
+        if (tags.isEmpty()) return null
+        return tags.reduce { best, next ->
+            if (isNewerVersion(versionIn(next), versionIn(best))) next else best
+        }
+    }
+
+    /** "v1.2.39-build.7" -> "1.2.39" — the form the version comparator expects. */
+    private fun versionIn(tag: String): String = tag.removePrefix("v").substringBefore("-build.")
+
+    /** Chooses the APK download path from the expanded_assets fragment: ABI → universal → first, never fdroid. */
+    private fun pickFeedAssetUrl(assetsHtml: String): String? {
+        val paths = FEED_ASSET_REGEX.findAll(assetsHtml)
+            .map { it.groupValues[1] }
+            .distinct()
+            .filter { !it.contains("fdroid", ignoreCase = true) }
+            .toList()
+        if (paths.isEmpty()) return null
+        val deviceAbi = Build.SUPPORTED_ABIS.firstOrNull().orEmpty()
+        val chosen = paths.firstOrNull { it.substringAfterLast('/').contains(deviceAbi, ignoreCase = true) }
+            ?: paths.firstOrNull { it.substringAfterLast('/').contains("universal", ignoreCase = true) }
+            ?: paths.first()
+        // hrefs are repo-rooted ("/CheginiSoroush/Derafsh-Vpn/releases/download/…"), so the
+        // scheme+host is the only prefix needed.
+        return if (chosen.startsWith("http")) chosen else AppConfig.GITHUB_URL + chosen
     }
 
     /** Starts the APK download for the available update, reporting progress via [state]. */
@@ -298,7 +411,7 @@ object UpdateManager {
         }
     }
 
-    /** Numeric semantic-version compare, ignoring any -build.N suffix. */
+    /** Numeric semantic-version compare of two version names, ignoring any -build.N suffix. */
     private fun isNewerVersion(remote: String, local: String): Boolean {
         fun parts(version: String): List<Int> =
             version.split("-").first().split(".")
