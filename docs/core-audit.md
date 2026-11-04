@@ -1119,3 +1119,33 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 ### Next run starting point (Run 38) — periodic mode, rotation continues
 - **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift re-check (now including `fmt/WireguardFmt.kt` in the evergreen set — 5 files total).
 - **(c) Depth rotation**: `dto/entities/` package batch diff vs upstream (ProfileItem.kt — the field hub every writer (ServerUiState.toProfileItem, all Fmt parsers, AngConfigManager) funnels through — plus sibling entities), then re-read ProfileItem's volatile-field/copy semantics against Run 29's dedupe finding.
+
+---
+
+## Run 38 — 2026-11-05 (periodic mode)
+
+### (a) New-code scan — PASS
+- `git log c52baae..HEAD` non-docs paths: EMPTY (only audit docs commits). Fork code also unchanged since Run 37's scan (`git diff 73d57e2..HEAD -- V2rayNG/app/src/main/java/` empty).
+
+### (b) Evergreen drift re-check (5 files) — PASS, signature unchanged
+- Re-fetched upstream raw HEAD: `CoreVpnService` 372 (4 raw hunks) / `UpdateManager` **404 (still fork-only)** / `AngConfigManager` 657 (30 raw hunks) / `MainViewModel` 969 (40 raw hunks) / `WireguardFmt` 132 (2 raw hunks) — **identical signature to Run 37's verified state**; with fork side proven frozen, deltas remain exactly the documented set. Zero drift.
+
+### (c) Depth rotation: `dto/entities/` batch (10 files, 221 lines) + ProfileItem re-read — PASS
+- **9 of 10 byte-identical to upstream HEAD**: AssetUrlCache, AssetUrlItem, ProfileItem, RulesetItem, ServersCache, SubscriptionCache, SubscriptionItem, SubscriptionUsageInfo, WebDavConfig.
+- **`ServerAffiliationInfo.kt`: the single documented Derafsh hunk** — adds `testedAt: Long = 0L` + explanatory KDoc to upstream's `data class ServerAffiliationInfo(var testDelayMillis: Long = 0L)`. This is the storage side of the test-freshness feature (`DERAFSH_TEST_FRESH_MS`), already documented in the MmkvManager run ("`encodeServerTestResult`+`testedAt` (Derafsh)", commit `c70e40d`). Deliberate feature, not a bug.
+- **`ProfileItem.kt` (113) re-read against its two verified consumers**: `duplicateIdentity()` (L105-112) neutralizes exactly the 5 non-connection metadata fields via `copy()` — data-class `equals`/`hashCode` on the copy therefore covers configType + every connection-affecting field (policyGroup*/proxyChainProfiles correctly INCLUDED — groups differing in behavior are not duplicates); copy is never mutated after insertion into Run 29's dedupe `HashSet` (KDoc contract "caller must not modify" honored). `getServerAddressAndPort()` (L84-89): CUSTOM-empty-server → loopback:PORT_SOCKS display, bare-IPv6 bracketing via `Utils.getIpv6Address`, port always present post-validation. `copy()`-preservation is what lets Run 36's editors keep `subscriptionId`/`policyGroup*`/`proxyChainProfiles` while overwriting form fields. `@Deprecated pinSHA256` retained for legacy-JSON round-trip. No null-unsafety found beyond upstream-shared interpolation edge (`serverPort` null → "null" display only pre-validation).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | PASS (no drift) | evergreen ×5 | Same verified signature as Run 37; both sides frozen. | No action. |
+| 2 | CLEAN (deliberate) | ServerAffiliationInfo.kt:3-14 | `testedAt` freshness field = documented Derafsh feature (commit `c70e40d`); upstream byte-diff is exactly this one hunk. | No action. |
+| 3 | CLEAN (contracts) | ProfileItem.kt:105-112 | Dedupe identity copy semantics correct; consumer contracts (Run 29 dedupe, Run 36 editors' copy-preservation) hold. | No action. |
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 39) — periodic mode, rotation continues
+- **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift x5.
+- **(c) Depth rotation**: **`core/` package batch re-verification** — the task's priority surface: `CoreOutboundBuilder.kt` (outbound JSON correctness: VLESS/Trojan/SS/Hysteria2/TUIC, Reality, XTLS-Vision, headers), `CoreConfigContextBuilder.kt`, `CoreServiceManager.kt`, `LauncherManager.kt`, `CoreConfigManager.kt`, `CoreNativeManager.kt` — batch diff each vs upstream raw HEAD, then spot re-read the Reality/XTLS field-emission paths (where Run 2's DNS-leak fix and Run 5's WG outbound block live).
