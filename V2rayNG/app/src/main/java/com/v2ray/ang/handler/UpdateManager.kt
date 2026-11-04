@@ -60,6 +60,9 @@ object UpdateManager {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    /** Hard ceiling for a downloaded update APK (mirrors ZipUtil's archive budget). */
+    private const val APP_DOWNLOAD_LIMIT_BYTES = 256L * 1024 * 1024
+
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
@@ -114,10 +117,13 @@ object UpdateManager {
     /** Starts the APK download for the available update, reporting progress via [state]. */
     fun downloadUpdate(context: Context) {
         val info = pendingInfo ?: return
+        // Check-and-set atomically on the caller thread: setting Downloading inside the launched
+        // coroutine instead let a rapid double-tap pass this guard twice and start two concurrent
+        // downloads racing on the same destination file (each also wiping the other's partial).
         if (_state.value is UpdateState.Downloading) return
+        _state.value = UpdateState.Downloading(0)
 
         scope.launch {
-            _state.value = UpdateState.Downloading(0)
             try {
                 val dir = File(context.cacheDir, "update").apply { mkdirs() }
                 dir.listFiles()?.forEach { it.delete() }
@@ -134,6 +140,10 @@ object UpdateManager {
                     }
                     val source = response.body ?: throw IllegalStateException("Empty body")
                     val total = info.sizeBytes.takeIf { it > 0 } ?: source.contentLength()
+                    // Size caps in the same threat model as the signature gate (compromised
+                    // release channel): never accept more than the declared asset size, and
+                    // never more than the app-wide 256 MiB budget (mirrors ZipUtil).
+                    val sizeLimit = if (total > 0) minOf(total, APP_DOWNLOAD_LIMIT_BYTES) else APP_DOWNLOAD_LIMIT_BYTES
                     var done = 0L
                     var lastPercent = -1
 
@@ -143,8 +153,11 @@ object UpdateManager {
                             while (true) {
                                 val read = input.read(buffer)
                                 if (read == -1) break
-                                output.write(buffer, 0, read)
                                 done += read
+                                if (done > sizeLimit) {
+                                    throw IllegalStateException("Download exceeds expected size ($done > $sizeLimit)")
+                                }
+                                output.write(buffer, 0, read)
                                 if (total > 0) {
                                     val percent = ((done * 100) / total).toInt().coerceIn(0, 100)
                                     if (percent != lastPercent) {

@@ -1,0 +1,2 @@
+- Fix: a rapid double-tap on "update" could start two concurrent downloads racing on the same APK file (each deleting the other's partial file mid-write); the download state is now set atomically so only one download can ever run
+- Hardening: downloaded update APKs are now size-capped — a download is aborted if it exceeds the release's declared asset size or the 256 MiB app-wide limit, closing the disk-fill gap in the compromised-channel scenario the signature check already guards against
