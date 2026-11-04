@@ -709,3 +709,32 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 24)
 - **`handler/NotificationManager.kt` (298 lines — notification channels/actions, PendingIntent immutability, action routing) + `helper/MessageHelper.kt` (the sendMsg2* cross-process message family — startForegroundService contracts, receiver intents)** as one logical flow. Then Run 25 = `ui/` ad surfaces (`ui/compose/HouseAds.kt` second pass, AdsManager banner providers, TapsellAds) — pick per risk.
+
+---
+
+## Run 24 — 2026-11-04
+
+### Files reviewed
+- **`handler/NotificationManager.kt` (298 lines)** — foreground notification + speed ticker: `showNotification` (FLAG_IMMUTABLE|FLAG_UPDATE_CURRENT PendingIntents, stop/restart broadcasts pinned to ANG_PACKAGE, channel via NotificationHelper IMPORTANCE_LOW + VISIBILITY_PRIVATE, `startForeground(1, …)`), `ensureForeground` (duplicate-startForegroundService contract fulfillment, Run 18 call site), `cancelNotification` (stopForeground REMOVE + builder/job/manager reset), `startSpeedNotification`/`stopSpeedNotification` (3s loop on Dispatchers.IO, job stored/cancellable), `updateSpeedNotificationOnce` (interval-skip guard, delta→speed division by ≥3.0s, zero-speed suppression `!zeroSpeed || !lastZeroSpeed`, TAG_DIRECT vs non-blocked accumulation), `appendSpeedString` (cosmetic tab alignment), `updateNotification` (icon switch at 3000B threshold, BigTextStyle, notify).
+- **`helper/MessageHelper.kt` (169 lines)** — the sendMsg2* family: `sendMsg2Service` / `sendMsg2UI` (package-scoped broadcasts), `sendMsg2ServiceForResult` (ordered broadcast, initial RESULT_CANCELED → onResult(false) when no daemon handles it, try/catch → false), `sendMsg2TestService` (START → startForegroundService on O+ matching CoreTestService's per-start startForeground [Run 21]; CANCEL → stopService with do-not-wake comment; START failure → sends MSG_MEASURE_CONFIG_CANCEL to UI), `sendMsg2SubscriptionService` (same shape; CANCEL → stopService), `messageIntent` (package always set, key/content extras).
+- Contract cross-check: `CoreServiceManager.queryAllOutboundTrafficStats` (354-380) — the `isRunning()` early-return ("stats manager gone once the core stops") is upstream-identical (upstream 286-288); payload parse is fully defensive (blank/short/non-numeric entries skipped). The speed loop's delta-per-query contract is established by the identical upstream division.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | showNotification PendingIntent set | All three PendingIntents FLAG_IMMUTABLE; broadcast intents carry `package` = ANG_PACKAGE (cannot be intercepted by other apps); request codes distinct (0/1/2) so stop and restart don't collide under FLAG_UPDATE_CURRENT. `startForeground(id, mBuilder?.build())` — builder is non-null by construction (assigned the line above); the `?.` is vestigial, not a null-notification path. | No action. |
+| 2 | CLEAN (positive divergence) | showNotification:96-99 + stopSpeedNotification:152 | Fork = upstream + 2 hunks: (a) **brand-only notification** — upstream publishes `currentConfig?.remarks` (the server name/IP) as the notification title; the fork deliberately shows app name + "Connected" so lockscreen/shade never leaks server identity (matches VISIBILITY_PRIVATE channel). (b) stopSpeedNotification resets text to "Connected" instead of upstream's empty string. Both intentional improvements; `currentConfig` param retained for caller-signature parity. | No action (keep). |
+| 3 | CLEAN | Speed loop lifecycle | Job stored → cancelNotification/stopSpeedNotification cancel it; in-flight iteration after cancel is contained (updateNotification no-ops when mBuilder==null; next isActive check exits); showNotification resets lastQueryTime so the first post-show round is skipped, not mis-divided; zero-speed suppression updates exactly one final 0.00 round then goes silent. | No action. |
+| 4 | Info (upstream parity) | startSpeedNotification:52 | `CoroutineScope(Dispatchers.IO).launch` — a fresh scope per start whose only handle is the Job (cancel works, scope leak is none — GC'd with the job). An exception thrown inside the loop (JNI queryStats) would be uncaught → crash; upstream-shared shape and the JNI call returns a plain string (no realistic throw path), further guarded by the isRunning() empty-list return. | Noted. |
+| 5 | Info (upstream parity) | lastQueryTime | Long written from main (showNotification) and the IO loop without @Volatile — theoretical torn read on 32-bit only; worst case one skipped/double-counted speed round, self-corrects. Upstream-identical. | Noted. |
+| 6 | CLEAN | MessageHelper (all) | Ordered-broadcast result receiver uses the platform form correctly (initial code RESULT_CANCELED = "no daemon" reaching MainRepository's MeasureDelayCancelled path); every send wrapped in try/catch; test-service START failure actively closes the UI wait with MSG_MEASURE_CONFIG_CANCEL; the foreground-service wake contracts match the audited per-start startForeground in both ":tasks" services (Run 21). Serializable extras cross-process (Intent parcels them) — in production since v1.2.25. | No action. |
+
+### Upstream comparison result
+- `MessageHelper.kt`: **byte-identical to upstream HEAD**. `NotificationManager.kt`: fork = upstream + **2 intentional hunks** (privacy brand-only content; non-empty text reset) — no missing upstream fixes. `CoreServiceManager.queryAllOutboundTrafficStats` guard is upstream-identical.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 25)
+- **`ui/` ad surfaces**: `ui/compose/HouseAds.kt` (second pass), `handler/AdsManager.kt` banner/interstitial providers, `handler/TapsellAds.kt` (47 lines) — the monetization flow as one logical sweep (Ad lifecycle leaks, thread-safety of ad callbacks, session-gating logic). Then Run 26 = leftover small handlers (`AppLocaleManager`, `SettingsChangeManager`, `OrphanProfileCleaner`, `ProfileReplacement` re-check) or `ui/` remaining viewmodels — pick per risk.
