@@ -799,3 +799,31 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 27)
 - **`ui/` viewmodels — the last uncovered layer with real logic: `ui/subscription/SubSettingViewModel` / `ui/profile/ProfileViewModel` etc. (coroutine-heavy surfaces: settings IO, MMKV writes, activity-scoped scopes)** — pick the 2-3 largest per risk. Then Run 28 = upstream-drift re-scan: re-diff the three fork-fixed files (`CoreVpnService.kt`, `UpdateManager.kt`, `AngConfigManager.kt`) + the upstream-changed natives against upstream HEAD to catch post-v1.2.25 upstream fixes worth adopting.
+
+---
+
+## Run 27 — 2026-11-04
+
+### Files reviewed (ui/ viewmodels, trio 1 of 2)
+- **`ui/backup/BackupViewModel.kt` (224 lines)** — WebDAV config StateFlow + events; `cleanupProfileStorage` (IO + fail-closed "skipped" toast surfaced to the user when a group index is undecodable), `shareBackup`/`prepareBackupForUri` (backup-to-cache → event), `backupViaWebDav`/`restoreViaWebDav` (fresh config decode per call, temp file deleted in finally on both paths), `backupConfigurationToCache` (MMKV.backupAllToDirectory → zip → **plaintext MMKV folder + partial zip deleted immediately** — credentials note in-code), `performRestore` (withContext(IO), nanoTime-unique restore dir, ZipUtil unzip [128/256MiB budgets audited Run 6], restoreAllFromDirectory, WebDAV cache re-sync on success, makeSetupGroupTab + makeRestartService, finally deleteRecursively).
+- **`ui/perappproxy/PerAppProxyViewModel.kt` (266 lines)` — blacklist StateFlow (persisted on change), master switches (persist-on-change), `loadApps` (pre-set loading flag before launch, CancellationException rethrow, IO hop for PackageManager scan), Collator sort (selected-first → non-system-first → name), bulk actions (select-all/invert/auto-import → `enablePerAppProxyAndRestart`), `selectProxyAppAuto` (direct fetch → proxied fallback, same pattern as fetchSubscriptionContent), `applyProxyAppList` (assets fallback, AppSelection.fromProxyList on Default, CancellationException rethrow).
+- **`ui/base/BaseViewModel.kt` (128 lines)` — viewModelScope contract: launchLoading (finally-resets isLoading), event Channel (RENDEZVOUS, send suspends until collected — cancelled with viewModelScope on clear), localizedContext via AppLocaleManager (Run 26-verified).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (positive divergences ×3) | BackupViewModel vs upstream | Fork = upstream + 3 hunks, all improvements: (a) `backupViaWebDav`/`restoreViaWebDav` decode the WebDAV config FRESH from MMKV instead of the cached StateFlow (a restore overwrites the saved config after caching — the stale value would upload/restore with wrong credentials), (b) the plaintext MMKV backup folder (credentials included) is deleted immediately after zipping + partial zip removed on failure — upstream leaves the folder in cacheDir indefinitely, (c) `_webDavConfig` re-synced after a successful restore so the dialog reflects restored values. | No action (keep). |
+| 2 | Info (upstream-shared) | backupConfigurationToCache call sites | The local backup path (MMKV native copy + folder zip + deleteRecursively) runs on the Main dispatcher inside launchLoading — no IO hop, unlike `performRestore` which is explicitly IO. Upstream has the identical shape (diff confirms zero hunks in shareBackup/prepareBackupForUri/backupViaWebDav). Bounded impact: MMKV stores are small (native bulk copy) and the zip is of a few small files; worst case a short jank frame on slow flash. The heavy legs (WebDAV upload/download, unzip/restore) ARE on IO. | Noted. |
+| 3 | CLEAN | BackupViewModel temp hygiene | Every temp artifact (backup zip on WebDAV path, downloaded restore zip, restore folder) is deleted in finally — no cache accumulation even on failure; unique names (timestamp/nanoTime) prevent concurrent-run collisions. Restore of an untrusted zip is bounded by ZipUtil's budgets (Run 6). | No action. |
+| 4 | CLEAN | PerAppProxyViewModel (all) | The master-switch persists without makeRestartService — upstream-identical (byte-equal diff); the bulk paths DO set the flag; both are coherent with upstream's restart contract (SettingsActivity path covers the switch). Loading flag set synchronously BEFORE launch (no TOCTOU window, unlike the Run 19 TOCTOU class); CancellationException correctly rethrown in both coroutine bodies; fromProxyList/asset read properly dispatched (Default/IO). | No action. |
+| 5 | Info (benign) | BaseViewModel.launchLoading | Not serialized — two concurrent launchLoading calls toggle the shared isLoading independently (spinner can drop while the second task still runs, then re-set false again). All current callers are user-action-gated. RENDEZVOUS Channel send suspends if no collector — freed by viewModelScope cancellation on VM clear. Upstream-identical. | Noted. |
+
+### Upstream comparison result
+- `PerAppProxyViewModel.kt`, `BaseViewModel.kt`: **byte-identical to upstream HEAD**. `BackupViewModel.kt`: fork = upstream + **3 intentional hardening hunks** (stale-config fix, plaintext-artifact hygiene, post-restore re-sync). No missing upstream fixes.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 28)
+- **`ui/main/MainViewModel.kt` (1373 lines) — dedicated deep pass, part 1**: service-state collection, message/receiver wiring, start/stop/restart flows, and the sub-refresh entry points (everything up to and including the import/QR/clipboard flows). Run 29 = part 2 (remaining flows + settings/speedtest consumers) + full upstream diff of the file. Then Run 30 = upstream-drift re-scan of the three fork-fixed files (CoreVpnService/UpdateManager/AngConfigManager) against upstream HEAD.
