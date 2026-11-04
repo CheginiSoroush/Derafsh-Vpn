@@ -730,10 +730,14 @@ object AngConfigManager {
                         profiles = savedProfiles,
                         rawConfigs = emptyMap(),
                         subscriptionId = subId,
-                        // The built-in pool's previous generation is retired explicitly
-                        // above; the group index it shares with user content is never
-                        // rebuilt wholesale.
-                        append = !isBuiltinPool,
+                        // The built-in pool APPENDS: its previous generation is retired
+                        // explicitly above, so the default index shared with user content is
+                        // only ever mutated — never rebuilt wholesale (a rebuild keeps only
+                        // group configs and would delete every manually imported config).
+                        // User subscriptions REPLACE (upstream semantics): their list is
+                        // exclusive to them, so append=false retires exactly the configs the
+                        // refreshed payload replaces.
+                        append = isBuiltinPool,
                     )
                     committedProfiles.putAll(savedProfiles)
                     // Hand the old generation's fresh results to the replacement profiles so
