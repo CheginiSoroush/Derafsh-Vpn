@@ -51,6 +51,11 @@ object MmkvManager {
     private const val KEY_SUB_IDS = "SUB_IDS"
     private const val KEY_WEBDAV_CONFIG = "WEBDAV_CONFIG"
 
+    /** Guid set (JSON array) written by the last successful built-in-pool refresh. The
+     *  pool's group index is shared with user content (manual imports, policy groups),
+     *  so the refresh retires exactly these guids instead of rebuilding the index. */
+    private const val KEY_POOL_GENERATION = "POOL_GENERATION"
+
     private val recoveryHandler = object : MMKVHandler {
         override fun onMMKVCRCCheckFail(mmapID: String) =
             recoverFromStorageError(mmapID, "CRC check")
@@ -328,11 +333,28 @@ object MmkvManager {
             } else {
                 null
             }
-            val replacementSelection = ProfileReplacement.findSelectedReplacement(
-                profiles = profiles,
-                currentSelection = previousSelection,
-                selectedProfile = selectedProfile,
-            )
+
+            val serverList = if (append) {
+                decodeServerList(subscriptionId)
+            } else {
+                replacedServers.filter { guid ->
+                    decodeServerConfig(guid)?.configType?.isGroupType() == true
+                }.toMutableList()
+            }
+            // A selection that survives this commit (e.g. a group config kept by the
+            // rebuild) must stay selected: findSelectedReplacement would otherwise
+            // re-anchor the selection onto an unrelated profile of the new batch via
+            // its first-profile fallback, silently switching the user away from the
+            // config (or policy group) they had chosen.
+            val replacementSelection = if (previousSelection != null && previousSelection in serverList) {
+                null
+            } else {
+                ProfileReplacement.findSelectedReplacement(
+                    profiles = profiles,
+                    currentSelection = previousSelection,
+                    selectedProfile = selectedProfile,
+                )
+            }
 
             profiles.forEach { (guid, profile) ->
                 requireStorageWrite(
@@ -347,13 +369,6 @@ object MmkvManager {
                 }
             }
 
-            val serverList = if (append) {
-                decodeServerList(subscriptionId)
-            } else {
-                replacedServers.filter { guid ->
-                    decodeServerConfig(guid)?.configType?.isGroupType() == true
-                }.toMutableList()
-            }
             val indexedServers = serverList.toHashSet()
             profiles.keys.forEach { guid ->
                 if (indexedServers.add(guid)) {
@@ -458,6 +473,64 @@ object MmkvManager {
             serverAffStorage.remove(guid)
             serverRawStorage.remove(guid)
         }
+    }
+
+    /**
+     * Removes server profiles everywhere they can appear: their index entry in every
+     * group, all payload stores, and the selected-server pointer when it points at one
+     * of them.
+     *
+     * Unlike [removeServers] this is not scoped to one subscription — used by the
+     * built-in-pool refresh to retire exactly the previous pool generation without
+     * touching anything else that shares the group index (user groups, manually
+     * imported configs).
+     *
+     * @param guids The server GUIDs to retire.
+     */
+    internal fun removeServerProfiles(guids: Collection<String>) {
+        if (guids.isEmpty()) return
+        val targets = guids.toSet()
+        withProfileIndexLock {
+            mainStorage.allKeys()?.forEach { key ->
+                if (!key.startsWith(KEY_SUB_SERVER_PREFIX)) return@forEach
+                val list = mainStorage.decodeString(key)
+                    ?.let { JsonUtil.fromJsonSafe(it, Array<String>::class.java) }
+                    ?.toMutableList()
+                if (list != null && list.removeAll(targets)) {
+                    requireStorageWrite(
+                        mainStorage.encode(key, JsonUtil.toJson(list)),
+                        "Failed to update group index while retiring profiles",
+                    )
+                }
+            }
+            getSelectServer()?.let { selection ->
+                if (selection in targets) {
+                    mainStorage.remove(KEY_SELECTED_SERVER)
+                }
+            }
+            removeProfilePayloads(targets)
+        }
+    }
+
+    /**
+     * Decodes the guid set written by the last successful built-in-pool refresh.
+     *
+     * @return The retired-on-next-refresh guid set, or an empty set before the first
+     * recorded refresh.
+     */
+    fun decodePoolGeneration(): Set<String> {
+        val json = settingsStorage.decodeString(KEY_POOL_GENERATION) ?: return emptySet()
+        return JsonUtil.fromJsonSafe(json, Array<String>::class.java)?.toSet() ?: emptySet()
+    }
+
+    /**
+     * Records the guid set of the current built-in-pool generation so the next refresh
+     * can retire exactly these profiles.
+     *
+     * @param guids The guid set of the freshly imported pool generation.
+     */
+    fun encodePoolGeneration(guids: Collection<String>) {
+        settingsStorage.encode(KEY_POOL_GENERATION, JsonUtil.toJson(guids.toSortedSet().toTypedArray()))
     }
 
     /**

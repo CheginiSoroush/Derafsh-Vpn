@@ -12,6 +12,7 @@ import com.v2ray.ang.dto.entities.SubscriptionCache
 import com.v2ray.ang.dto.entities.SubscriptionItem
 import com.v2ray.ang.dto.entities.SubscriptionUsageInfo
 import com.v2ray.ang.enums.EConfigType
+import com.v2ray.ang.extension.isGroupType
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.fmt.CustomFmt
 import com.v2ray.ang.fmt.Hysteria2Fmt
@@ -31,6 +32,14 @@ import okhttp3.Headers
 import java.net.URI
 
 object AngConfigManager {
+
+    /**
+     * Serializes subscription refreshes within the process: the built-in pool's
+     * generation-based replacement is only correct when two refreshes of the same
+     * subscription (4-hourly auto update, manual pull, source switch) cannot
+     * interleave their fetch/commit/retire phases.
+     */
+    private val subscriptionUpdateLock = Any()
 
     private data class ParsedProfile(
         val profile: ProfileItem,
@@ -590,108 +599,171 @@ object AngConfigManager {
      * skipped by [updateConfigViaSub] and [updateConfigViaSubAll].
      */
     private fun updateConfigViaSubChunked(it: SubscriptionCache): SubscriptionUpdateResult {
-        try {
-            if (!it.subscription.enabled) {
-                return SubscriptionUpdateResult(skipCount = 1)
-            }
-            if (TextUtils.isEmpty(it.subscription.remarks)
-                || TextUtils.isEmpty(it.subscription.url)
-            ) {
-                return SubscriptionUpdateResult(skipCount = 1)
-            }
+        synchronized(subscriptionUpdateLock) {
+            return try {
+                if (!it.subscription.enabled) {
+                    return SubscriptionUpdateResult(skipCount = 1)
+                }
+                if (TextUtils.isEmpty(it.subscription.remarks)
+                    || TextUtils.isEmpty(it.subscription.url)
+                ) {
+                    return SubscriptionUpdateResult(skipCount = 1)
+                }
 
-            val url = HttpUtil.toIdnUrl(it.subscription.url)
-            if (!Utils.isValidUrl(url)) {
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
-            if (!it.subscription.allowInsecureUrl && !Utils.isValidSubUrl(url)) {
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
+                val url = HttpUtil.toIdnUrl(it.subscription.url)
+                if (!Utils.isValidUrl(url)) {
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
+                if (!it.subscription.allowInsecureUrl && !Utils.isValidSubUrl(url)) {
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
 
-            val (configText, usageInfo) = fetchSubscriptionContent(it, url)
-            if (configText.isEmpty()) {
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
+                val (configText, usageInfo) = fetchSubscriptionContent(it, url)
+                if (configText.isEmpty()) {
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
 
-            val primarySubId = it.guid
-            var profiles = parseBatchProfiles(Utils.decode(configText), primarySubId)
-            if (profiles.isEmpty()) {
-                profiles = parseBatchProfiles(configText, primarySubId)
-            }
-            if (profiles.isEmpty()) {
-                // Got response but no valid configs parsed
-                return SubscriptionUpdateResult(failureCount = 1)
-            }
+                val primarySubId = it.guid
+                var profiles = parseBatchProfiles(Utils.decode(configText), primarySubId)
+                if (profiles.isEmpty()) {
+                    profiles = parseBatchProfiles(configText, primarySubId)
+                }
+                if (profiles.isEmpty()) {
+                    // Got response but no valid configs parsed
+                    return SubscriptionUpdateResult(failureCount = 1)
+                }
 
-            // Snapshot still-fresh test results BEFORE the old generation is deleted, keyed
-            // by config identity (protocol + endpoint + credentials), so re-importing the
-            // same subscription — a source switch, the 4-hourly refresh, a manual pull —
-            // keeps the delay badges instead of forcing a full-pool re-test. Results older
-            // than DERAFSH_TEST_FRESH_MS are dropped here so dead servers are re-detected
-            // by the next auto test pass.
-            val carriedResults = snapshotFreshTestResults(primarySubId)
-
-            // Drop THIS primary's previous overflow groups before redistributing.
-            chunkGroupsOf(primarySubId).forEach { cache ->
-                MmkvManager.removeSubscription(cache.guid)
-            }
-
-            val chunks = profiles.chunked(AppConfig.DERAFSH_POOL_CHUNK_SIZE.coerceAtLeast(1))
-            val baseRemarks = it.subscription.remarks
-            chunks.forEachIndexed { index, chunk ->
-                val subId = if (index == 0) {
-                    primarySubId
+                // The built-in pool shares its group index with user content — manually
+                // imported configs and policy groups live in the very same list. Rebuilding
+                // that index (append=false) would delete everything that is not a group,
+                // so the refresh retires exactly the guids the previous refresh created
+                // instead. The first refresh after install/upgrade has no recorded
+                // generation yet and falls back to the plain configs stamped with this
+                // pool's subscription id (groups and blank-stamped manual imports survive).
+                val isBuiltinPool = primarySubId == AppConfig.DEFAULT_SUBSCRIPTION_ID
+                val previousGeneration = if (isBuiltinPool) {
+                    MmkvManager.decodePoolGeneration().ifEmpty {
+                        MmkvManager.decodeServerList(primarySubId).filter { guid ->
+                            val config = MmkvManager.decodeServerConfig(guid)
+                            config != null && !config.configType.isGroupType() &&
+                                    config.subscriptionId == primarySubId
+                        }.toSet()
+                    }
                 } else {
-                    chunkGroupId(primarySubId, index + 1)
+                    emptySet()
                 }
-                if (index > 0) {
-                    // Overflow groups inherit the primary's settings (URL, filter, user agent,
-                    // request headers, TLS-bypass switch) so a manual refresh behaves
-                    // identically — but they never auto-update: the primary fetches for all.
-                    MmkvManager.encodeSubscription(
-                        subId,
-                        it.subscription.copy(
-                            remarks = "$baseRemarks (${index + 1})",
-                            enabled = true,
-                            autoUpdate = false,
-                            lastUpdated = -1,
-                            usageInfo = null,
+
+                // Snapshot still-fresh test results BEFORE the old generation is deleted, keyed
+                // by config identity (protocol + endpoint + credentials), so re-importing the
+                // same subscription — a source switch, the 4-hourly refresh, a manual pull —
+                // keeps the delay badges instead of forcing a full-pool re-test. Results older
+                // than DERAFSH_TEST_FRESH_MS are dropped here so dead servers are re-detected
+                // by the next auto test pass.
+                val carriedResults = snapshotFreshTestResults(primarySubId)
+
+                // Capture the user's current selection before retiring the old generation:
+                // when it belongs to the previous pool, it is re-anchored onto its identity
+                // match in the new batch after the commits succeed.
+                val selection = MmkvManager.getSelectServer()
+                val selectionNeedsReanchor = selection != null && selection in previousGeneration
+                val selectionProfile = if (selectionNeedsReanchor && selection != null) {
+                    MmkvManager.decodeServerConfig(selection)
+                } else {
+                    null
+                }
+
+                // Retire the previous generation BEFORE committing the new one: exactly the
+                // recorded guids (primary index entries, all payload stores, selection) —
+                // groups and manually imported configs sharing the index are never touched.
+                // Committing first would turn a mid-refresh storage failure into permanently
+                // orphaned half-committed batches; retiring first fails exactly like the old
+                // index rebuild did and self-heals on the next refresh.
+                if (isBuiltinPool) {
+                    MmkvManager.removeServerProfiles(previousGeneration)
+                }
+
+                // Drop THIS primary's previous overflow groups before redistributing.
+                chunkGroupsOf(primarySubId).forEach { cache ->
+                    MmkvManager.removeSubscription(cache.guid)
+                }
+
+                val chunks = profiles.chunked(AppConfig.DERAFSH_POOL_CHUNK_SIZE.coerceAtLeast(1))
+                val baseRemarks = it.subscription.remarks
+                val committedProfiles = LinkedHashMap<String, ProfileItem>()
+                chunks.forEachIndexed { index, chunk ->
+                    val subId = if (index == 0) {
+                        primarySubId
+                    } else {
+                        chunkGroupId(primarySubId, index + 1)
+                    }
+                    if (index > 0) {
+                        // Overflow groups inherit the primary's settings (URL, filter, user agent,
+                        // request headers, TLS-bypass switch) so a manual refresh behaves
+                        // identically — but they never auto-update: the primary fetches for all.
+                        MmkvManager.encodeSubscription(
+                            subId,
+                            it.subscription.copy(
+                                remarks = "$baseRemarks (${index + 1})",
+                                enabled = true,
+                                autoUpdate = false,
+                                lastUpdated = -1,
+                                usageInfo = null,
+                            )
                         )
+                    }
+                    // Re-point every profile of this chunk at its owning group before saving.
+                    chunk.forEach { profile -> profile.subscriptionId = subId }
+                    val savedProfiles = chunk.associate { Utils.getUuid() to it }
+                    MmkvManager.saveServerProfiles(
+                        profiles = savedProfiles,
+                        rawConfigs = emptyMap(),
+                        subscriptionId = subId,
+                        // The built-in pool's previous generation is retired explicitly
+                        // above; the group index it shares with user content is never
+                        // rebuilt wholesale.
+                        append = !isBuiltinPool,
                     )
-                }
-                // Re-point every profile of this chunk at its owning group before saving.
-                chunk.forEach { profile -> profile.subscriptionId = subId }
-                val savedProfiles = chunk.associate { Utils.getUuid() to it }
-                MmkvManager.saveServerProfiles(
-                    profiles = savedProfiles,
-                    rawConfigs = emptyMap(),
-                    subscriptionId = subId,
-                    append = false,
-                )
-                // Hand the old generation's fresh results to the replacement profiles so
-                // the auto test pass only has to test genuinely new configs.
-                if (carriedResults.isNotEmpty()) {
-                    savedProfiles.forEach { (guid, profile) ->
-                        carriedResults[configIdentityKey(profile)]?.let { (delay, testedAt) ->
-                            MmkvManager.encodeServerTestResult(guid, delay, testedAt)
+                    committedProfiles.putAll(savedProfiles)
+                    // Hand the old generation's fresh results to the replacement profiles so
+                    // the auto test pass only has to test genuinely new configs.
+                    if (carriedResults.isNotEmpty()) {
+                        savedProfiles.forEach { (guid, profile) ->
+                            carriedResults[configIdentityKey(profile)]?.let { (delay, testedAt) ->
+                                MmkvManager.encodeServerTestResult(guid, delay, testedAt)
+                            }
                         }
                     }
                 }
-            }
 
-            it.subscription.lastUpdated = System.currentTimeMillis()
-            // Replaced on every successful update so the box disappears if the panel stops sending the headers.
-            it.subscription.usageInfo = usageInfo
-            MmkvManager.encodeSubscription(primarySubId, it.subscription)
-            LogUtil.i(
-                AppConfig.TAG,
-                "Subscription updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
-                + if (carriedResults.isEmpty()) "" else ", ${carriedResults.size} fresh result(s) carried over"
-            )
-            return SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
-            return SubscriptionUpdateResult(failureCount = 1)
+                if (isBuiltinPool) {
+                    // Keep the user connected when their previous selection belonged to the
+                    // retired generation: re-anchor onto its identity match in the new
+                    // batch, else the first new config (same policy as ProfileReplacement).
+                    if (selectionNeedsReanchor && selection != null) {
+                        val reanchoredSelection = ProfileReplacement.findSelectedReplacement(
+                            profiles = committedProfiles,
+                            currentSelection = selection,
+                            selectedProfile = selectionProfile,
+                        ) ?: committedProfiles.keys.firstOrNull()
+                        MmkvManager.setSelectServer(reanchoredSelection)
+                    }
+                    MmkvManager.encodePoolGeneration(committedProfiles.keys)
+                }
+
+                it.subscription.lastUpdated = System.currentTimeMillis()
+                // Replaced on every successful update so the box disappears if the panel stops sending the headers.
+                it.subscription.usageInfo = usageInfo
+                MmkvManager.encodeSubscription(primarySubId, it.subscription)
+                LogUtil.i(
+                    AppConfig.TAG,
+                    "Subscription updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
+                    + if (carriedResults.isEmpty()) "" else ", ${carriedResults.size} fresh result(s) carried over"
+                )
+                return SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
+            } catch (e: Exception) {
+                LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
+                return SubscriptionUpdateResult(failureCount = 1)
+            }
         }
     }
 
