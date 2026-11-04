@@ -738,3 +738,35 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 25)
 - **`ui/` ad surfaces**: `ui/compose/HouseAds.kt` (second pass), `handler/AdsManager.kt` banner/interstitial providers, `handler/TapsellAds.kt` (47 lines) — the monetization flow as one logical sweep (Ad lifecycle leaks, thread-safety of ad callbacks, session-gating logic). Then Run 26 = leftover small handlers (`AppLocaleManager`, `SettingsChangeManager`, `OrphanProfileCleaner`, `ProfileReplacement` re-check) or `ui/` remaining viewmodels — pick per risk.
+
+---
+
+## Run 25 — 2026-11-04
+
+### Files reviewed (monetization sweep — all fork-only, no upstream parity safety net)
+- **`handler/AdsManager.kt` (377 lines)** — full line-by-line: init (house-mode SDK refusal + main-process gate + fail-closed reflection fallback), `isMainProcess` (API 28 getProcessName / ActivityThread reflection below, runCatching → null → "not main"), waterfall showAppOpen/showInterstitial/showRewarded (Tapsell → AdMob → house, every failure path falls through with onClosed), INTERSTITIAL_MIN_INTERVAL_MS=180s elapsedRealtime cap, house single-flight pending reward/close @Volatile pair + `onHouseAdDismissed` (consume-on-first-call: reward then closed, each try/catch), buildShowCallback (onDismissed AND onFailedToShow both route onDismiss — caller flow always continues), preload trio (isLoading markers + loaded-instance guard, all callers main-thread).
+- **`ui/HouseAdActivity.kt` (45 lines)** — hosts DerafshHouseInterstitial; onClosed = onHouseAdDismissed + finish; onDestroy(isFinishing) fires onHouseAdDismissed again for back-press/other finishing destroys (in-code rationale: stale callbacks must not fire on a LATER house ad); rotation (isFinishing=false) preserves pending for the recreation.
+- **`ui/compose/HouseAds.kt` (154 lines, second pass)** — DerafshHouseBanner (static, a11y description, opens APP_URL) + DerafshHouseInterstitial (Continue button + 4s LaunchedEffect auto-dismiss — "must never trap the user").
+- **`ui/compose/BannerAd.kt` (119 lines)** — house-mode short-circuit; AdView remembered per adaptiveWidthDp, DisposableEffect loadAd/destroy, AdListener writes snapshot state (main thread per SDK), failure → house banner fallback (slot never empty while failing), adaptive-size try/catch → 320×50.
+- **`handler/TapsellAds.kt` (47 lines)` — stub SDK seam: isConfigured = TAPSELL_APP_KEY.isNotBlank() (false today) → every leg returns false → waterfall falls through. No logic to fail.
+- Call sites: all four triggers live in MainActivity (131 init onCreate, 148 showAppOpen, 160 showInterstitial connect-flow, 299 showRewarded extend-session) — UI process, main thread only.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | HouseAdActivity double-fire | Continue/auto-dismiss path invokes onHouseAdDismissed then finish() → onDestroy(isFinishing) invokes it AGAIN — second call sees both pendings already consumed (nulled) → no-op. Back-press (no onClosed) is resolved by the onDestroy branch. The stale-callback hazard documented in-file (backed-out reward auto-connecting on a later ad) is correctly closed. | No action. |
+| 2 | CLEAN | Waterfall fall-through | Every unconfigured/unloaded/failed leg continues to the next and ultimately calls onClosed — no path leaves the caller (connect/extend-session flow) hung. Frequency cap path also calls onClosed immediately. onFailedToShowFullScreenContent routes to the same onDismiss as success. | No action. |
+| 3 | CLEAN | Instance-clear discipline | Interstitial/rewarded: nulled BEFORE show (second entry cannot double-show) with identity-cleared catches. AppOpen: NOT nulled before show — a second sequential show() on the same instance throws inside the same frame, caught → `if (appOpenAd === ad) appOpenAd = null` + reload: behavior correct (contained), just asymmetric with the other two formats. | Noted (below release bar; no user-visible defect). |
+| 4 | Info (unreachable) | house single-flight overwrite | A second house trigger while HouseAdActivity is foreground would overwrite housePendingReward/Closed (dropping the first reward). Unreachable: all triggers are MainActivity user actions and MainActivity is covered/stopped while the house ad shows; the 4s auto-dismiss bounds the window. | Noted. |
+| 5 | Info (SDK contract) | BannerAd no-callback edge | If the SDK never fires onAdLoaded/onFailedToLoad (network hang), the slot stays collapsed (no house fallback) — state machine has no timeout by design; self-resolves on recomposition/width change. Not actionable without a timeout timer (over-engineering for a collapsed zero-height slot). | Noted. |
+| 6 | CLEAN | init process gate | isMainProcess reflection failure on <API 28 → null → "not main" → SDK skipped — fail-closed in the safe direction (no ads rather than SDK in :daemon/:tasks/:bg). init is idempotent (initialized flag); house mode returns before ANY SDK touch. Preload check-then-act on @Volatile is race-free because every caller is main-thread. | No action. |
+
+### Upstream comparison result
+- `AdsManager.kt`, `HouseAds.kt`, `BannerAd.kt`, `TapsellAds.kt`: **404 upstream — fork-only** (monetization is Derafsh-specific; upstream v2rayNG has none). Correctness argued from the in-code contracts (never-block-user waterfall, always-resolve pending callbacks, no-crash guarantee). No upstream fixes to miss.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 26)
+- **Leftover small handlers as one closing sweep: `AppLocaleManager.kt` (140), `SettingsChangeManager.kt` (58), `OrphanProfileCleaner.kt` (53), `ProfileReplacement.kt` (76 re-check)** — after this the entire `handler/` + `service/` + `core/` + `fmt/` surface is covered. Then Run 27 = remaining `ui/` viewmodels or a core second pass on any file the interim diff-with-upstream flags — pick per risk.
