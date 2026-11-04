@@ -1,0 +1,3 @@
+- Fix: WebDAV backup/restore now re-reads the saved WebDAV config before each operation — after restoring a backup carrying a different WebDAV server, the same screen previously kept uploading/downloading via the stale pre-restore server; the dialog now also shows the restored config
+- Fix: the temporary plaintext MMKV folder produced by every backup (it contains credentials and profile data) is now deleted right after zipping, together with any partial zip on failure
+- Note: local backup/restore and all pool behavior unchanged

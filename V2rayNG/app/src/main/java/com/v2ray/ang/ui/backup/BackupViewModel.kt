@@ -92,11 +92,14 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun backupViaWebDav(cacheDir: File, appName: String) {
-        val config = _webDavConfig.value
+        // Decode fresh from MMKV: a restore may have overwritten the saved
+        // WebDAV config after this ViewModel cached it (stale StateFlow).
+        val config = MmkvManager.decodeWebDavConfig()
         if (config == null || (config.baseUrl.isEmpty())) {
             toastError(R.string.title_webdav_config_setting_unknown)
             return
         }
+        _webDavConfig.value = config
 
         launchLoading {
             var tempFile: File? = null
@@ -132,11 +135,14 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     }
 
     fun restoreViaWebDav(cacheDir: File) {
-        val config = _webDavConfig.value
+        // Decode fresh from MMKV: the cached StateFlow may be stale after a
+        // restore overwrote the saved WebDAV config.
+        val config = MmkvManager.decodeWebDavConfig()
         if (config == null || (config.baseUrl.isEmpty())) {
             toastError(R.string.title_webdav_config_setting_unknown)
             return
         }
+        _webDavConfig.value = config
 
         launchLoading {
             var target: File? = null
@@ -178,7 +184,15 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
             return Pair(false, "")
         }
 
-        return if (ZipUtil.zipFromFolder(backupDir, outputZipFilePath)) {
+        val zipped = ZipUtil.zipFromFolder(backupDir, outputZipFilePath)
+        // The intermediate folder is a plaintext copy of the whole MMKV
+        // storage (credentials included); only the zip is consumed, so
+        // remove the folder and any partial zip artifact right away.
+        File(backupDir).deleteRecursively()
+        if (!zipped) {
+            File(outputZipFilePath).delete()
+        }
+        return if (zipped) {
             Pair(true, outputZipFilePath)
         } else {
             Pair(false, "")
@@ -194,6 +208,12 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
                 }
 
                 val count = MMKV.restoreAllFromDirectory(backupDir.absolutePath)
+                if (count > 0) {
+                    // MMKV content was replaced: re-sync the cached WebDAV
+                    // config so the dialog and the next WebDAV operation use
+                    // the restored values instead of pre-restore ones.
+                    _webDavConfig.value = MmkvManager.decodeWebDavConfig()
+                }
                 SettingsChangeManager.makeSetupGroupTab()
                 SettingsChangeManager.makeRestartService()
                 count > 0
