@@ -558,7 +558,7 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 - `CoreVpnService.kt`: **byte-identical to upstream HEAD pre-fix** (upstream renamed V2RayServiceManager→CoreVpnService; the onDestroy close-guard, ensureForeground, sleep(100) are all upstream code now) — the Run 18 race is upstream-shared. `NetworkMonitor.kt`, `CoreProxyOnlyService.kt`: zero hunks. `TProxyService.kt`: fork = upstream + 1 hunk (log-leak removal, c8102ac). `CoreRootService.kt`: fork + bounded-join (c8102ac). No missing upstream fixes in the service layer.
 
 ### Release
-- **v1.2.33 (versionCode 37)** — commit 26136f4. Dispatch HTTP 204; CI/APK verification recorded after completion below.
+- **v1.2.33 (versionCode 37)** — commit 26136f4. Dispatch HTTP 204; push run 41841360348 + dispatch run 41841371621 BOTH completed success. Release v1.2.33 published with 10 APKs; fdroid universal APK signature verified = `2642E7F0…FD79F531` ✅.
 
 ### Next run starting point (Run 19)
 - **`handler/` remaining files by risk: `UpdateCheckerManager.kt` + `UpdateManager.kt`** (update flow: signature checks, download/install intents — security-adjacent) or `handler/AngConfigManager.kt` deep second pass (Run 8 covered fmt parsers; the 1000+ line import/parse hub itself). Then Run 20 = `service/CoreTestService.kt`/`RealPingWorkerService.kt`/`SubscriptionUpdateService.kt` (background work: coroutine scopes, worker contracts) — pick per risk.
