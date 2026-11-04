@@ -122,3 +122,31 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 5 — 2026-11-04
+
+### Files reviewed
+- `handler/AngConfigManager.kt` **lines 1-465** (share2Clipboard 63, shareNonCustomConfigsToClipboard 86, share2QRCode 113, shareFullContent2Clipboard 134, shareConfig 156, importBatchConfig 185, parseBatchSubscription 216, parseBatchConfig 245, parseBatchProfiles 275, commitProfiles 314, parseCustomConfigServer 344, parseConfig 423-456) — full line-by-line review + upstream diff (29 hunks classified).
+
+### Findings
+
+| # | Severity | Lines | Finding | Action |
+|---|---|---|---|---|
+| 1 | **Fork improvement (no action)** | 160-170 | `shareConfig`: fork added `EConfigType.CUSTOM -> decodeServerRaw(guid)` + `else -> config.description`. Upstream HEAD has `else -> {}` — a lambda branch in a when-expression → `scheme + lambda.toString()` pastes **garbage** to the clipboard for CUSTOM configs. Fork's CUSTOM scheme is `""` (AppConfig.CUSTOM) so the branch yields clean raw JSON; `else` covers POLICYGROUP/PROXYCHAIN (also scheme `""`) with the description. Fork is strictly better than upstream here. | No action (keep fork behavior). |
+| 2 | CLEAN | 185-334 | Import flow: `importBatchConfig` tries decoded→raw→custom-config in order, then sub-URL import (raw→decoded), then `updateConfigViaSubAll()` if any subs imported — identical semantics to upstream's `parseConfigViaSub` (which the fork inlined). Fork's split of `parseBatchConfig` into parse-only `parseBatchProfiles` + `commitProfiles(ParsedProfile)` exists to serve the Derafsh chunked pool importer; `ParsedProfile`/`commitProfiles`/`saveServerProfiles` infra itself is upstream's. `ProfileStorageException` rethrow chain (parseBatchConfig/parseCustomConfigServer → importBatchConfig → "0 to 0") is fork-added error signaling — no swallow paths beyond upstream's. `.lines().distinct().reversed()` ordering and `v2raynConfigs + configs` merge are upstream-identical. | No action. |
+| 3 | CLEAN | 344-412 | `parseCustomConfigServer`: JSON-array-first (per-element raw preserved via `toJsonPretty(srv)`), single-config fallback, WireGuard `[Interface]+[Peer]` detection — upstream-identical. Reversal of `serverList` preserves payload order on commit (same rationale as parseBatchProfiles). | No action. |
+| 4 | Info (parity) | 442-446 | Subscription `filter` is compiled per config line: an **invalid user regex throws inside parseConfig → that config is silently dropped** (log only). A broken filter therefore drops ALL configs of the sub, one log line each. Upstream-identical behavior; UX nit only (filter edit screen validates separately upstream — same). | Noted (upstream parity). |
+| 5 | Info (parity) | 433-435 | Parser map is insertion-ordered (`mapOf`→LinkedHashMap): `socks://` listed BEFORE `socks4://`/`socks5://` — prefix match routes socks4/5 to `SocksFmt::parse`, which handles all three schemes. Upstream-identical map; no misparse. | OK. |
+| 6 | Info | 86-105 | `shareNonCustomConfigsToClipboard` return count = `sb.lines().count() - 1` — correct for the trailing `appendLine()`; empty-URL entries skipped before append. `share2QRCode`/`share2Clipboard`/`shareFullContent2Clipboard` all try/catch → -1/null. `shareFullContent2Clipboard` builds the FULL runtime config via `CoreConfigManager.getV2rayConfig` — safe (already audited in Runs 1-4). | OK. |
+
+### Upstream comparison result
+- 29 diff hunks total. Run-5 region: fork-only refactors/features (parse/commit split for chunked importer, CUSTOM share branch, ProfileStorageException chain, onSubStart callback, chunk-group filter) — **zero fork regressions, zero missing upstream fixes** in lines 1-465. The big fork-only block (chunked update + smart-test carry-over, lines 466-870) belongs to Run 6.
+- Run 6 preliminary note recorded: fork's `updateConfigViaSub` (490) dropped upstream's redundant `TextUtils.isEmpty(it.guid)` guard (guid is the MMKV key, always non-empty) — defensive-only, evaluate in Run 6.
+
+### Next run starting point (Run 6)
+- `handler/AngConfigManager.kt` **lines 466-870**: `updateConfigViaSubAll` (463-489), `updateConfigViaSub` (490-503), chunk-group helpers (504-523), `fetchSubscriptionContent` (524-591), `updateConfigViaSubChunked` (592-705) — the Derafsh pool-chunking core (fetch-once → chunk 200 → overflow groups → carry fresh test results), `snapshotFreshTestResults` (706-733), `configIdentityKey` (734-755), `removeInvalidServer` (756-777), `sweepUnhealthyPoolConfigs` (778-833), `importUrlAsSubscription` (834-853), `generateDescription` (854-870).
+
+### Release
+- None this run (no code changes; docs-only commit).
