@@ -1058,3 +1058,35 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 36)
 - **The mapping hub + big editors:** `server/ServerUiState.kt` (258 lines — **`toProfileItem` is the form→ProfileItem field-mapping hub every editor funnels through; the closest remaining surface to outbound-JSON correctness**) first, then `ServerGroupActivity.kt` (325), `ServerProxyChainActivity.kt` (367), `ServerCustomConfigActivity.kt` (506) — diff each against upstream raw. After Run 36 the `ui/` layer is fully covered → **switch to git-diff-driven periodic mode**: each run audits (a) fork commits since the last audit scan (`git log`), (b) upstream drift re-check of the evergreen files (CoreVpnService/UpdateManager/AngConfigManager/MainViewModel + any fork-divergent file), (c) one stale audit-area rotation for depth.
+
+---
+
+## Run 36 — 2026-11-05
+
+### Files reviewed (mapping hub + big editors — closes the `ui/server` package and the whole `ui/` layer)
+- **`server/ServerUiState.kt` (258 lines — the form→ProfileItem mapping hub)**: constructor defaults (`reserved="0,0,0"`, WG locals, `headerType="none"`, TCP default); `toProfileItem` (L122-189) verified as a **correct type-gated field router** — VLESS `encryption`→`method` (L138) with exact inverse in `fromProfileItem` (L203, round-trip consistent); `publicKey` dual-use (WireGuard peer key vs REALITY `publicKeyReality`) gated on `isWireguard`/`streamSecurity == REALITY` (L144-148, upstream ProfileItem single-field convention); Hysteria2 fields all gated `isHysteria2`; `nullIfBlank()` hygiene on mode/xhttpMode/serviceName/authority/xhttpExtra/finalMask/seed; `kcpMtu/kcpTti/mtu` via `toIntOrNull()` (null-safe); `browserDialerMode` gated to WS/XHTTP (L172-176); Saver (L249-256) round-trips through `toProfileItem`→JSON→`fromProfileItem` — type-safe across rotation/process death, transient `isFetchingCert` correctly NOT persisted.
+- **`ServerGroupActivity.kt` (325 lines, POLICYGROUP editor)**: `isRunning` triple-guard (extra + guid nonempty + selected server); `populateSubscriptionSpinner()` ordered before `initialSubIndex` computation; `initialSubIndex` via `indexOf(...).let { if (it >= 0) it else 0 }` bounds-safe; `initialTestOutbounds` defaults true for new configs and forces true when the strategy lacks observatory support; save: remarks gate → decode-or-create → persist → `finishSaved(guid=savedGuid, restartService=isRunning)` (Run 33 contract); delete: double guard (UI `showDelete = editGuid.isNotEmpty() && !isRunning` + `deleteServer` selected-server block) — same pattern as Run 33; composable resolves dropdown display-strings back to indices with `indexOf(...).coerceAtLeast(0)` (locale-change edge = silent fallback to index 0, upstream-identical behavior).
+- **`ServerProxyChainActivity.kt` (367 lines, PROXYCHAIN editor)**: member suggestions exclude CUSTOM/POLICYGROUP/PROXYCHAIN (no nested complex types at suggestion level); save validates in order: remarks → no blank members (`size != members.size` after trim/filter) → ≥2 members → **every member re-resolved via `getServerViaRemarks` at save time and rejected if null or `isComplexType()`** (fail-closed, no stale member references); chain persisted as comma-joined remarks (upstream design — name-based membership, ambiguity on duplicate remarks is upstream-shared); reorderable list uses **parallel UUID `memberKeys`** — add/remove/reorder always mutate both lists together, `moveItem` return checked, `indexOf` == -1 guarded; per-member delete for blank members is immediate via Run 33-verified `withoutProxyChainMember` (key-based → no stale-index race), non-blank members get a confirm dialog keyed by memberKey (not index); `itemsIndexed` key = `memberKeys[index]` — parallel invariant holds on every mutation path.
+- **`ServerCustomConfigActivity.kt` (506 lines, raw-JSON editor)**: save is **fail-closed** — `CustomFmt.parse(content)` in try/catch; parse failure → toast (with cause detail when available) → return false → **nothing persisted**; on success: config metadata updated, `encodeServerConfig` returns `savedGuid`, then `encodeServerRaw(savedGuid, content)` — raw keyed to the correct (possibly fresh) guid, order correct; `finishSaved` contract; editor UX: cursor auto-scroll via `snapshotFlow`+`collectLatest` (stale animations cancelled), fully bounds-checked (`textLen==0 || cursor<0 || cursor>textLen` early return, `coerceIn(0,maxValue)`/`coerceAtLeast(0)`/`coerceAtMost(maxValue)` on all scroll targets); line-number canvas derives from measured `TextLayoutResult`; `hasInitializedCursor` `rememberSaveable` prevents re-editing selection after process restore.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | ServerUiState.toProfileItem | Type-gated field routing is internally consistent with its exact inverse (`fromProfileItem`); VLESS encryption↔method and REALITY/WG publicKey dual-use round-trip correctly through the Saver. | No action. |
+| 2 | CLEAN | all three big editors | Same guard pattern as Run 33 (double delete-guard, contract-conformant `finishSaved`); proxy-chain membership re-validated at save; custom-config parse failure persists nothing. | No action. |
+| 3 | Info (upstream-shared) | ServerProxyChainActivity.saveServer:120-133 | Chain membership is remarks-name-based (`getServerViaRemarks`) — duplicate remarks across profiles resolve to the first match. Inherent upstream design of the chain format (comma-joined names), not a fork deviation. | Noted. |
+
+### Upstream comparison result
+- **All 4 files byte-identical to upstream HEAD** (1,456 lines total; diff exit 0 ×4). Zero fork hunks in the entire `ui/server` editor package beyond Run 35's single cosmetic hint removal. No fork-introduced bug; no missing upstream fix.
+
+### Coverage milestone
+- **`ui/server` package: COMPLETE** (Run 33 contract layer + Run 35 batch-1 editors + Run 36 hub/big editors). **`ui/` layer: COMPLETE** (activities, viewmodels 11/11, server editors, compose helpers). Remaining un-audited code: none in `ui/`; periodic mode now the primary instrument.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 37) — git-diff-driven periodic mode begins
+- **(a) New-code scan**: `git log --oneline` since the last code-bearing commit (v1.2.36 / Run 29) — expect only audit docs commits; any NEW code commit gets a full line-by-line review before anything else.
+- **(b) Evergreen drift re-check vs upstream raw HEAD**: `service/CoreVpnService.kt`, `handler/UpdateManager.kt`, `handler/AngConfigManager.kt`, `ui/main/MainViewModel.kt` (the 4 files where fork deltas live) — confirm the documented Derafsh hunks are still the ONLY deltas and no upstream fix landed that the fork lacks.
+- **(c) Depth rotation**: re-verify one audited area end-to-end — start with `fmt/` package (SubscriptionFmt/UserAssetFmt/etc., the parse surface feeding Run 30's subscription ladder) or `dto/entities/ProfileItem.kt` (the field hub this run's mapping writes into).
