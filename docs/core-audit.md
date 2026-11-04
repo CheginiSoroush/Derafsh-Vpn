@@ -827,3 +827,33 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 28)
 - **`ui/main/MainViewModel.kt` (1373 lines) — dedicated deep pass, part 1**: service-state collection, message/receiver wiring, start/stop/restart flows, and the sub-refresh entry points (everything up to and including the import/QR/clipboard flows). Run 29 = part 2 (remaining flows + settings/speedtest consumers) + full upstream diff of the file. Then Run 30 = upstream-drift re-scan of the three fork-fixed files (CoreVpnService/UpdateManager/AngConfigManager) against upstream HEAD.
+
+---
+
+## Run 28 — 2026-11-04
+
+### Files reviewed
+- **`ui/main/MainViewModel.kt` (1374 lines) — dedicated deep pass, PART 1 (lines 1-800)**: init (cache clear + setupGroupTab on IO), `collectServiceEvents`/`handleServiceEvent` (all 12 event types), `queueTestResult`/`flushPendingTestResults` (pending-map + chained flush jobs), group flow maps (`serversForGroup` computeIfAbsent, `allServerRows` flatMapLatest combine), `setupGroupTab` (3-job cancellation, cache clear, group pruning, radial preload), `loadGroup`/`buildServersCache` (per-group mutex + cacheMutex double-checked pattern), `applyKeywordFilter`/`buildServerRows`/`resolveSelectedGroup`/`radialPreloadOrder`, `initialize`/`runStartupMaintenance` (4h auto-refresh + startup test pass), `importBatchConfig`/`importConfigViaSub`/`switchDerafshSourceAsync`/`exportAllAsync` (IO-dispatched with toasts).
+- Cross-check: **`extension/ToastExt.kt`** — `runOnMain` (Looper check → mainHandler.post), `dispatchMessage` uses applicationContext; Snackbar-first routing.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (contract proof) | toast-from-IO pattern | Every business action calls `toast/toastSuccess/toastError` INSIDE `withContext(ioDispatcher)` — safe because ToastExt's `runOnMain` posts to the main looper when off-main (no "Can't toast on a thread that has not called Looper.prepare()" crash) and uses applicationContext (no activity leak). Resolves the only main-thread-crash candidate in the whole ViewModel. | No action. |
+| 2 | CLEAN | handleServiceEvent request-id guards | Every Measure* event is guarded (`testRequests.completeCurrent(id)`, `bulk?.takeIf { it.id == event.requestId }`), so a stale/cancelled batch can never write into the new one; the single sequential collector means `pendingTestResults` (plain LinkedHashMap) is only touched on the collector's context; flush takes cacheMutex and re-checks the id after each suspension. MeasureConfigFinish chains flushes via `scheduledFlush?.cancelAndJoin()` before writing — no overlapping flush jobs. | No action. |
+| 3 | CLEAN | setupGroupTab lifecycle | Cancels setup/preload/selected-group jobs first (no stale group write-back); prunes groupUiFlows/groupServerFlows/groupLoadMutexes for invalid ids (per-key atomic removal); `initialPageReady` completed in finally — `initialize()` can never await forever even when setup throws. Radial preload runs on `limitedParallelism(1)` with 32ms gaps — bounded, ordered, cancellable; radial order enumeration provably duplicate-free (right=sel+d ≠ left=sel−d for d≥1). | No action. |
+| 4 | CLEAN | loadGroup double-checked locking | Per-group Mutex serializes loads; cache hit read under cacheMutex; heavy MMKV decode happens OUTSIDE cacheMutex (only the pointer swap holds it); `ensureActive()` before the write-back. Import/refresh paths pass forceRefresh=true to bypass the cache. | No action. |
+| 5 | Info (deliberate) | runStartupMaintenance:447 | `setLastAutoMaintenance(now)` runs even when the auto refresh FAILED (catch logs and falls through) — a broken source won't be re-hammered on every app open for 4h; manual refresh remains available and the next window retries. Coherent with MaintenanceStatus.abandon() on cancellation (Run 21 contract). | Noted. |
+| 6 | CLEAN | switchDerafshSourceAsync | Reuses the single DEFAULT_SUBSCRIPTION_ID → the update goes through the Run 20-fixed chunked path with builtin-pool append semantics (manual imports preserved, pool replaced in place, chunk groups unaffected); fresh test-results carried; the test pass only runs when pendingTestGuids is non-empty and only beginSession then (card never hangs in "updating" with nothing to test — same guard as runStartupMaintenance). | No action. |
+| 7 | CLEAN | applyKeywordFilter | User keyword compiled as Regex with PatternSyntaxException → unfiltered fallback (graceful); matchesPattern combines regex + plain-contains (Run audits verified the extension). Filter applied on the UI snapshot, not persisted state. | No action. |
+| 8 | CLEAN | exportAllAsync group/filter semantics | Empty group + empty keyword → full pool export; otherwise the CURRENTLY VISIBLE (filtered) list — matches the UI affordance; StateFlow value reads are thread-safe from the IO context. | No action. |
+
+### Upstream comparison result
+- Deferred to Run 29 (part 2 covers the remaining ~574 lines and the FULL upstream diff of MainViewModel — the file is heavily fork-modified: radial preload, source switcher, maintenance session, test-result streaming are all Derafsh additions).
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 29)
+- **`ui/main/MainViewModel.kt` PART 2 (lines 801-1374)**: bulk operations (removeAll/removeDuplicate/removeInvalid/sortByTestResults), group switching/reload, server move/persistence, the bulk-test engine (testAllRealPing/pendingTestGuids/cancel paths), fastest-server pick (FastestPick deferred, freshness window), locate/session flows — plus the FULL upstream diff of MainViewModel.
