@@ -1,0 +1,2 @@
+- Fix: backing out of a house ad (system back) no longer leaves pending ad callbacks as stale state — previously a backed-out "extend session with ad" reward could fire later on an unrelated house-ad close and auto-connect the VPN without user intent; the session-time-up dialog dismiss is now also delivered on back-out
+- Note: the house-ad screen itself is unchanged (Continue button and auto-close timer behave the same)

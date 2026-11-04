@@ -19,6 +19,21 @@ class HouseAdActivity : BaseComponentActivity() {
         super.onCreate(savedInstanceState)
     }
 
+    override fun onDestroy() {
+        // The Continue button and the auto-dismiss timer both route through
+        // AdsManager.onHouseAdDismissed(); the system back press (or any other
+        // finishing destroy) does not. Without this, pending reward/close
+        // callbacks would survive as stale state and fire on a LATER, unrelated
+        // house ad (e.g. a backed-out "extend session" reward auto-connecting
+        // the VPN on the next app-open ad). House policy: closing the screen
+        // always resolves the pending callbacks. Rotation/recreation is not
+        // finishing, so the pending callbacks stay with the replacement screen.
+        if (isFinishing) {
+            AdsManager.onHouseAdDismissed()
+        }
+        super.onDestroy()
+    }
+
     @Composable
     override fun ScreenContent() {
         DerafshHouseInterstitial(onClosed = {
