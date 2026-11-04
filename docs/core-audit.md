@@ -1090,3 +1090,32 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 - **(a) New-code scan**: `git log --oneline` since the last code-bearing commit (v1.2.36 / Run 29) — expect only audit docs commits; any NEW code commit gets a full line-by-line review before anything else.
 - **(b) Evergreen drift re-check vs upstream raw HEAD**: `service/CoreVpnService.kt`, `handler/UpdateManager.kt`, `handler/AngConfigManager.kt`, `ui/main/MainViewModel.kt` (the 4 files where fork deltas live) — confirm the documented Derafsh hunks are still the ONLY deltas and no upstream fix landed that the fork lacks.
 - **(c) Depth rotation**: re-verify one audited area end-to-end — start with `fmt/` package (SubscriptionFmt/UserAssetFmt/etc., the parse surface feeding Run 30's subscription ladder) or `dto/entities/ProfileItem.kt` (the field hub this run's mapping writes into).
+
+---
+
+## Run 37 — 2026-11-05 (first git-diff-driven periodic-mode run)
+
+### (a) New-code scan — PASS
+- `git log c52baae..HEAD` (c52baae = v1.2.36 code fix, the last code-bearing commit): **7 commits, every one docs-only** (`docs/core-audit.md` is the sole touched path in all). Zero unreviewed code in the tree. Local tags: `checkpoint-v1.2.25` only (releases are CI-tagged remotely; untouched).
+
+### (b) Evergreen drift re-check — PASS, zero drift in BOTH directions
+- Method: re-fetched all 4 evergreen files from upstream raw HEAD + proved fork-side immutability with `git diff 5258752..HEAD -- V2rayNG/app/src/main/java/` (Run 30's verified scan commit) → **EMPTY** (no fork code change since the line-by-line verified diff).
+- Upstream sizes today == Run 30's recorded sizes exactly: `CoreVpnService` 372 / `AngConfigManager` 657 / `MainViewModel` 969 / `UpdateManager` **404 (still fork-only)** → upstream has not modified any evergreen file since Run 30; the fork cannot be missing an upstream fix.
+- Deltas are therefore still exactly the verified documented set: CoreVpnService = v1.2.33 teardown-lock hunk cluster (all 4 raw-diff ranges inside L324-373, one logical change); AngConfigManager/MainViewModel = documented Derafsh feature hunks (raw diff headers 30/40 = finer diff granularity than Run 30's logical-hunk count of 7/23 — same content, proven by both-sides-immutability).
+
+### (c) Depth rotation: `fmt/` package re-verification (10 files, 908 lines) — PASS
+- **9 of 10 byte-identical to upstream HEAD**: CustomFmt, FmtBase, Hysteria2Fmt, ShadowsocksFmt, SocksFmt, TrojanFmt, V2rayNFmt, VlessFmt, VmessFmt. Upstream has not touched the parse surface at all since the fork point (any upstream change would have shown as a diff).
+- **`WireguardFmt.kt`: exactly its 2 documented Run-10 hunks** (L35 + L86): fork falls back to `AppConfig.WIREGUARD_LOCAL_REMOTE_DNS` (`"1.1.1.1,1.0.0.1,2606:4700:4700::1111,2606:4700:4700::1001"`, the constant Run 1 repaired) where upstream falls back to `""` — deliberate fork default, unchanged since `c8102ac`, Run 10 verdict stands ("NOT a bug; changing it would remove an intentional fork default").
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | PASS (no drift) | evergreen ×4 + fmt ×10 | Both-side immutability proof: fork code frozen since Run 30's verified diff; upstream evergreen + fmt files unchanged since the fork's verified state. The only fork deltas remain the documented feature hunks + WireguardFmt's 2 deliberate defaults. | No action. |
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 38) — periodic mode, rotation continues
+- **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift re-check (now including `fmt/WireguardFmt.kt` in the evergreen set — 5 files total).
+- **(c) Depth rotation**: `dto/entities/` package batch diff vs upstream (ProfileItem.kt — the field hub every writer (ServerUiState.toProfileItem, all Fmt parsers, AngConfigManager) funnels through — plus sibling entities), then re-read ProfileItem's volatile-field/copy semantics against Run 29's dedupe finding.
