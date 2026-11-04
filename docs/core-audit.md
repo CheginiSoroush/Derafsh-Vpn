@@ -586,7 +586,7 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 - `UpdateCheckerManager.kt`: fork = upstream + 1 hunk (version-compare hardening). `UpdateManager.kt`: **fork-only** (upstream has no in-app updater) — correctness argued from the app's own stated threat model + ZipUtil precedent. No missing upstream fixes.
 
 ### Release
-- **v1.2.34 (versionCode 38)** — commit 6067b81. Dispatch HTTP 204; CI/APK verification recorded after completion below.
+- **v1.2.34 (versionCode 38)** — commit 6067b81. Dispatch HTTP 204; push run 41843998474 + dispatch run 41844008121 BOTH completed success. Release v1.2.34 published with 10 APKs; fdroid universal APK signature verified = `2642E7F0…FD79F531` ✅.
 
 ### Next run starting point (Run 20)
 - **`handler/AngConfigManager.kt` deep second pass** (the import/parse hub — Run 8 covered the fmt/* parsers it delegates to; the hub itself: `importBatchConfig`, share/link dispatch, subscription fetch/merge logic) or `service/CoreTestService.kt` + `RealPingWorkerService.kt` + `SubscriptionUpdateService.kt` (background work: coroutine scopes, worker lifecycle) — pick per risk.
