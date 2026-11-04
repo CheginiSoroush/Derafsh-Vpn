@@ -614,7 +614,7 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 - Upstream `AngConfigManager.kt` (657 lines) fetched: updateConfigViaSub is the non-chunked ancestor of the fork's chunked version — commit call `parseConfigViaSub(configText, it.guid, false)` proves the replace semantics the fork's inverted flag contradicted. Fork-only additions (chunking, pool generation, test-result carry, allowInsecureUrl, per-sub isolation) argued from their own documented contracts. The bug is **fork-introduced in v1.2.28** (not upstream-shared).
 
 ### Release
-- **v1.2.35 (versionCode 39)** — commit 3b0e46f. Dispatch HTTP 204; CI/APK verification recorded after completion below.
+- **v1.2.35 (versionCode 39)** — commit 3b0e46f. Dispatch HTTP 204; push run 41847267685 + dispatch run 41847277832 BOTH completed success. Release v1.2.35 published with 10 APKs; fdroid universal APK signature verified = `2642E7F0…FD79F531` ✅.
 
 ### Next run starting point (Run 21)
 - **`service/CoreTestService.kt` (260) + `RealPingWorkerService.kt` (159) + `SubscriptionUpdateService.kt` (235)** — background work trio: coroutine scopes, worker lifecycle, foreground-service contracts. Then Run 22 = remaining `handler/` files (`AppLocaleManager`, `OnboardingManager`, `MaintenanceStatus`, `SpeedtestManager` second pass) or `ui/` ad surfaces — pick per risk.
