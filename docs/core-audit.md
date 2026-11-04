@@ -680,3 +680,32 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 23)
 - **`handler/SubscriptionUpdater.kt` (189 lines — periodic/one-shot subscription scheduling feeding the Run 20-fixed chunked refresh path) + `handler/SubscriptionInfoParser.kt` (121 lines — subscription header/usage parsing)** as one logical flow, then the leftover small handlers (`AppLocaleManager`, `SettingsChangeManager`, `OrphanProfileCleaner`, `ProfileReplacement` re-check) if budget allows. Then Run 24 = `ui/` ad surfaces (`ui/compose/HouseAds.kt` second pass, banner providers) or `NotificationManager.kt` — pick per risk.
+
+---
+
+## Run 23 — 2026-11-04
+
+### Files reviewed
+- **`handler/SubscriptionUpdater.kt` (189 lines)** — WorkManager periodic auto-update scheduler: `sync` (KEEP on startup/boot, REPLACE only on forceReschedule), `syncOne` (REPLACE — save/manual paths), `cancelOne` (RemoteWorkManager cancel), `updateLastUpdatedAndReschedule` (timestamp write + reschedule — the rapid-loop guard), `scheduleOne` (interval floor at SUBSCRIPTION_MIN_INTERVAL_MINUTES, initialDelay = lastUpdated+interval−now with 5s REPLACE floor, NetworkType.CONNECTED constraint, per-sub unique name), `UpdateTask.doWork` (subId guard → timer reset → `startForegroundService`-delivered MSG_SUB_UPDATE_START → success).
+- **`handler/SubscriptionInfoParser.kt` (121 lines)** — subscription panel header parsing: `parse` (all-null → null UI), `withWebPageFallback` (sub URL as info-page fallback), `sanitizeLink` (http/https/tg allowlist, host required for non-tg, 2048 cap, runCatching URI), `isTelegramLink`, `parseUserInfoFields` (semicolon split, key≥1 char, Long-or-finite-Double values, negative→0), `normalizeExpire` (≥1e11 = ms → /1000), `decodeTitle` (base64: prefix → URLDecoder-%-fallback → raw; 100-char cap).
+- Contract cross-checks: `MessageHelper.sendMsg2SubscriptionService` uses `ContextCompat.startForegroundService` for START (matches SubscriptionUpdateService's per-start startForeground, Run 21) and `stopService` for CANCEL; deletion site `SettingsManager.removeSubscriptionWithDefault:330` calls `cancelOne(subid)` AND cancels every overflow chunk group (`DERAFSH_POOL_CHUNK_PREFIX` + guid) — the fork's chunk groups die with their parent subscription; `sync` callers (BootReceiver:60, MainRepository:253) default KEEP; `syncOne` caller (SubEditActivity:97) REPLACE; `lastUpdated` writers: AngConfigManager:773 (=now on successful refresh) and :721 (=−1 on fresh chunk re-create → next scheduleOne computes delay 0 → immediate first run).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | scheduleOne delay math | `initialDelay = max(0, lastUpdated + intervalMillis − now)`; lastUpdated≤0 → 0 (immediate); REPLACE floor 5s prevents the save→instant-fire→reschedule loop the comment warns about; KEEP policy correctly ignores delay (WorkManager keeps the existing period). | No action. |
+| 2 | Info (self-healing) | sync filter vs scheduleOne url guard | A subscription flipped to autoUpdate=false is dropped by sync's filter so sync never cancels it — but its next periodic fire calls `updateLastUpdatedAndReschedule` → `syncOne` → `scheduleOne` sees `!autoUpdate` → `cancelOne` (self-cancels one cycle late). Same for autoUpdate=true with a CLEARED url: scheduleOne skips WITHOUT cancel (log only) — the orphan task keeps firing each interval but the service-side `updateSingle` url guard (Run 21) makes each fire a no-op. Upstream-identical design; bounded waste, no user impact. | Noted. |
+| 3 | Info (design) | UpdateTask timer reset at start | `updateLastUpdatedAndReschedule` stamps lastUpdated BEFORE the actual fetch and never returns retry — a failed refresh still waits a full interval (no WorkManager backoff). Deliberate anti-loop tradeoff per the in-code comment; manual refresh path (SubscriptionsViewModel:148 → service → AngConfigManager:773) updates the timestamp on success for the NEXT reschedule. | Noted. |
+| 4 | Info | scheduleOne interval arithmetic | `intervalMinutes * 60 * 1000L` multiplies Int×Int before widening — overflows only above ~35.7M minutes (≈68 years) of user-set interval, where the delay math is meaningless anyway; WorkManager's own interval uses long math correctly. Upstream-identical. | Noted. |
+| 5 | CLEAN | SubscriptionInfoParser (all) | Fail-closed link sanitizer (scheme allowlist + host requirement + parse-failure → null); expire normalization boundary (1e11 s = year 5138) safely separates seconds from ms epochs; userinfo parser handles floats (`1e12` → toLong), negatives (→0), empty keys (skipped); title decode never throws (URLDecoder runCatching → original, base64 via Utils::decode's own tolerance); empty result → null so the UI shows nothing rather than a zeroed card. `parse` returns the ORIGINAL link text (not URI-normalized) — fine for ACTION_VIEW. | No action. |
+| 6 | Info (positive) | removeSubscriptionWithDefault | The fork correctly extends the upstream deletion contract to overflow chunk groups (cancel + remove per chunk) — without it, deleting a parent subscription would orphan its chunk tasks AND their subscription records. | No action (keep). |
+
+### Upstream comparison result
+- `SubscriptionUpdater.kt`: **byte-identical to upstream HEAD**. `SubscriptionInfoParser.kt`: **byte-identical to upstream HEAD**. The only fork-side logic in this flow lives OUTSIDE these two files (`removeSubscriptionWithDefault` chunk-group cleanup — verified correct). No missing upstream fixes.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 24)
+- **`handler/NotificationManager.kt` (298 lines — notification channels/actions, PendingIntent immutability, action routing) + `helper/MessageHelper.kt` (the sendMsg2* cross-process message family — startForegroundService contracts, receiver intents)** as one logical flow. Then Run 25 = `ui/` ad surfaces (`ui/compose/HouseAds.kt` second pass, AdsManager banner providers, TapsellAds) — pick per risk.
