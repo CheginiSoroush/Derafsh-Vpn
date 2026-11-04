@@ -980,3 +980,28 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 33)
 - **`ui/server/BaseServerActivity.kt` (510 lines) — the last protocol-adjacent surface with real logic**: profile edit form → `ProfileItem` field mapping (the closest remaining surface to config correctness: missing/wrong field mapping here = broken outbound), persistence + `ProfileEditorResult`/`ProxyChainMembers` contracts, cert/`fetchForManualFill` flow (call-site already cross-checked Run 22: BaseServerActivity:327 under `withContext(Dispatchers.IO)` + UI gate). Diff against upstream raw. Run 34 = `ui/main/MainActivity.kt` (396) full pass; Run 35+ = per-protocol editors (`server/Server*Activity.kt`, 49-506 lines, mostly form→ProfileItem over the BaseServerActivity contract) batched small-first, then switch to git-diff-driven periodic re-scans (fork commits since last scan + upstream drift of the fixed files).
+
+---
+
+## Run 33 — 2026-11-05
+
+### Files reviewed (protocol-adjacent editor hub — `ui/server/`)
+- **`ui/server/BaseServerActivity.kt` (510 lines)** — abstract editor base for every per-protocol activity: `onCreate` (`initialConfig = decodeServerConfig(editGuid) ?: ProfileItem.create(type)`), `CommonBasicFields`/`CommonNetworkFields` (network-switched header/mode dropdowns with `size > 1` guard; GRPC→authority/serviceName vs rest→host/path field routing matches xray semantics; KCP seed/mtu/tti instead of path; xhttpExtra + finalMask + browserDialer WS/XHTTP-only), `CommonStreamSecurityFields` (TLS: allowInsecure/alpn/ECH/verifyPeerCertByName/pinnedCA256 + **fetch-cert button: address/port pre-guards, `buildProfileItem()` temp, `scope.launch` + `isFetchingCert` flag with `finally` reset + button disabled while fetching [Run 22 already verified the IO hop + fingerprint manager fail-closed], REALITY: publicKey/shortId/spiderX/mldsa65Verify), `validateBasicConfig` (remarks/address/port; HYSTERIA2 port-exempt), `validateCommonConfig` (password required for VMESS/VLESS/TROJAN/SS/HYSTERIA2 — SOCKS/HTTP/WIREGUARD correctly exempt; TROJAN requires streamSecurity; xhttpExtra/finalMask JSON-parse-gated), `saveServer` (validate ladder → `toProfileItem(initialConfig)` → description → subscriptionId fallback → `encodeServerConfig` → `finishSaved(savedGuid, isRunning)`), `ServerEditorScaffold` (delete button hidden for running/selected server; `deleteServer` double-guard: empty guid OR selected guid → not-allowed toast, defense in depth over the UI gating).
+- **`ui/server/ProfileEditorResult.kt` (56 lines)** — pure result-intent contract (`finishSaved` carries `restartService = isRunning`; `finishDeleted` always false).
+- **`ui/server/ProxyChainMembers.kt` (14 lines)** — pure helper `withoutProxyChainMember` (resolves the member's position at confirmation; `index < 0` → identity pair).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | BaseServerActivity (all) | Validation ladder is ordered correctly (basic → common → protocol) so state error flags are always set before the first early return; the cert-fetch coroutine's `finally` resets `isFetchingCert` on every path (throw/cancel/success) and `fetchForManualFill` itself is fail-closed (Run 22); delete-of-running-server is blocked twice (UI + `deleteServer` guard); Hysteria2's port exemption is deliberate (UDP form). No null-unsafety, no main-thread IO, no resource leak. | No action. |
+| 2 | CLEAN (contracts) | ProfileEditorResult / ProxyChainMembers | Result-intent extras are constants + pure functions; proxy-chain member removal is index-guarded and resolves at confirmation (no stale-index race). | No action. |
+
+### Upstream comparison result
+- **`BaseServerActivity.kt`, `ProfileEditorResult.kt`, `ProxyChainMembers.kt`: all byte-identical to upstream HEAD** (diff exit 0 ×3). No fork hunks, no missing upstream fixes.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 34)
+- **`ui/main/MainActivity.kt` (396 lines) full pass** — receivers/permission flow/connect entry (`startV2Ray` path), ad entry points already known from Runs 19/22/25 (:131 integrity, :148 appOpen, :160 interstitial, :299 rewarded), activity-result handling of the `ProfileEditorResult` contract (this run's file) — plus `ui/main/MainScreen.kt` wiring spot-checks where MainActivity delegates. Diff against upstream raw. Run 35 = per-protocol editors batch 1: `server/Server*Activity.kt` small files (`ServerSocks`/`ServerHttp`/`ServerTrojan`/`ServerShadowsocks`/`ServerVmess`/`ServerVless`/`ServerHysteria2`/`ServerWireguard`, 49-109 lines each, all form→ProfileItem over this run's verified BaseServerActivity contract). Run 36 = the two big editors (`ServerCustomConfigActivity` 506, `ServerProxyChainActivity` 367, `ServerGroupActivity` 325, `ServerUiState` 258). Then git-diff-driven periodic mode.
