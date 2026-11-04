@@ -385,3 +385,31 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 13 — 2026-11-04
+
+### Files reviewed
+- `util/HttpUtil.kt` (311 lines) — **byte-identical to upstream**; full line-by-line: `toIdnUrl`/`toIdnDomain` (IDN conversion), `resolveHostToIP` (null-on-IP/failed passthrough contract), `getUrlContent` (simple fetch), `getUrlContentWithUserAgent` (manual ≤3-hop redirect loop, custom headers, embedded basic-auth extraction, preemptive Proxy-Authorization), `buildOkHttpClient` (connect+read timeouts, per-call client, proxy-authenticator anti-loop guard), `resolveLocation` (URI-resolve fallback chain), `downloadToFile` (streamed copy).
+- Consumer tracing: `downloadToFile` → `UserAssetViewModel.tryDownload` (temp-file + rename-on-success; **upstream-identical** including the unchecked `renameTo` result); `toIdnUrl` → `AngConfigManager` refresh path (the finding below); `resolveHostToIP` → CoreOutboundBuilder:698 / CoreConfigManager:1146 / CertificateFingerprintManager:69 (both null semantics treated as passthrough).
+- Helper contracts: `Utils.isValidUrl` = `Patterns.WEB_URL || Patterns.DOMAIN_NAME || URLUtil.isValidUrl` (accepts SCHEME-LESS URLs); `Utils.isValidSubUrl` = https/http+private-IP checks; SubEditActivity validates with `isValidUrl` before save.
+
+### Finding — REAL fork regression, FIXED, released v1.2.30
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | **HIGH (fork regression — lost upstream per-sub error isolation)** | AngConfigManager.updateConfigViaSub (491-511) vs upstream 463-540 | Upstream wraps the WHOLE per-sub body of `updateConfigViaSub` in try/catch → one broken subscription fails alone (`failureCount=1`) and the `updateConfigViaSubAll` fold continues. The fork's chunked refactor (Run 7 era) kept a catch ONLY for the lock-protected mutation phase (updateConfigViaSubChunked 766-769) — the fetch+parse phase (601-631) lost the guard. Concretely: a scheme-less subscription URL (e.g. `example.com/sub`) passes UI save validation (`Patterns.WEB_URL` matches scheme-less) but `HttpUtil.toIdnUrl` → `java.net.URL()` throws MalformedURLException at AngConfigManager:610 BEFORE the `isValidUrl` guard → propagates through `updateConfigViaSub` → aborts the ENTIRE `updateConfigViaSubAll` fold; every LATER subscription stays un-refreshed for the whole cycle AND the failure is swallowed by the outer catch (empty result — user sees nothing). Verified contained: `fetchSubscriptionContent` (both attempts try/catch → ""), `parseBatchProfiles` (whole-body try → emptyList), `Utils.decode` (never throws) — `toIdnUrl` is the only unguarded throw in the phase. | **FIXED** — per-subscription try/catch restored in `updateConfigViaSub` (upstream-faithful: catch Exception → log + failureCount=1). Commit d7a3d4a. Released **v1.2.30 (versionCode 34)**. |
+| 2 | CLEAN | HttpUtil all | Redirect loop: manual 3-hop with `followRedirects=false`; `isRedirect` → `resolveLocation` (absolute→relative fallback chain) → null ⇒ IOException (contained); null `request.url` degenerates to "Too many redirects" throw (contained, misleading message only). Custom headers replace case-insensitively via OkHttp `.header()`, per-header IllegalArgumentException swallowed. `Connection: close` prevents keep-alive leakage. Preemptive Proxy-Authorization + challenge-based proxyAuthenticator with anti-407-loop guard. Per-call OkHttpClient (no shared pool — perf note, upstream-identical). | No action (parity). |
+| 3 | Edge (upstream quirk) | toIdnUrl:38 | `str.replace(host, asciiHost)` replaces ALL occurrences — a host string repeated in path/query is also converted (same semantic value, harmless in practice); IDN conversion failure modes are upstream-identical. | Noted (parity). |
+| 4 | Edge (upstream quirk) | getUrlContentWithUserAgent | `request.url == null` → burns the redirect budget and throws "Too many redirects" (misleading, contained). No read-callTimeout — a trickling server can stretch a fetch (bounded by worker lifecycle). Upstream-identical. | Noted (parity). |
+
+### Upstream comparison result
+- `HttpUtil.kt`: zero hunks. The regression was in the fork's refactor of AngConfigManager's refresh path, not in HttpUtil itself. Fix restores exact upstream catch semantics (upstream's own per-sub catch also converts storage failures to failureCount=1; the fork's lock-phase catch already did the same for the mutation phase).
+
+### Release
+- **v1.2.30 (versionCode 34)** — commit d7a3d4a. Dispatch HTTP 204 → two runs on the same commit (push run artifact-only by design, dispatch run releases): BOTH `completed success`. Release v1.2.30 published with 10 APKs; fdroid universal APK signature verified = `2642E7F0…FD79F531` ✅.
+
+### Next run starting point (Run 14)
+- **`dto/V2rayConfig.kt` (470 lines)** — the JSON contract all builders serialize into (`getProxyOutbound`, bean defaults, transient/aliased field names vs Xray-core's expectations), then Run 15 = remaining util (`Utils.kt` second pass for `getIpv6Address`/`isPureIpAddress` edge cases) or `handler/WebDavManager.kt` (240, backup/restore path) — pick per risk.
+
