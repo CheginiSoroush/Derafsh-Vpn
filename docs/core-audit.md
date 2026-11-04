@@ -352,3 +352,36 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 12 — 2026-11-04
+
+### Files reviewed
+- `handler/SettingsManager.kt` (683 lines) — full line-by-line: `initApp` order, fork `seedDefaultSubscription` (URL/interval migrations, single-source migration, chunk-namespace dissolution, seeding/rename), `initRoutingRulesets` (Iran preset seeding + one-shot China→Iran migration), routing rulesets CRUD (`getPresetRoutingRulesets`/`resetRoutingRulesets*`/locked-ruleset preservation), `routingRulesetsBypassLan` (CUSTOM raw-JSON path), `removeSubscriptionWithDefault` (chunk cascade), dynamic SOCKS port (`getSocksPort`/`refreshRuntimeSocksPort`/`generateRandomSocksPort`), DNS getters, `getCurrentVpnInterfaceAddressConfig`, `ensureDefaultSettings`, `migrateHysteria2PinSHA256`, `migrateServerListToSubscriptions`, `ensureDefaultSubscription`.
+- `handler/DerafshSourceManager.kt` (33 lines, bonus — the seeding dependency): `coerceIn`/`toIntOrNull` everywhere → corrupted active-source value safely defaults to 0; `sourceUrl` cannot OOB. CLEAN.
+- Upstream diff: **140 lines total, 2 hunks** (`initApp` region + `removeSubscriptionWithDefault`) — ALL fork additions (pool seeding/migrations + chunk cascade). Everything else byte-identical to upstream HEAD.
+- Infrastructure tracing: dynamic-port consumers (`CoreConfigManager:523` config build, `TProxyService:70` HEV config, `RootProxyManager:115` root tunnel), manifest process topology (`:daemon` core/VPN/TProxy, `:tasks` test/update, `:bg` worker), `CoreVpnService:200` / `TProxyService:73` for the interface-address reader.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (design verified) | SettingsManager:359-400 + LauncherManager:96 | Dynamic SOCKS port lifecycle: `startContextService` refreshes ONCE per service start (anti-fingerprint new-port-per-session); after that `runtimeSocksPort` is stable so config build, TProxy HEV config and root tunnel all read the SAME value. `runtimeSocksPort` is a per-process JVM field and the manifest splits `:daemon`/`:tasks` — each process generates its own port, but this is BENIGN: every port consumer (config builder + tunnel builder) is co-located with the core it configures; no cross-process consumer of the raw port exists. | No action (self-consistent). |
+| 2 | Edge (upstream quirk) | SettingsManager:497-499 | `getCurrentVpnInterfaceAddressConfig`: `decodeSettingsString(PREF, "0")?.toInt()` unguarded — a corrupted stored index would throw NumberFormatException into `CoreVpnService.configureNetworkSettings`/`TProxyService.buildConfig`. Value is only written by the settings UI as a valid index; restore-from-backup of a foreign install is the only theoretical injector. Upstream-identical. | Noted (parity; negligible probability). |
+| 3 | Info (asymmetry, upstream) | SettingsManager:461-464 | `getVpnDnsServers` has NO empty-fallback (returns empty list if the user's value is all-invalid) while domestic/remote getters fall back to defaults. Consumer is the VPN builder's addDnsServer — an empty list degrades to platform DNS behavior, not a crash. Upstream-identical. | Noted (parity). |
+| 4 | Info (fork design) | SettingsManager:99-106 (seed) | `seedDefaultSubscription` renames the built-in subscription row to "Derafsh N" whenever remarks differ — a user rename of the built-in row is overridden on next launch. Deliberate ("keep naming in sync with the switcher"); the row is app-managed, url/interval preserved. | Noted (intended). |
+| 5 | CLEAN | initRoutingRulesets 121-148 | Iran migration is safe: fresh installs seed WHITE_IRAN directly (upstream HEAD also ships WHITE_IRAN in RoutingType — verified); existing installs migrate ONLY when the stored rulesets are byte-equal (JSON) to the untouched China preset → user customizations never touched; flag set once outside runCatching (one-shot, idempotent). | No action. |
+| 6 | CLEAN | seedDefaultSubscription 44-108 | All four migrations are one-shot flagged; legacy pool removal (`__derafsh_plus1/2/turbo__`) and legacy chunk dissolution run BEFORE the namespaced scheme can create new chunk rows (flag set in the same init) → cannot destroy fresh data; DEFAULT row creation + URL/interval migrations idempotent; DerafshSourceManager clamps every index. | No action. |
+| 7 | CLEAN | migrateHysteria2PinSHA256 / migrateServerListToSubscriptions | Guarded by migration flags; unreadable legacy JSON → mark-done (no data to migrate anyway); per-profile type/prefilled checks; `encodeServerList` only on first boot. | No action. |
+| 8 | Info (cosmetic, upstream) | SettingsManager:482 | `getRealPingConcurrency` KDoc says "clamped to 1..64" but code clamps `1..128` (doc drift). Upstream-identical. | Noted. |
+| 9 | Info | getServerViaRemarks:300-308 | O(n) full-pool decode per exact-remarks lookup (9k configs) — upstream-identical; call sites are per-add duplicate checks. | Noted. |
+
+### Upstream comparison result
+- SettingsManager: 2 hunks, both fork pool-management additions; everything else byte-identical. `DerafshSourceManager` is fork-only and clamped. **No fork regressions, no missing upstream fixes.** Upstream already ships `RoutingType.WHITE_IRAN` + `custom_routing_white_iran` asset — the fork's Iran preset is upstream-native, not a fork hack.
+
+### Next run starting point (Run 13)
+- **`util/HttpUtil.kt` (311 lines)** — the subscription-fetch layer feeding the 9k pool (timeouts, TLS error handling, proxy-then-direct retry, usage-info parsing). Then Run 14 = `dto/V2rayConfig.kt` (470, JSON contract + `getProxyOutbound`).
+
+### Release
+- None this run (no code changes; docs-only commit).
