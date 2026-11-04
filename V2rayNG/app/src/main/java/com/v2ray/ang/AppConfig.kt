@@ -226,6 +226,15 @@ object AppConfig {
      * active source) is materialized as a subscription and auto-updated every 4 hours;
      * switching rewrites the built-in subscription's URL and refreshes immediately.
      * Every URL below was validated live (HTTP 200 + ≥15 parseable configs) before shipping.
+     *
+     * Round-3 expansion (v1.2.37): +175 sources aggregated from the 10ium free-sub-link
+     * directory (https://10ium.github.io/free-sub-link/) — Xray-format feeds only (plain URI
+     * lists + base64). Each was validated live before shipping: HTTP 200, ≥5 parseable
+     * configs, ≤3 MB payload and ≤8000 configs per pool (the chunk mechanism keeps big-pool
+     * imports bounded). Clash/Mihomo YAML feeds, DNS-only configs and DNS lists from the same
+     * page are intentionally NOT included — the Xray core cannot parse them; dead links
+     * (HTTP 404/empty pools at validation time) are excluded too. Entries are appended AFTER
+     * the pre-existing ones so persisted active-source indices stay stable across upgrades.
      */
     val DERAFSH_SOURCE_URLS: List<String> = listOf(
         DERAFSH_SUB_URL, // 0xRadikal "top100" — health-checked top 100 (default pool)
@@ -251,6 +260,182 @@ object AppConfig {
         "https://raw.githubusercontent.com/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
         "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Splitted-By-Protocol/vmess.txt",
         "https://raw.githubusercontent.com/barry-far/V2ray-Config/main/Splitted-By-Protocol/trojan.txt",
+        // ---- Round-3: 10ium free-sub-link aggregation (indices 20+; validated live, see above) ----
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/normal/ss", // [10ium:HiNVPN ss] 135cfg/20KB
+        "https://raw.githubusercontent.com/10ium/multi-proxy-config-fetcher/refs/heads/main/configs/proxy_configs.txt", // [10ium:config fetcher] 319cfg/95KB
+        "https://raw.githubusercontent.com/10ium/V2RayAggregator/refs/heads/master/Eternity.txt", // [10ium:Aggregator] 200cfg/34KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Normal/reality", // [10ium:V2Hub reality] 529cfg/153KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/normal/trojan", // [10ium:HiNVPN trojan] 91cfg/25KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/merged", // [10ium:V2Hub merged] 1895cfg/503KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/normal/vmess", // [10ium:HiNVPN vmess] 51cfg/17KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/normal/vless", // [10ium:HiNVPN vless] 467cfg/140KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Normal/vmess", // [10ium:V2Hub vmess] 116cfg/48KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Normal/shadowsocks", // [10ium:V2Hub shadowsocks] 271cfg/38KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Normal/trojan", // [10ium:V2Hub trojan] 338cfg/79KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Normal/vless", // [10ium:V2Hub vless] 1170cfg/336KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/normal/mix", // [10ium:HiNVPN mix] 732cfg/201KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollectorLite/main/ss_iran.txt", // [10ium:CollectorLite ss] 581cfg/63KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollector/main/ss_iran.txt", // [10ium:Collector ss] 2365cfg/340KB
+        "https://raw.githubusercontent.com/roosterkid/openproxylist/refs/heads/main/V2RAY_RAW.txt", // [10ium:roosterkid] 150cfg/34KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollectorLite/main/trojan_iran.txt", // [10ium:CollectorLite trojan] 703cfg/166KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollectorLite/main/mixed_iran.txt", // [10ium:CollectorLite mixed] 4367cfg/1020KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollectorLite/main/vmess_iran.txt", // [10ium:CollectorLite vmess] 284cfg/95KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollectorLite/main/vless_iran.txt", // [10ium:CollectorLite vless] 2275cfg/546KB
+        "https://raw.githubusercontent.com/maimengmeng/mysub/refs/heads/main/valid_content.txt", // [10ium:maimengmeng valid content] 1483cfg/233KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollector/main/vmess_iran.txt", // [10ium:Collector vmess] 3408cfg/1341KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollector/main/trojan_iran.txt", // [10ium:Collector trojan] 2802cfg/930KB
+        "https://raw.githubusercontent.com/Rayan-Config/C-Sub/refs/heads/main/configs/proxy.txt", // [10ium:Rayan Config] 47cfg/10KB
+        "https://raw.githubusercontent.com/10ium/V2rayCollector/main/mixed_iran.txt", // [10ium:Collector mixed] 3957cfg/1431KB
+        "https://raw.githubusercontent.com/maimengmeng/mysub/refs/heads/main/valid_content_all.txt", // [10ium:maimengmeng valid content all] 2398cfg/482KB
+        "https://raw.githubusercontent.com/darkvpnapp/safar724/refs/heads/main/api", // [10ium:darkvpnapp safar724] 8cfg/2KB
+        "https://raw.githubusercontent.com/darkvpnapp/IRDevs/refs/heads/main/index.html", // [10ium:darkvpnapp IRDevs] 8cfg/2KB
+        "https://raw.githubusercontent.com/darkvpnapp/cslab/refs/heads/main/index.html", // [10ium:darkvpnapp cslab] 8cfg/2KB
+        "https://raw.githubusercontent.com/darkvpnapp/CloudflarePlus/refs/heads/main/cdn", // [10ium:darkvpnapp CloudflarePlus cdn] 8cfg/2KB
+        "https://raw.githubusercontent.com/darkvpnapp/Cloud2/refs/heads/main/aparatapi", // [10ium:darkvpnapp Cloud2] 9cfg/2KB
+        "https://raw.githubusercontent.com/code3-dev/v-data/refs/heads/main/vip", // [10ium:code3 dev vip] 89cfg/19KB
+        "https://raw.githubusercontent.com/Created-By/Telegram-Eag1e_YT/refs/heads/main/%40Eag1e_YT", // [10ium:Telegram Eag1e YT] 99cfg/22KB
+        "https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/ss.html", // [10ium:arshiacomplus ss] 64cfg/6KB
+        "https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/vmess.html", // [10ium:arshiacomplus vmess] 12cfg/4KB
+        "https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/trojan.html", // [10ium:arshiacomplus trojan] 5cfg/1KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_proxy_configs.txt", // [10ium:config fetcher] 319cfg/127KB
+        "https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/mix/sub.html", // [10ium:arshiacomplus mix] 332cfg/62KB
+        "https://raw.githubusercontent.com/arshiacomplus/v2rayExtractor/refs/heads/main/vless.html", // [10ium:arshiacomplus vless] 177cfg/39KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/base64/ss", // [10ium:HiN VPN ss] 135cfg/27KB
+        "https://github.com/4n0nymou3/multi-proxy-config-fetcher/raw/refs/heads/main/configs/proxy_configs.txt", // [10ium:4n0nymou3 config fetcher] 155cfg/28KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/base64/trojan", // [10ium:HiN VPN trojan] 91cfg/33KB
+        "https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mci/sub_1.txt", // [10ium:MahsaFreeConfig mci 1] 12cfg/1KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/base64/vless", // [10ium:HiN VPN vless] 467cfg/186KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/base64/mix", // [10ium:HiN VPN mix] 732cfg/268KB
+        "https://raw.githubusercontent.com/10ium/HiN-VPN/main/subscription/base64/vmess", // [10ium:HiN VPN vmess] 51cfg/22KB
+        "https://raw.githubusercontent.com/mahsanet/MahsaFreeConfig/refs/heads/main/mtn/sub_1.txt", // [10ium:MahsaFreeConfig mtn 1] 6cfg/1KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/merged_base64", // [10ium:V2Hub merged] 1895cfg/671KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/vmess", // [10ium:V2Hub vmess] 116cfg/64KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/vless", // [10ium:V2Hub vless] 1170cfg/448KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/reality", // [10ium:V2Hub reality] 529cfg/204KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/trojan", // [10ium:V2Hub trojan] 338cfg/105KB
+        "https://raw.githubusercontent.com/10ium/V2Hub3/main/Split/Base64/shadowsocks", // [10ium:V2Hub shadowsocks] 271cfg/51KB
+        "https://raw.githubusercontent.com/10ium/V2RayAggregator/refs/heads/master/Eternity", // [10ium:Aggregator] 200cfg/46KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_ss_iran.txt", // [10ium:CollectorLite ss] 563cfg/81KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_mixed_iran.txt", // [10ium:CollectorLite mixed] 4412cfg/1367KB
+        "https://raw.githubusercontent.com/arshiacomplus/robinhood-v1-v2-v3ray/refs/heads/main/conf.txt", // [10ium:arshiacomplus robinhood] 9cfg/0KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_vless_iran.txt", // [10ium:CollectorLite vless] 2251cfg/730KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-trojan.txt", // [10ium:Collector trojan] 2802cfg/1240KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-mixed.txt", // [10ium:Collector mixed] 3957cfg/1908KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_vmess_iran.txt", // [10ium:CollectorLite vmess] 274cfg/124KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium_trojan_iran.txt", // [10ium:CollectorLite trojan] 724cfg/227KB
+        "https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/trojan.txt", // [10ium:V2ray Config trojan] 3586cfg/1111KB
+        "https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/vmess.txt", // [10ium:V2ray Config vmess] 2229cfg/1120KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-ss.txt", // [10ium:Collector ss] 2365cfg/454KB
+        "https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/ss.txt", // [10ium:V2ray Config ss] 3254cfg/634KB
+        "https://raw.githubusercontent.com/10ium/base64-encoder/main/encoded/10ium-V2rayCollector-vmess.txt", // [10ium:Collector vmess] 3408cfg/1788KB
+        "https://raw.githubusercontent.com/10ium/V2ray-Config/main/Splitted-By-Protocol/hysteria2.txt", // [10ium:V2ray Config hysteria2] 39cfg/11KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/refs/heads/main/shuffled_outputs/rayan_proxy.txt", // [10ium:rayan proxy] 39cfg/15KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/refs/heads/main/shuffled_outputs/roosterkid_v2ray.txt", // [10ium:roosterkid] 150cfg/43KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/refs/heads/main/shuffled_outputs/maimengmeng.txt", // [10ium:maimengmeng] 500cfg/105KB
+        "https://shadowmere.xyz/api/b64sub", // [10ium:shadowmere.xyz] 241cfg/37KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_Config_vmess_cloudflare.txt", // [10ium:10ium V2ray Config_vmess cloudflare] 31cfg/229KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_Config_All_cloudflare.txt", // [10ium:10ium V2ray Config_All cloudflare] 1490cfg/492KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_Config_vless_cloudflare.txt", // [10ium:10ium V2ray Config_vless cloudflare] 1344cfg/2677KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_Config_trojan_cloudflare.txt", // [10ium:10ium V2ray Config_trojan cloudflare] 162cfg/43KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_HiNVPN_mix_cloudflare.txt", // [10ium:10ium V2ray HiNVPN mix cloudflare] 31cfg/10KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_fetcher_cloudflare.txt", // [10ium:10ium fetcher cloudflare.txt] 8cfg/4KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2ray_Config_ss_cloudflare.txt", // [10ium:10ium V2ray Config_ss cloudflare] 59cfg/15KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_telegram_configs_collector_cloudflare.txt", // [10ium:10ium telegram configs collector cloudflare] 303cfg/94KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_V2Hub_merged_cloudflare.txt", // [10ium:10ium V2Hub merged cloudflare] 122cfg/43KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_CollectorLite_Config_mixed_cloudflare.txt", // [10ium:10ium CollectorLite Config mixed cloudflare] 225cfg/63KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/10ium_Collector_mixed_cloudflare.txt", // [10ium:10ium Collector mixed cloudflare] 143cfg/48KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/maimengmeng_cloudflare.txt", // [10ium:maimengmeng cloudflare] 27cfg/9KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/mahsanet_mci2_cloudflare.txt", // [10ium:mahsanet mci2 cloudflare] 8cfg/2KB
+        "https://raw.githubusercontent.com/vpnclashfa-backup/SubConfigShuffler/main/shuffled_outputs/mahsanet_mtn2_cloudflare.txt", // [10ium:mahsanet mtn2 cloudflare] 7cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/hysteria", // [10ium:Hysteria - Mixed] 18cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/hysteria", // [10ium:Hysteria - Links] 18cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/tuic", // [10ium:Tuic - Mixed] 5cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/tuic", // [10ium:Tuic - Links] 5cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/reality", // [10ium:Reality - Mixed] 767cfg/258KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/reality", // [10ium:Reality - Links] 867cfg/295KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/protocols/reality", // [10ium:Reality - Telegram Channels] 162cfg/54KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/vless", // [10ium:Vless - Mixed] 2231cfg/636KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/vless", // [10ium:Vless - Links] 2705cfg/778KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/vmess", // [10ium:Vmess - Mixed] 96cfg/54KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/protocols/vmess", // [10ium:Vmess - Telegram Channels] 17cfg/10KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/protocols/vless", // [10ium:Vless - Telegram Channels] 196cfg/56KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/vmess", // [10ium:Vmess - Links] 252cfg/143KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/protocols/trojan", // [10ium:Trojan - Telegram Channels] 115cfg/30KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/trojan", // [10ium:Trojan - Links] 393cfg/86KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/trojan", // [10ium:Trojan - Mixed] 459cfg/115KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/protocols/shadowsocks", // [10ium:Shadowsocks - Mixed] 457cfg/77KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/protocols/shadowsocks", // [10ium:Shadowsocks - Links] 1282cfg/234KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/protocols/shadowsocks", // [10ium:Shadowsocks - Telegram Channels] 94cfg/16KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/splitted/channels", // [10ium:Mixed Type - Telegram Channels] 576cfg/165KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/networks/grpc", // [10ium:Google Remote Procedure Call (GRPC) - Links] 223cfg/54KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/networks/grpc", // [10ium:Google Remote Procedure Call (GRPC) - Telegram Channels] 27cfg/8KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/splitted/mixed", // [10ium:Mixed Type - Mixed] 4002cfg/1140KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/networks/ws", // [10ium:WebSocket Protocol (WS) - Telegram Channels] 165cfg/52KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/networks/tcp", // [10ium:Transmission Control Protocol (TCP) - Telegram Channels] 342cfg/91KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/networks/tcp", // [10ium:Transmission Control Protocol (TCP) - Links] 2591cfg/688KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/networks/grpc", // [10ium:Google Remote Procedure Call (GRPC) - Mixed] 109cfg/30KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/networks/ws", // [10ium:WebSocket Protocol (WS) - Links] 2825cfg/826KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/networks/tcp", // [10ium:Transmission Control Protocol (TCP) - Mixed] 1544cfg/427KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/security/tls", // [10ium:Transport Layer Security (TLS) - Mixed] 2264cfg/671KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/security/tls", // [10ium:Transport Layer Security (TLS) - Links] 2314cfg/700KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/security/non-tls", // [10ium:Non Transport Layer Security (Non-TLS) - Links] 1892cfg/452KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/splitted/subscribe", // [10ium:Mixed Type - Links] 3883cfg/1104KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/al/mixed", // [10ium:آلبانی 🇦🇱] 5cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/networks/ws", // [10ium:WebSocket Protocol (WS) - Mixed] 2664cfg/771KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/layers/ipv4", // [10ium:Internet Protocol Version 4 (IPV4) - Mixed] 4002cfg/1140KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/security/non-tls", // [10ium:Non Transport Layer Security (Non-TLS) - Mixed] 822cfg/189KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/security/non-tls", // [10ium:Non Transport Layer Security (Non-TLS) - Telegram Chann] 126cfg/27KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/security/tls", // [10ium:Transport Layer Security (TLS) - Telegram Channels] 247cfg/74KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/channels/layers/ipv4", // [10ium:Internet Protocol Version 4 (IPV4) - Telegram Channels] 576cfg/165KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/au/mixed", // [10ium:استرالیا 🇦🇺] 15cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/at/mixed", // [10ium:اتریش 🇦🇹] 10cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/by/mixed", // [10ium:بلاروس 🇧🇾] 6cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/br/mixed", // [10ium:برزیل 🇧🇷] 7cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/bg/mixed", // [10ium:بلغارستان 🇧🇬] 24cfg/7KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ca/mixed", // [10ium:کانادا 🇨🇦] 42cfg/9KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/cn/mixed", // [10ium:چین 🇨🇳] 7cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/cy/mixed", // [10ium:قبرس 🇨🇾] 29cfg/7KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/cz/mixed", // [10ium:چک 🇨🇿] 22cfg/5KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/dk/mixed", // [10ium:دانمارک 🇩🇰] 5cfg/0KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ee/mixed", // [10ium:استونی 🇪🇪] 13cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/fr/mixed", // [10ium:فرانسه 🇫🇷] 88cfg/25KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/de/mixed", // [10ium:آلمان 🇩🇪] 280cfg/79KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/fi/mixed", // [10ium:فنلاند 🇫🇮] 50cfg/15KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/hk/mixed", // [10ium:هنگ کنگ 🇭🇰] 107cfg/32KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/hu/mixed", // [10ium:مجارستان 🇭🇺] 6cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/in/mixed", // [10ium:هند 🇮🇳] 8cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ir/mixed", // [10ium:ایران 🇮🇷] 112cfg/35KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ie/mixed", // [10ium:ایرلند 🇮🇪] 8cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/it/mixed", // [10ium:ایتالیا 🇮🇹] 31cfg/6KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/il/mixed", // [10ium:اسرائیل 🇮🇱] 6cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/kz/mixed", // [10ium:قزاقستان 🇰🇿] 16cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/kr/mixed", // [10ium:کره جنوبی 🇰🇷] 17cfg/4KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/jp/mixed", // [10ium:ژاپن 🇯🇵] 92cfg/28KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/lt/mixed", // [10ium:لیتوانی 🇱🇹] 34cfg/8KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/lv/mixed", // [10ium:لتونی 🇱🇻] 15cfg/4KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/my/mixed", // [10ium:مالزی 🇲🇾] 9cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/md/mixed", // [10ium:مولداوی 🇲🇩] 8cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/nl/mixed", // [10ium:هلند 🇳🇱] 217cfg/61KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/na/mixed", // [10ium:نامشخص ❓] 1533cfg/441KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/subscribe/layers/ipv4", // [10ium:Internet Protocol Version 4 (IPV4) - Links] 3883cfg/1104KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/pl/mixed", // [10ium:لهستان 🇵🇱] 38cfg/9KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ro/mixed", // [10ium:رومانی 🇷🇴] 18cfg/4KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/rs/mixed", // [10ium:صربستان 🇷🇸] 8cfg/2KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ru/mixed", // [10ium:روسیه 🇷🇺] 74cfg/21KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/sc/mixed", // [10ium:سیشل 🇸🇨] 53cfg/14KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/si/mixed", // [10ium:اسلوونی 🇸🇮] 7cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/sg/mixed", // [10ium:سنگاپور 🇸🇬] 94cfg/29KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/za/mixed", // [10ium:آفریقای جنوبی 🇿🇦] 8cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/es/mixed", // [10ium:اسپانیا 🇪🇸] 25cfg/6KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/se/mixed", // [10ium:سوئد 🇸🇪] 29cfg/9KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ch/mixed", // [10ium:سوئیس 🇨🇭] 24cfg/6KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/tw/mixed", // [10ium:تایوان 🇹🇼] 14cfg/3KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/th/mixed", // [10ium:تایلند 🇹🇭] 5cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/tr/mixed", // [10ium:ترکیه 🇹🇷] 39cfg/10KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ua/mixed", // [10ium:اوکراین 🇺🇦] 8cfg/1KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/ae/mixed", // [10ium:امارات متحده عربی 🇦🇪] 18cfg/4KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/gb/mixed", // [10ium:بریتانیا 🇬🇧] 151cfg/34KB
+        "https://raw.githubusercontent.com/10ium/telegram-configs-collector/main/countries/us/mixed", // [10ium:ایالات متحده 🇺🇸] 606cfg/174KB
     )
     const val DELAY_TEST_URL = "https://www.gstatic.com/generate_204"
     const val DELAY_TEST_URL2 = "https://www.google.com/generate_204"

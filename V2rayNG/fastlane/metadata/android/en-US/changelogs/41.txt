@@ -1,0 +1,2 @@
+- Added 175 new built-in free-config sources aggregated from the 10ium free-sub-link directory (plain URI lists + base64 feeds) — the source switcher now offers 196 pools in total, every one validated live before shipping (reachable, parseable, size-bounded so switch-time imports stay fast).
+- Quality gate kept: dead links, empty pools, oversized aggregators (15k+ configs) and formats the Xray core cannot parse (Clash/Mihomo YAML, DNS-only lists) are excluded up front.
