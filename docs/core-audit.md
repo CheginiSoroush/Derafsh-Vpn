@@ -473,3 +473,33 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 16)
 - **`util/Utils.kt` (498 lines) — second pass** (`getIpv6Address`, `isPureIpAddress`, `isCoreDNSAddress`, `fixIllegalUrl`, remaining decode/parse helpers feeding fmt parsers + DNS handling). Then Run 17 = `handler/AdsManager.kt` (377, house-ads provider — fork ad surfaces) — pick per risk.
+
+---
+
+## Run 16 — 2026-11-04
+
+### Files reviewed
+- `util/Utils.kt` (498 lines) — **second pass, full line-by-line**: regexes (IPV4_REGEX/IPV6_REGEX), parseInt, clipboard get/set, decode/tryDecodeBase64/encode, isIpAddress/isPureIpAddress/isIpv4Address/isIpv6Address/isDomainName, isCoreDNSAddress, isValidUrl, openUri, getUuid, decodeURIComponent/encodeURIComponent, readTextFromAssets/userAssetPath, getDeviceIdForXUDPBaseKey, getIpv6Address, getSysLocale, fixIllegalUrl, findRandomFreePort, isValidSubUrl, receiverFlags, isXray, isIpInCidr/ipv4ToLong, formatTimestamp.
+- Consumer tracing: `getDeviceIdForXUDPBaseKey` → CoreNativeManager:33 (`Libv2ray.initCoreEnv(assetPath, deviceId)`); `isXray()` → SettingsManager:391 (getHttpPort) + CoreConfigManager:561 (HTTP inbound clone); `findRandomFreePort` → CoreServiceManager:152 (browser dialer); `getHttpPort()` → 6 consumers (CoreVpnService:251, AngConfigManager:559, PerAppProxyViewModel:182, UpdateCheckerManager:34, UserAssetActivity:218, SpeedtestManager:62) → `HttpUtil.buildOkHttpClient:242` = `Proxy.Type.HTTP` @ LOOPBACK:httpPort (HttpUtil re-diffed: byte-identical to upstream).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | **CLEAN (critical negative-result proof — DO NOT "fix")** | Utils:460 `isXray()` + CoreConfigManager:561 + SettingsManager:390-392 | `isXray()` returns **FALSE in the fork** (`com.derafsh.vpn` doesn't start with `com.v2ray.ang`; upstream = always TRUE incl. `.fdroid` suffix). The gate therefore flips every branch — and the flipped fork side is **the correct, self-consistent one**: `!isXray()` builds the local HTTP inbound (clone of socks inbound, LOOPBACK listen (CCM:532), auth/udp stripped, port = socks+1) and `getHttpPort()`=socks+1; all 6 consumers fetch via **HTTP CONNECT proxy** at exactly that port (IP-info, update check, geo/asset downloads, per-app proxy view, speedtest, system `setHttpProxy(LOOPBACK, socks+1)` on PREF_APPEND_HTTP_PROXY). Upstream HEAD is the inconsistent side: isXray()=true → NO HTTP inbound built, getHttpPort()=socksPort → its identical consumers point HTTP CONNECT at a SOCKS listener (vestigial multi-core gate). **Changing isXray() to return true for the fork would silently break all 6 features.** | No action — documented as a guard-rail for future runs. |
+| 2 | Info (upstream-native quirk) | Utils:362-370 getDeviceIdForXUDPBaseKey | Uses `Settings.Secure.ANDROID_ID` — the settings **KEY constant** ("android_id"), not the per-device value (needs `Settings.Secure.getString(resolver, ANDROID_ID)`). Result: base64("android_id"-padded) — identical for every install; feeds XUDP base key in `initCoreEnv`. Not a secret/security boundary; XUDP session keys derive the same across installs (upstream design). Upstream-identical (whole-file diff = only the receiverFlags hunk). | Noted (parity). |
+| 3 | Info (upstream-native quirk) | Utils:31 IPV6_REGEX | Anchoring bug in the alternation: `^A\|B$` — alt-1 unanchored at end, alt-2 unanchored at start → strings with garbage around a valid IPv6 core (e.g. "x1:2:3:4:5:6:7:8", "1:2::3zzz") pass isIpv6Address/isPureIpAddress; over-long hextet counts also accepted. Contained: worst case a malformed "address" profile fails to dial (pool self-heal sweep), getIpv6Address wraps garbage → core rejects, routing edge cases degrade to profile-level failure caught by the top-level config catch (Run 1 #2). IPV4_REGEX accepts leading-zero octets ("010") — ipv4ToLong parses them fine. | Noted (parity). |
+| 4 | Edge (upstream-native) | Utils:412-414 findRandomFreePort | TOCTOU: ServerSocket(0) binds→closes, core rebinds later (CoreServiceManager:152 browser dialer address) — port can be stolen in the window. Local-only, browser-dialer-only, best-effort, failure contained at core start. | Noted (parity). |
+| 5 | CLEAN | decode/tryDecodeBase64/encode 82-126 | Standard→URL_SAFE→pad-stripped retry chain, never throws ("" on total failure); SS-legacy `replace("ss://","")` safety already proven (Run 10). encode NO_WRAP + optional padding trim. | No action. |
+| 6 | CLEAN | decodeURIComponent/encodeURIComponent 289-316 | '+'-strictness (literal '+', not space) is upstream-native now — deliberate + documented in-code; encode maps space→%20. Roundtrip with `URI.getUserInfo()` (Run 10) unaffected. | No action. |
+| 7 | CLEAN | receiverFlags:453 (fork hardening, c8102ac) | Always RECEIVER_NOT_EXPORTED vs upstream RECEIVER_EXPORTED on T+ — blocks third-party spoofing of internal broadcasts. Positive divergence. | No action. |
+| 8 | CLEAN (misc) | isCoreDNSAddress 228-233, isDomainName 189-194, getClipboard 50-58, fixIllegalUrl 401-404, formatTimestamp 488-497 | isCoreDNSAddress loose prefixes ("httpsfoo") — upstream-identical, inputs are user DNS settings, core-side validation + top-level catch contain. isDomainName = !IP && isValidUrl (scheme-less accepted — Run 13 context). getClipboard null-text NPE caught → "". fixIllegalUrl minimal (space/pipe). formatTimestamp null/non-positive → "". | No action. |
+
+### Upstream comparison result
+- `Utils.kt`: upstream + **1 hunk** (receiverFlags hardening, c8102ac). Region re-checks: `HttpUtil.kt` byte-identical (proxy-type proof), SpeedtestManager getRemoteIPInfo region + CoreVpnService configurePlatformFeatures byte-identical. No fork regressions, no missing upstream fixes.
+
+### Next run starting point (Run 17)
+- **`handler/AdsManager.kt` (377 lines)** — house-ads provider (fork ad surfaces: provider switch "house"/"admob", placement logic) + its UI consumers. Then Run 18 = remaining `handler/` files or `service/` layer (V2RayServiceManager/VpnService lifecycle) — pick per risk.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.31 remains latest.
