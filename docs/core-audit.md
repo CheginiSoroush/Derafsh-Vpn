@@ -890,3 +890,33 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 30)
 - **Upstream-drift re-scan (planned since Run 26)**: re-diff the three fork-fixed files (`service/CoreVpnService.kt`, `handler/UpdateManager.kt`, `handler/AngConfigManager.kt`) plus the upstream-changed natives against upstream HEAD to catch post-v1.2.25 upstream fixes worth adopting; also re-diff `ui/main/MainTestRequests.kt` (now fork-divergent by design after this run's atomics fix) and `ui/main/MainViewModel.kt` against upstream to keep the delta ledger current.
+
+---
+
+## Run 30 — 2026-11-05
+
+### Files reviewed (upstream-drift re-scan — planned since Run 26)
+- Re-diffed every fork-divergent file named in the plan against **upstream 2dust/v2rayNG HEAD** (raw fetch, 2026-11-04 ~16:20 UTC) to catch post-fork upstream fixes worth adopting:
+- **`service/CoreVpnService.kt`** (upstream 372 lines): diff = **exactly the v1.2.33 teardown fix** (capture `ifaceToClose`/`tproxyToStop` before `unlockStart()`, conditional `tun2SocksService` null-out via reference equality, `unlockStart()` moved after teardown completion). Zero other hunks → **zero upstream drift**; nothing upstream changed in this file that the fork lacks.
+- **`handler/AngConfigManager.kt`** (upstream 657 vs fork 930, 7 hunks): every hunk maps to a documented fork feature — `isGroupType` import + share-format extension (`CUSTOM -> decodeServerRaw`, `else -> description`), `parseBatchProfiles` extraction (pool chunking), `updateConfigViaSubAll(onSubStart)` + chunk-prefix filter, the chunked importer refactor with the per-sub try/catch containment fix (v1.2.35, carries its own "upstream parity" rationale comment), `sweepUnhealthyPoolConfigs`, and the removal of upstream's private `parseConfigViaSub` — **verified its base64-fallback ladder (`Utils.decode` → raw → `parseCustomConfigServer`) is inlined verbatim at fork lines 188-198 plus a new `parseBatchSubscription` leg**, so no behavior was lost by the removal. Zero unaccounted hunks → **zero upstream drift**.
+- **`handler/UpdateManager.kt`**: 404 on upstream (upstream `handler/` has no in-app updater — only `UpdateCheckerManager.kt`); confirmed **fork-only** exactly as already recorded in Run 19 ("correctness argued from the app's own stated threat model"). No upstream comparison possible → no drift possible; contracts audited line-by-line in Run 19 (v1.2.34).
+- **`ui/main/MainTestRequests.kt`** (upstream 37 vs fork 46): diff = **exactly the v1.2.36 atomics fix** (AtomicReference fields, CAS `completeBulk` loop, CAS `completeCurrent`, `val bulk` getter, updated protocol comment). Ledger current.
+- **`ui/main/MainViewModel.kt`** (upstream 969 vs fork 1374, 23 hunks): all 23 hunks classified — imports (SubscriptionItem/DerafshSourceManager/MaintenanceStatus/MmkvManager + 5 kotlinx additions, 1 upstream import dropped), start-pending phase + connectPhase + source-switcher + session-deadline state, **v1.2.36 fixes** (ConcurrentHashMap + 3× @Volatile + protocol comment), persistent-test-results init change, fastestPick deferred wiring in MeasureConfigFinish/Cancelled, SessionExpired/SessionExtended events, visible-group cache freshness in `flushPendingTestResults`, removal of upstream's `formatStatus`/`formatConnectionTestResult` (fork's connectPhase UI replaces the status-label flow; no dangling references — CI builds), `allServerRows` aggregate flow (Run 28), session/source actions, `runStartupMaintenance` (Run 28), `switchDerafshSourceAsync`, `testAllRealPing` allGroups/skipTested expansion + per-group cache reset loop, `pendingTestGuids`, the fastest-pick trio, `onTestsFinished` sweep branch, `dismissSessionTimeUp`/`clearStartPending`, companion constants. **Zero unaccounted hunks → zero upstream drift.**
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (drift scan result) | all 5 files vs upstream HEAD | **No post-fork upstream fix was missed.** Upstream HEAD has not changed any region the fork shares since the individual audits (Run 18-29): CoreVpnService shows only the v1.2.33 hunks, MainTestRequests only the v1.2.36 hunks, MainViewModel/AngConfigManager only documented Derafsh features. Nothing to adopt. | No action. |
+| 2 | CLEAN (ledger verification) | `parseConfigViaSub` removal | The fork deleted upstream's private parse ladder helper; call-site check proves the ladder is inlined at the fork's `updateConfigViaSub` (lines 188-198: decode → raw → custom, plus `parseBatchSubscription`) — behavior preserved, no drift. | No action. |
+| 3 | Info (upstream-shared, unchanged) | `updateConfigViaSubAll` | Upstream's fold with `enabled` filter and outer catch is preserved in the fork under the chunk-prefix filter + `onSubStart` callback; containment per-sub stays (v1.2.35). Upstream-identical where fork doesn't extend. | Noted. |
+| 4 | CLEAN (v1.2.36 release closure) | CI + signature | Run 29's dispatch verified post-hoc this run: `build.yml` runs 65/66 for `c52baae` both **completed success**; release v1.2.36 published by github-actions[bot] with all 10 APKs; **`tools/verify_sig.py` on the published `Derafsh_1.2.36_arm64-v8a.apk` → cert sha256 `2642E7F0…FD79:F531` = expected fingerprint** (scheme v2). Run 67 (docs commit 1094c63) builds independently, non-gating. | No action. |
+
+### Upstream comparison result
+- **Zero upstream drift across all five files.** The fork's entire delta vs upstream HEAD = documented intentional features + the three released fixes (v1.2.33/34/35) + the v1.2.36 atomics. No upstream fix missing; no fork regression introduced. ("Upstream-changed natives" from the Run 29 plan resolved as: UpdateManager is fork-only — no upstream side; all other divergent files re-diffed clean.)
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest, CI-success + signature-verified.
+
+### Next run starting point (Run 31)
+- **Remaining ui/ viewmodels (7 small files, 53-153 lines each — closes the ui/ layer):** start with the 3 largest/riskiest: `ui/subscription/SubscriptionsViewModel.kt` (153 — subscription CRUD, URL handling), `ui/apppicker/AppPickerViewModel.kt` (147 — PackageManager scanning), `ui/userasset/UserAssetViewModel.kt` (143 — geo-asset download/IO). Diff each against upstream raw. Run 32 = final sweep of the 4 tiny ones (`logcat/LogcatViewModel` 99, `settings/SettingsViewModel` 73, `checkupdate/CheckUpdateViewModel` 53, `routing/RoutingSettingsViewModel` 51) — after which every Kotlin file with real logic in the app has been audited line-by-line at least once.
