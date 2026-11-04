@@ -503,3 +503,30 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit). v1.2.31 remains latest.
+
+---
+
+## Run 17 — 2026-11-04
+
+### Files reviewed
+- `handler/AdsManager.kt` (377 lines, fork-only) — full line-by-line: BuildConfig unit seams, house-mode gate (`ADS_PROVIDER="house"` → Mobile Ads SDK never touched), `init` (main-process guard via `isMainProcess` API-28+ / ActivityThread reflection fallback for minSdk 24), the Tapsell→AdMob→house waterfall for app-open/interstitial/rewarded (frequency cap 180s BEFORE the Tapsell leg, null-out-before-show double-show guard, catch→preload+onClosed everywhere, `buildShowCallback` routes failed-to-show → onDismiss too), preloads (in-flight markers), `onHouseAdDismissed` (reward-then-close order mirroring AdMob, nulls both slots → double-fire safe).
+- Supporting files read in full: `handler/TapsellAds.kt` (47 — SDK seam, `isConfigured` = `TAPSELL_APP_KEY.isNotBlank()` → currently blank, leg always falls through), `ui/HouseAdActivity.kt` (35→50), `ui/compose/HouseAds.kt` (DerafshHouseInterstitial: Continue button + LaunchedEffect auto-close timer — "must never trap the user"), MainActivity ad entry points (:148 app-open once/session after splash, :160 interstitial on running-transition with EMPTY onClosed, :299-303 `handleExtendSession` rewarded = {startV2Ray} / closed = {DismissSessionTimeUp}), SessionTimeUpDialog own onClose exit (MainScreen:341), build.gradle ad BuildConfig fields (TAPSELL_APP_KEY="" — why the waterfall always lands on house today).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | **MEDIUM (real bug — FIXED, released v1.2.32)** | HouseAdActivity.kt (pre-fix) + AdsManager:58-84 | **Back-press leak → stale house-ad callbacks → delayed auto-connect.** The house ad was dismissed through the Continue button or the auto-close timer ONLY; the system back press finished the activity WITHOUT `onHouseAdDismissed()` → pending `housePendingReward`/`housePendingClosed` survived as stale state. Concrete reachable chain: session-time-up → "extend with ad" → house ad → **back press** (reward `startV2Ray` + `DismissSessionTimeUp` stay pending) → dialog dismissed manually → next cold start: splash app-open ad → house ad → close → `onHouseAdDismissed` fires the STALE reward → **VPN auto-connects with no user intent**. Interstitial's empty onClosed made the common path look harmless. | **FIXED** — `HouseAdActivity.onDestroy` resolves pending callbacks when `isFinishing` (back/finish = the documented house policy "closing the screen always resolves"); rotation/recreation (not finishing) keeps the callbacks with the replacement screen; normal close path double-fires into nulls (no-op). Commit 0c7d020, v1.2.32 (36). |
+| 2 | CLEAN | AdsManager waterfall | Cap ordering: checked before Tapsell, set on Tapsell success + house + AdMob before-show (an AdMob show-failure still burns the 3-min budget — minor business edge, note only). Single-flight comment vs code: overlapping show* overwrites pending slots — contained because HouseAdActivity covers the screen (no underlying taps) and double-fire nulls are no-ops; double-launch (rapid double-tap) stacks two house activities, each resolves into nulls. `isMainProcess` reflection fallback documented + correct (`processName == APPLICATION_ID`). init: house mode never touches MobileAds; `initialized` + catch on initialize. | No action. |
+| 3 | CLEAN (contract) | TapsellAds.kt | Pure seam: unconfigured key → all three legs return false without touching anything; no SDK dependency added yet. Waterfall "unconfigured leg never blocks" verified end-to-end. | No action. |
+| 4 | CLEAN | HouseAds.kt composable | Never traps: Continue button + auto-dismiss timer (LaunchedEffect). Timer firing after a manual close → second onHouseAdDismissed → no-op. | No action. |
+| 5 | Info | MainActivity:148-161 | App-open shown once per session after the branded splash; interstitial fires on the running-transition only (never boot/auto-start) — frequency cap makes repeats polite. onClosed={empty} is safe now that pending callbacks can't leak. | Noted. |
+
+### Upstream comparison result
+- Fork-only subsystem (upstream 2dust/v2rayNG has no AdsManager/TapsellAds/HouseAdActivity) — no upstream baseline; correctness argued from the app's own documented contracts instead. No core/VPN-path code touched by this subsystem.
+
+### Release
+- **v1.2.32 (versionCode 36)** — commit 0c7d020. Dispatch HTTP 204; push + dispatch runs BOTH completed success. Release v1.2.32 published with 10 APKs; fdroid universal APK signature verified = `2642E7F0…FD79F531` ✅.
+
+### Next run starting point (Run 18)
+- **`service/` layer: `V2RayServiceManager.kt` + `CoreVpnService` lifecycle region** (start/stop/ping loop, notification, consumeRestartService/setupGroupTab consumers, TUN bring-up) — the Run 15/16 findings touched its edges (restore restart flag, setHttpProxy) but the file itself is unreviewed. Then Run 19 = remaining `handler/` files (UpdateCheckerManager, AppLocaleManager, ...) or `ui/compose` ad/banner surfaces — pick per risk.
