@@ -128,10 +128,19 @@ class MainViewModel(
     private var preloadJob: Job? = null
     private var selectedGroupLoadJob: Job? = null
     private var reloadJob: Job? = null
+
+    // The test protocol is touched from BOTH the main thread (event collector, UI actions)
+    // and IO threads (startup maintenance, source switch, fastest-server pick all enter
+    // testAllRealPing/cancelAllPing off-main): the pending-result map must be a concurrent
+    // map (a plain LinkedHashMap once raced a main-thread toMap() against an IO clear()
+    // -> ConcurrentModificationException crash) and the job/timestamp fields must be
+    // volatile so the IO side sees the latest cancellation state.
+    @Volatile
     private var testResultFlushJob: Job? = null
-    private val pendingTestResults = linkedMapOf<String, Long>()
+    private val pendingTestResults: MutableMap<String, Long> = ConcurrentHashMap()
 
     private val testRequests = MainTestRequests()
+    @Volatile
     private var bulkTestJob: Job? = null
 
     /** Pending fastest-server pick: a dedicated bulk test whose finish/cancel completes the deferred. */
@@ -145,6 +154,7 @@ class MainViewModel(
      * pick). Within [Companion.FASTEST_PICK_FRESH_WINDOW_MS] the fastest-server pick reads
      * those persisted delays directly instead of re-testing every config on connect.
      */
+    @Volatile
     private var lastFullTestFinishAt = 0L
 
     private val initialPageReady = CompletableDeferred<Unit>()

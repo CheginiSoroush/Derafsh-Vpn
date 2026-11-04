@@ -1,37 +1,46 @@
 package com.v2ray.ang.ui.main
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
-/** Main-thread request ownership; a late reply must not complete a newer test. */
+/**
+ * Request ownership for the speed-test flows: a late reply must not complete a newer test.
+ * Bulk requests can be STARTED from IO threads (startup maintenance, source switch and the
+ * fastest-server pick all run off the main thread) while replies are collected on the main
+ * thread, so every field is an atomic reference — plain vars would race across threads.
+ */
 internal class MainTestRequests {
     data class Bulk(val id: String, val groupId: String)
 
-    private var current: String? = null
-    var bulk: Bulk? = null
-        private set
-    val isTesting: Boolean get() = current != null || bulk != null
+    private val current = AtomicReference<String?>(null)
+    private val bulkRef = AtomicReference<Bulk?>(null)
 
-    fun beginCurrent(): String = UUID.randomUUID().toString().also { current = it }
+    val bulk: Bulk?
+        get() = bulkRef.get()
 
-    fun completeCurrent(id: String): Boolean {
-        if (id != current) return false
-        current = null
-        return true
-    }
+    val isTesting: Boolean
+        get() = current.get() != null || bulkRef.get() != null
+
+    fun beginCurrent(): String = UUID.randomUUID().toString().also { current.set(it) }
+
+    fun completeCurrent(id: String): Boolean = current.compareAndSet(id, null)
 
     fun invalidateCurrent() {
-        current = null
+        current.set(null)
     }
 
-    fun beginBulk(groupId: String): Bulk = Bulk(UUID.randomUUID().toString(), groupId).also { bulk = it }
+    fun beginBulk(groupId: String): Bulk =
+        Bulk(UUID.randomUUID().toString(), groupId).also { bulkRef.set(it) }
 
     fun completeBulk(id: String): Bulk? {
-        val request = bulk?.takeIf { it.id == id } ?: return null
-        bulk = null
-        return request
+        while (true) {
+            val request = bulkRef.get() ?: return null
+            if (request.id != id) return null
+            if (bulkRef.compareAndSet(request, null)) return request
+        }
     }
 
     fun cancelBulk() {
-        bulk = null
+        bulkRef.set(null)
     }
 }

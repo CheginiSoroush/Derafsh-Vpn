@@ -1,0 +1,2 @@
+- Fix: crash risk when switching sources while the startup speed test was streaming results — the pending-result buffer was a plain HashMap cleared from a background thread while the UI thread iterated it (ConcurrentModificationException). It is now a concurrent map.
+- Hardening: the speed-test request tracker and its job/timestamp flags are now safe to touch from background threads (startup maintenance, source switch, fastest-server pick); a late test reply can no longer be misattributed, drop results, or leave the "Testing" state stuck.
