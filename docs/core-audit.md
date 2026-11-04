@@ -284,3 +284,35 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - None this run (no code changes; docs-only commit).
+
+---
+
+## Run 10 — 2026-11-04
+
+### Files reviewed
+- `fmt/TrojanFmt.kt` (51 lines) — **byte-identical to upstream**; full parse/toUri review + downstream contract trace (`toOutboundTrojan`: port/password/flow + transport + TLS).
+- `fmt/Hysteria2Fmt.kt` (72 lines) — **byte-identical to upstream**; full review + trace of the fork-relevant hysteria2 outbound block (`CoreOutboundBuilder` 483-542: `auth=password`, portHopping/mport interval normalization with 5s floor, obfsPassword→salamander finalmask, brutalUp/Down congestion switch).
+- `fmt/ShadowsocksFmt.kt` (124 lines) — **byte-identical to upstream**; deep dive on the two historical bug magnets: SIP002 userinfo handling and the obfs plugin parser, plus the legacy base64 path and `Utils.decode`/`FmtBase.toUri` roundtrip proofs.
+- Helper contracts re-verified for this run: `Utils.decode` (never throws: standard → URL-safe → padding-trim retry → `orEmpty()`), `Utils.fixIllegalUrl` (space→%20, pipe→%7C), `ProfileItem` defaults (`security/insecure/serverPort = null`), `getItemFormQuery` security normalization (non-TLS/REALITY → null) + insecure key precedence, `getQueryDic` insecure dual-key emission (TLS only), `FmtBase.toUri` (`encodeURIComponent` on userInfo + remarks; `java.net.URI.getUserInfo()` auto-decodes on re-parse → roundtrip closed).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | Edge (upstream quirk) | TrojanFmt.parse:24 | Portless URI (`trojan://pw@host`) → `uri.port=-1` → `serverPort="-1"`. `"-1".toInt()` parses (no crash) → outbound port -1 → connection fails; in the pool context real-ping fails → `removeInvalidServer` sweeps it. Hysteria2Fmt HAS the guard (`if (uri.port == -1) DEFAULT_PORT`), Trojan doesn't — upstream's own asymmetry. | No action (upstream parity; self-healing in pool; diverging would break future upstream sync). |
+| 2 | Edge (upstream quirk, self-healing) | ShadowsocksFmt.parseSip002:46-49 | Userinfo that decodes to a string without `:` → `result.count()==1` → method/password stay null → profile stored → outbound invalid → ping fails → pool sweep. Contained by design. | No action (parity). |
+| 3 | CLEAN (no false positive) | ShadowsocksFmt.parseSip002:53 | `plugin?.contains("obfs=http")` checked against real collision candidates: `obfs=tls` ✗, `obfs-host=…` ✗ (needs literal `obfs=` immediately followed by `http`), `v2ray-plugin` ✗. Compliant SIP002 percent-encoded plugin values decode via `getQueryParam` before the check → parse correctly into network=tcp/headerType=http/obfs-host→host/obfs-path→path. Raw unencoded `;` values (SIP002-noncompliant) truncate at the first `=` pair — parity. | No action. |
+| 4 | CLEAN (impossible edge) | ShadowsocksFmt.parseLegacy:79 | `str.replace("ss://", "")` replaces ALL occurrences — theoretical mid-payload corruption is IMPOSSIBLE: `:` and `@` are not in the base64 alphabet, so a base64 payload can never contain the literal `ss://`. Prefix stripping is safe. Plaintext portless legacy URIs fail both paths (SIP002: port ≤ 0; legacy regex can't match a leading `@`) → dropped per-line. | No action. |
+| 5 | Edge (upstream quirk) | ShadowsocksFmt.toUri:123 | Export passes `dicQuery=null` → plugin/obfs fields (headerType/host/path) are NOT re-emitted in the share URI; share→re-import loses the http-obfs settings (profile in storage keeps them). Upstream-identical for years; fixing would diverge the share format. | Noted (deferred — upstream parity). |
+| 6 | CLEAN (roundtrip) | SS/Trojan/Hysteria2 toUri | Proved closed roundtrip: `Utils.encode(pw, removePadding=true)` → `encodeURIComponent` (+→%2B, /→%2F) → `URI.getUserInfo()` decodes back on import; `limit=2` split preserves `:` inside passwords; remarks `#`-encoded/decoded; `security=` empty-string edge (getItemFormQuery normalizes to null, then raw override at TrojanFmt:35/Hysteria2Fmt:36) → "" only from an empty `security=` param — upstream parity. Hysteria2 `obfs-password` without `obfs` param is functionally CORRECT downstream (outbound builder treats non-empty obfsPassword as salamander) and toUri re-emits both params. `insecure=0/1` dual-key precedence roundtrips. | No action. |
+| 7 | Contained (known) | getQueryParam via TrojanFmt:32 | Trailing `&` (or any `=`-less token) → IndexOutOfBoundsException → whole LINE dropped by `parseConfig` per-line try/catch (Run 9 #1). | No action (contained). |
+
+### Upstream comparison result
+- `TrojanFmt.kt`, `Hysteria2Fmt.kt`, `ShadowsocksFmt.kt`: **zero diff hunks**. No fork regressions, no missing upstream fixes. All behavior edges found are upstream-native quirks, each contained by the per-line parse try/catch or self-healing via the pool's ping→sweep cycle.
+- Parse-side safety net now verified across 6 of 9 fmt files (Vmess, Vless, V2rayN, Trojan, Hysteria2, SS): nothing in these parsers can abort a batch import of the 9k pool; worst case is a single dropped line.
+
+### Next run starting point (Run 11)
+- Last three fmt parsers, then the parse layer is DONE: **`fmt/WireguardFmt.kt` (132 lines — reserved/preSharedKey/localAddress/mtu parsing is the densest) + `fmt/SocksFmt.kt` (57) + `fmt/CustomFmt.kt` (26)**. After that: `handler/V2rayConfigManager.kt`-adjacent policy-group paths or `handler/SettingsManager.kt` (second pass) — pick per remaining risk at Run 11 start.
+
+### Release
+- None this run (no code changes; docs-only commit).
