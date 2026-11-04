@@ -33,14 +33,6 @@ import java.net.URI
 
 object AngConfigManager {
 
-    /**
-     * Serializes subscription refreshes within the process: the built-in pool's
-     * generation-based replacement is only correct when two refreshes of the same
-     * subscription (4-hourly auto update, manual pull, source switch) cannot
-     * interleave their fetch/commit/retire phases.
-     */
-    private val subscriptionUpdateLock = Any()
-
     private data class ParsedProfile(
         val profile: ProfileItem,
         val rawConfig: String? = null,
@@ -599,40 +591,47 @@ object AngConfigManager {
      * skipped by [updateConfigViaSub] and [updateConfigViaSubAll].
      */
     private fun updateConfigViaSubChunked(it: SubscriptionCache): SubscriptionUpdateResult {
-        synchronized(subscriptionUpdateLock) {
-            return try {
-                if (!it.subscription.enabled) {
-                    return SubscriptionUpdateResult(skipCount = 1)
-                }
-                if (TextUtils.isEmpty(it.subscription.remarks)
-                    || TextUtils.isEmpty(it.subscription.url)
-                ) {
-                    return SubscriptionUpdateResult(skipCount = 1)
-                }
+        // Fetch and parse run OUTSIDE the cross-process refresh lock: they are pure
+        // network/CPU work, and holding a cross-process file lock through a slow fetch
+        // would stall the other process's refresh for no benefit. Everything that
+        // mutates shared pool state (generation read, retire, commit, record) is
+        // serialized by [MmkvManager.withSubscriptionUpdateLock] — subscription
+        // refreshes run in TWO processes (the :tasks process auto-update and the main
+        // process manual pulls), which a JVM lock cannot serialize.
+        if (!it.subscription.enabled) {
+            return SubscriptionUpdateResult(skipCount = 1)
+        }
+        if (TextUtils.isEmpty(it.subscription.remarks)
+            || TextUtils.isEmpty(it.subscription.url)
+        ) {
+            return SubscriptionUpdateResult(skipCount = 1)
+        }
 
-                val url = HttpUtil.toIdnUrl(it.subscription.url)
-                if (!Utils.isValidUrl(url)) {
-                    return SubscriptionUpdateResult(failureCount = 1)
-                }
-                if (!it.subscription.allowInsecureUrl && !Utils.isValidSubUrl(url)) {
-                    return SubscriptionUpdateResult(failureCount = 1)
-                }
+        val url = HttpUtil.toIdnUrl(it.subscription.url)
+        if (!Utils.isValidUrl(url)) {
+            return SubscriptionUpdateResult(failureCount = 1)
+        }
+        if (!it.subscription.allowInsecureUrl && !Utils.isValidSubUrl(url)) {
+            return SubscriptionUpdateResult(failureCount = 1)
+        }
 
-                val (configText, usageInfo) = fetchSubscriptionContent(it, url)
-                if (configText.isEmpty()) {
-                    return SubscriptionUpdateResult(failureCount = 1)
-                }
+        val (configText, usageInfo) = fetchSubscriptionContent(it, url)
+        if (configText.isEmpty()) {
+            return SubscriptionUpdateResult(failureCount = 1)
+        }
 
-                val primarySubId = it.guid
-                var profiles = parseBatchProfiles(Utils.decode(configText), primarySubId)
-                if (profiles.isEmpty()) {
-                    profiles = parseBatchProfiles(configText, primarySubId)
-                }
-                if (profiles.isEmpty()) {
-                    // Got response but no valid configs parsed
-                    return SubscriptionUpdateResult(failureCount = 1)
-                }
+        val primarySubId = it.guid
+        var profiles = parseBatchProfiles(Utils.decode(configText), primarySubId)
+        if (profiles.isEmpty()) {
+            profiles = parseBatchProfiles(configText, primarySubId)
+        }
+        if (profiles.isEmpty()) {
+            // Got response but no valid configs parsed
+            return SubscriptionUpdateResult(failureCount = 1)
+        }
 
+        return MmkvManager.withSubscriptionUpdateLock {
+            try {
                 // The built-in pool shares its group index with user content — manually
                 // imported configs and policy groups live in the very same list. Rebuilding
                 // that index (append=false) would delete everything that is not a group,
@@ -763,10 +762,10 @@ object AngConfigManager {
                     "Subscription updated: ${it.subscription.remarks}, ${profiles.size} configs in ${chunks.size} groups"
                     + if (carriedResults.isEmpty()) "" else ", ${carriedResults.size} fresh result(s) carried over"
                 )
-                return SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
+                SubscriptionUpdateResult(configCount = profiles.size, successCount = 1)
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to update subscription: ${it.subscription.remarks}", e)
-                return SubscriptionUpdateResult(failureCount = 1)
+                SubscriptionUpdateResult(failureCount = 1)
             }
         }
     }

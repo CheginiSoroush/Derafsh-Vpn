@@ -45,6 +45,7 @@ object MmkvManager {
     private const val ID_SUB = "SUB"
     private const val ID_ASSET = "ASSET"
     private const val ID_SETTING = "SETTING"
+    private const val ID_SUB_UPDATE_LOCK = "SUBSCRIPTION_UPDATE_LOCK"
     private const val KEY_SELECTED_SERVER = "SELECTED_SERVER"
     private const val KEY_ANG_CONFIGS = "ANG_CONFIGS"
     private const val KEY_SUB_SERVER_PREFIX = "SUB_SERVERS_"
@@ -82,6 +83,9 @@ object MmkvManager {
     private val assetStorage by lazy { MMKV.mmkvWithID(ID_ASSET, MMKV.MULTI_PROCESS_MODE) }
     private val settingsStorage by lazy { MMKV.mmkvWithID(ID_SETTING, MMKV.MULTI_PROCESS_MODE) }
 
+    /** Dedicated cross-process mutex instance — holds no data, only its file lock is used. */
+    private val subscriptionUpdateLockStorage by lazy { MMKV.mmkvWithID(ID_SUB_UPDATE_LOCK, MMKV.MULTI_PROCESS_MODE) }
+
     private inline fun <T> withProfileIndexLock(block: () -> T): T {
         return synchronized(mainStorage) {
             mainStorage.lock()
@@ -89,6 +93,31 @@ object MmkvManager {
                 block()
             } finally {
                 mainStorage.unlock()
+            }
+        }
+    }
+
+    /**
+     * Cross-process mutual exclusion for subscription refreshes.
+     *
+     * Subscription updates run in two processes: the :tasks process (WorkManager auto
+     * update → SubscriptionUpdateService) and the main process (manual pulls from the
+     * UI). Both refresh the same built-in pool, and the pool's generation-based
+     * replacement (read generation → retire → commit → record) must never interleave
+     * across processes — the JVM locks below cannot see the other process. The file
+     * lock of this dedicated MMKV instance serializes the whole mutation phase; the
+     * instance itself stores nothing, so holding it blocks nothing but other refreshes.
+     *
+     * Must not be nested (no code path inside the block acquires it again) and must
+     * not be acquired while holding [withProfileIndexLock] — no such path exists.
+     */
+    fun <T> withSubscriptionUpdateLock(block: () -> T): T {
+        return synchronized(subscriptionUpdateLockStorage) {
+            subscriptionUpdateLockStorage.lock()
+            try {
+                block()
+            } finally {
+                subscriptionUpdateLockStorage.unlock()
             }
         }
     }

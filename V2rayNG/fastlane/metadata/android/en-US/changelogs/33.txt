@@ -1,0 +1,1 @@
+Fixed: a race between the automatic 4-hour pool refresh and a manual refresh (they run in different app processes) could leave duplicated or stale configs in the built-in pool — subscription refreshes are now serialized across processes, so concurrent refreshes can no longer interleave their updates
