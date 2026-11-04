@@ -745,7 +745,11 @@ object AngConfigManager {
                             currentSelection = selection,
                             selectedProfile = selectionProfile,
                         ) ?: committedProfiles.keys.firstOrNull()
-                        MmkvManager.setSelectServer(reanchoredSelection)
+                        // committedProfiles is never empty here (empty fetches early-return
+                        // above), so the re-anchor always lands on a fresh config.
+                        if (reanchoredSelection != null) {
+                            MmkvManager.setSelectServer(reanchoredSelection)
+                        }
                     }
                     MmkvManager.encodePoolGeneration(committedProfiles.keys)
                 }
