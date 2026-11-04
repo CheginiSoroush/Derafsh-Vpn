@@ -252,18 +252,26 @@ object CoreOutboundBuilder {
             ipv4Addresses.ifEmpty { listOf(AppConfig.WIREGUARD_LOCAL_ADDRESS_V4) }
         }
 
+        // Synced with upstream fix: the default remote DNS is a comma-separated list and
+        // must be split into proper entries. Wrapping it with listOf() produced one
+        // malformed "1.1.1.1,1.0.0.1,…" string, and with IPv6 disabled that single entry
+        // contains ":" (from its IPv6 parts) so the IPv4 filter dropped it and the
+        // fallback re-inserted the same malformed string — WireGuard tunnel DNS was broken.
+        val defaultDns = AppConfig.WIREGUARD_LOCAL_REMOTE_DNS.split(",").map { it.trim() }
+
         val rawDNS = profileItem.remoteDNS
             ?.split(",")
             ?.map { it.trim() }
             ?.filter { it.isNotEmpty() }
             ?.ifEmpty { null }
-            ?: listOf(AppConfig.WIREGUARD_LOCAL_REMOTE_DNS)
+            ?: defaultDns
 
         val remotes = if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true) {
             rawDNS
         } else {
-            val ipv4Dns = rawDNS.filter { !it.contains(":") }
-            ipv4Dns.ifEmpty { listOf(AppConfig.WIREGUARD_LOCAL_REMOTE_DNS) }
+            rawDNS.filter { !it.contains(":") }
+                // falling back to the IPv4 entries of the default list
+                .ifEmpty { defaultDns.filter { !it.contains(":") } }
         }
 
         outboundBean?.settings?.let { wireguard ->

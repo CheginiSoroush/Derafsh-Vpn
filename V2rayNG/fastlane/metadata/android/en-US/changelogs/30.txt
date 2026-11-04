@@ -1,0 +1,1 @@
+Fixed: WireGuard tunnel DNS was broken — the default fallback DNS list ("1.1.1.1,1.0.0.1,…" as a single string) was wrapped as one malformed entry instead of being split, so with IPv6 disabled the tunnel ended up with an invalid DNS address; synced with the upstream fix
