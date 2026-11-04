@@ -949,3 +949,34 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 32)
 - **Final ui/ sweep — the 4 tiny viewmodels (53-99 lines):** `ui/logcat/LogcatViewModel.kt` (99 — logcat streaming/IO), `ui/settings/SettingsViewModel.kt` (73), `ui/checkupdate/CheckUpdateViewModel.kt` (53 — update-flow UI, security-adjacent), `ui/routing/RoutingSettingsViewModel.kt` (51). Diff each against upstream raw. **After Run 32, every Kotlin file with real logic in the app has been audited line-by-line at least once** — subsequent runs can move to periodic full-repo re-scans (git-diff-driven: audit whatever changed since the last scan, fork commits AND upstream drift).
+
+---
+
+## Run 32 — 2026-11-05
+
+### Files reviewed (final ui/ sweep — the 4 tiny viewmodels; **ui/ viewmodels layer now 11/11 complete**)
+- **`ui/logcat/LogcatViewModel.kt` (99 lines)** — `loadLogcat` (`logcat -d -v time -s GoLog,<pkg>,AndroidRuntime,System.err` dump; buffered `readLines` closed via `use{}`; `.reversed()` = newest-first UI order), `copyLogcat` (filtered join → clipboard → toast), `clearLogcat` (`logcat -c` + `waitFor()`), `filter`/`applyFilter` (main-confined plain vars), `logEntries` derived flow (`map(::createLogcatEntries)` under **`flowOn(Dispatchers.Default)`** — the heavy key-building is off-main; `createLogcatEntries` reads only its parameter; occurrence keys counted oldest-first so keys are stable across filter changes — documented in-code).
+- **`ui/checkupdate/CheckUpdateViewModel.kt` (53 lines)** — pre-release toggle persists immediately; `checkForUpdates` → `UpdateCheckerManager.checkForUpdate` (suspend, internal IO + fork's version-compare hardening [Run 22 ledger]) → dialog state or "already latest" toast; catch-all → toastError.
+- **`ui/settings/SettingsViewModel.kt` (73 lines)** — `refreshSystemVpnSettingsAvailability` (`resolveActivity` correctly on IO — PackageManager query can be slow); `checkAndRequestRoot` (`RootManager.refresh()` on IO, callback + toast on main after `withContext`); observatory validators (regex / `toIntOrNull` with `> 0` guard, pure).
+- **`ui/routing/RoutingSettingsViewModel.kt` (51 lines)** — `reload` (self-heals legacy id-less rulesets: assigns UUID + persists per-index immediately), `update` (bounds-guarded), `move` (`moveItem` bounds-checked [Run 29] + bulk `encodeRoutingRulesets`).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | Info (upstream-shared) | LogcatViewModel.loadLogcat:42 / clearLogcat:65 | Blocking `readLines()` (dump can span hundreds of ms on large buffers) and `logcat -c` `waitFor()` run on the MAIN dispatcher inside `launchLoading` — a jank frame, not a crash; `-d` guarantees the child exits so the missing `process.destroy()` is inert. Upstream-identical (file byte-identical). | Noted. |
+| 2 | Info (upstream-shared) | CheckUpdateViewModel.checkForUpdates:43 | `catch (e: Exception)` also swallows CancellationException on VM clear — no rethrow; harmless here (scope is being torn down; toast is applicationContext-safe via ToastExt) but a deviation from the rethrow discipline used elsewhere. Upstream-identical. | Noted. |
+| 3 | Info (dead code, upstream-shared) | RoutingSettingsViewModel.reload:24,29 | `needsSave` is assigned but never read (Kotlin warning-grade dead variable; the per-index `saveRoutingRuleset` calls already do the work). Upstream-identical. | Noted. |
+| 4 | CLEAN | all 4 files | No fork hunks anywhere: **all four byte-identical to upstream HEAD** (diff exit 0 ×4). Main-confined state everywhere; IO legs properly dispatched; StateFlow writes thread-safe; no null-unsafety, no resource leak (streams closed), no protocol surface. | No action. |
+
+### Upstream comparison result
+- **LogcatViewModel / SettingsViewModel / CheckUpdateViewModel / RoutingSettingsViewModel: all byte-identical to upstream HEAD.** No missing upstream fixes; no fork regression. (Note: `ui/routing/` — the Run 31 plan's `ui/routingsettings/` path guess was corrected to `ui/routing/`.)
+
+### Milestone
+- **ui/ viewmodels 11/11 complete** (Backup, PerAppProxy, Base [Run 27]; Main part 1+2 [Runs 28-29]; Subscriptions, AppPicker, UserAsset [Run 31]; Logcat, Settings, CheckUpdate, Routing [this run]) — on top of the already-complete `core/`, `service/`, `handler/` (19/19), `fmt/`, `utils/`, and monetization layers.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 33)
+- **`ui/server/BaseServerActivity.kt` (510 lines) — the last protocol-adjacent surface with real logic**: profile edit form → `ProfileItem` field mapping (the closest remaining surface to config correctness: missing/wrong field mapping here = broken outbound), persistence + `ProfileEditorResult`/`ProxyChainMembers` contracts, cert/`fetchForManualFill` flow (call-site already cross-checked Run 22: BaseServerActivity:327 under `withContext(Dispatchers.IO)` + UI gate). Diff against upstream raw. Run 34 = `ui/main/MainActivity.kt` (396) full pass; Run 35+ = per-protocol editors (`server/Server*Activity.kt`, 49-506 lines, mostly form→ProfileItem over the BaseServerActivity contract) batched small-first, then switch to git-diff-driven periodic re-scans (fork commits since last scan + upstream drift of the fixed files).
