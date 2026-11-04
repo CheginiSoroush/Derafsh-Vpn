@@ -1181,3 +1181,32 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 ### Next run starting point (Run 40) — periodic mode, rotation continues
 - **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift x5.
 - **(c) Depth rotation**: `handler/` second-pass rotation — `MmkvManager.kt` + `SettingsManager.kt` batch diff vs upstream raw HEAD (the storage/settings layer under everything; MmkvManager's documented 29 Derafsh diff lines and SettingsManager's IO-hop paths), then spot re-read `encodeServerConfig`/`decodeServerConfig` round-trip against the Run 36 editors' persistence path.
+
+---
+
+## Run 40 — 2026-11-05 (periodic mode; handler/ storage-layer rotation)
+
+### (a) New-code scan — PASS
+- `git log c52baae..HEAD` non-docs paths: EMPTY. Fork code frozen since Run 39's scan.
+
+### (b) Evergreen drift re-check (5 files) — PASS
+- Signature identical to Run 37/38/39: CoreVpnService 372 (4) / UpdateManager **404 (fork-only)** / AngConfigManager 657 (30) / MainViewModel 969 (40) / WireguardFmt 132 (2). Zero drift.
+
+### (c) Depth rotation: `MmkvManager.kt` (fork 1175 / upstream 1053) + `SettingsManager.kt` (fork 682 / upstream 582) — PASS, every delta documented
+- **MmkvManager (13 raw hunks, all documented Derafsh features, zero missing upstream content)**: (1) cross-process `withSubscriptionUpdateLock` — dedicated MULTI_PROCESS MMKV instance used purely for its file lock (stores nothing), serializing :tasks/WorkManager vs main-process refresh mutation phases; KDoc documents non-nesting + never-under-profileIndexLock invariants; (2) `KEY_POOL_GENERATION` + `decodePoolGeneration`/`encodePoolGeneration` — pool-generation guid sets for exact retirement on refresh; (3) `commitProfiles` reorder — fork computes `serverList` + `replacementSelection` BEFORE the commit with the **selection-preservation guard** (`previousSelection in serverList → skip findSelectedReplacement`) preventing silent re-anchor onto an unrelated first-profile (v1.2.35 re-anchor-guard family); (4) `serverRawStorage.remove(guid)` additions in the removal paths (raw payloads die with profiles); (5) `removeServerProfiles(guids)` — subscription-unscoped retirement used by pool refresh; (6) `testedAt` stamping — `encodeServerTestDelayMillis` → `encodeServerTestResult(guid, result, testedAt)` + aff writes (the Run 38 ServerAffiliationInfo feature's storage side).
+- **SettingsManager (6 raw hunks, all documented)**: (1) `seedDefaultSubscription` replaces upstream's commented-out `ensureDefaultSubscription()` — one-time seeding of the built-in Derafsh source subscription + 3 migrations (legacy URL → active source, 6h→4h cadence, single-source pool dissolution, chunk-namespacing dissolution) — the documented built-in source switcher (Runs 28/30/34); (2) Iran whitelist preset seeding on fresh installs + one-time China→Iran preset migration (only when user never customized) — documented Iran routing feature; (3) chunk-group cleanup on subscription delete (`DERAFSH_POOL_CHUNK_PREFIX + subid_` children cancelled + removed with their parent) — pairs with the Run 30/31 belt-and-braces chunk guards.
+- **encodeServerConfig/decodeServerConfig round-trip re-read (L285-332)**: `decodeServerConfig` = blank-guid/json → null, `fromJsonSafe` (malformed JSON → null, never throws) — feeds the Run 36 decode-or-create editors safely. `encodeServerConfig` = `guid.ifBlank { Utils.getUuid() }` **returns the same key written** (fresh guid for new profiles — the exact contract ServerCustomConfig/Group/ProxyChain editors' `savedGuid` rely on); whole mutation under `withProfileIndexLock`; `requireStorageWrite` on both payload encode and index publish (MMKV failure throws, never silently drops); `getSubscriptionId` anchors no-sub profiles to the default subscription (never orphaned); index add idempotent, new servers at position 0, auto-select when selection empty. Round-trip with Run 33/36 editor contracts verified end-to-end.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | PASS (no drift) | handler/ ×2 + evergreen ×5 | 19 raw hunks across both files, every one a documented Derafsh feature or its storage side; no upstream-only content anywhere in either diff. | No action. |
+| 2 | CLEAN (round-trip) | MmkvManager L285-332 | encode/decode contract fail-safe on every path (null-safe reads, verified writes, lock-serialized index, guid-ifBlank-fresh-uuid, default-sub anchoring, auto-select). | No action. |
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 41) — periodic mode, rotation continues
+- **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift x5.
+- **(c) Depth rotation**: `utils/` + `extension/` batch re-verification (Utils.kt / JsonUtil.kt / MessageHelper / ListExt / nullIfBlank / ProfileReplacement.kt — the shared primitives every audited layer calls; ProfileReplacement's findSelectedReplacement was re-anchored by the v1.2.35 fixes and deserves a fresh diff), then spot re-read `Utils.parse`/base64 decode ladder feeding Run 30's subscription parse path.
