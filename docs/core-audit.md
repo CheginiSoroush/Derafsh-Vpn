@@ -562,3 +562,31 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 19)
 - **`handler/` remaining files by risk: `UpdateCheckerManager.kt` + `UpdateManager.kt`** (update flow: signature checks, download/install intents — security-adjacent) or `handler/AngConfigManager.kt` deep second pass (Run 8 covered fmt parsers; the 1000+ line import/parse hub itself). Then Run 20 = `service/CoreTestService.kt`/`RealPingWorkerService.kt`/`SubscriptionUpdateService.kt` (background work: coroutine scopes, worker contracts) — pick per risk.
+
+---
+
+## Run 19 — 2026-11-04
+
+### Files reviewed
+- **`handler/UpdateCheckerManager.kt` (132 lines)** — full line-by-line: GitHub releases check (direct-first, then local-HTTP-proxy fallback with socks creds), pre-release vs latest endpoints, tolerant version compare, fdroid-vs-regular asset picker.
+- **`handler/UpdateManager.kt` (303→317 lines, fork-only in-app updater)** — full line-by-line: silent check (F-Droid early-return, Downloading/Ready skip, internal catch), state machine (Idle/Available/Downloading/Ready/Failed), downloadUpdate (cache dir wipe, progress, signature gate), installApk (install-time re-verification + FileProvider), parseLatestRelease (draft skip, `-build.N` strip, ABI→universal→first asset ladder), verifyApkSignature (API 28 signingInfo / legacy signatures, SHA-256 vs constant, fail-closed), isNewerVersion.
+- Supporting: `ui/checkupdate/CheckUpdateViewModel.kt` (try/catch → toast — the IllegalStateException paths are contained), `AppConfig.RELEASE_CERT_SHA256` (= `2642E7F0…FD79F531`, the official fingerprint), `AppConfig.DERAFSH_UPDATE_API_URL` (`?per_page=1`), build.gradle flavors (`fdroid` flavor HAS `applicationIdSuffix = ".fdroid"` → the contains("fdroid") asset pick is correct), AndroidManifest FileProvider (`${applicationId}.cache` matches the code string) + `res/xml/cache_paths.xml` (`cache-path path="/"` covers cacheDir/update).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | **LOW-MEDIUM (TOCTOU race, fork-only — FIXED, released v1.2.34)** | UpdateManager.downloadUpdate (pre-fix 115-121) | **Rapid double-tap started two concurrent downloads on the same file.** The guard `if (_state.value is Downloading) return` ran on the caller thread, but `Downloading(0)` was set asynchronously INSIDE `scope.launch` (IO scheduler) — two invocations in the scheduling window both passed the guard. Both downloads then raced on the same `dest` path, and each run's `dir.listFiles()?.forEach { it.delete() }` deleted the other's partially-written file mid-stream → interleaved/corrupt APK (caught later by the signature gate → Failed, so no security impact, but the update flow breaks exactly when the user is most impatient). | **FIXED** — check-and-set `Downloading(0)` atomically on the caller thread (all callers are UI main-thread callbacks) before launching; duplicate set removed from the coroutine. Commit 6067b81. |
+| 2 | **LOW (missing size cap, fork-only — FIXED, released v1.2.34)** | UpdateManager download loop (pre-fix 136-157) | **Unbounded download into cacheDir.** The class comment declares channel-compromise as the threat model for the signature gate ("even if the release channel itself were ever compromised") — but the DOWNLOAD phase itself had no limit: a compromised/redirected `browser_download_url` could stream unbounded bytes into cache (disk exhaustion). ZipUtil enforces 128 MiB/256 MiB budgets for the same scenario class; the updater had none. | **FIXED** — `sizeLimit = minOf(total, 256 MiB)` when the declared size is known (GitHub asset metadata), else the 256 MiB hard cap; the write loop aborts with IllegalStateException once exceeded → outer catch → Failed (same UX as other failures). Mirrors ZipUtil's declared-vs-actual contract. Commit 6067b81. |
+| 3 | CLEAN | verifyApkSignature + installApk double gate | Download-time gate + install-time re-verification; `signatureBytes ?: return false` and catch→false = fail-closed on null/corrupt archives (truncated download → getPackageArchiveInfo null → rejected); constant matches the official certificate; FileProvider authority + cache-path verified. A partial file left by a failed download is wiped by the next attempt's dir cleanup (pre-existing semantics kept). | No action. |
+| 4 | CLEAN | UpdateCheckerManager (upstream + 1 hunk) | Fork hardening: compareVersions is null/blank/non-numeric-tolerant (upstream's `split("."){toInt()}` throws NumberFormatException on a malformed tag → CheckUpdateViewModel catch → toast, so upstream fails loudly where the fork degrades gracefully). fdroid asset pick correct (applicationIdSuffix ".fdroid"). Proxy fallback only when the direct attempt returns empty — a non-empty block-page body skips the fallback and parses to null → silent hasUpdate=false; self-heals on the next check (upstream-native design, noted). `num1 - num2` cannot overflow (both operands non-negative, ≤ Int.MAX). | No action. |
+| 5 | Info | parseLatestRelease asset ladder | ABI match → universal → `assets.first()` fallback: the last resort could pick a wrong-ABI APK (install then rejected by the OS with NO_MATCHING_ABIS); unreachable while the release names follow `Derafsh_<ver>[_-fdroid]_<abi>.apk` (SUPPORTED_ABIS[0] strings match asset names). `filter { c -> c.isDigit() }` in isNewerVersion merges digits across non-digits ("2x3"→"23") — only reachable with self-inflicted malformed tags. | Noted. |
+
+### Upstream comparison result
+- `UpdateCheckerManager.kt`: fork = upstream + 1 hunk (version-compare hardening). `UpdateManager.kt`: **fork-only** (upstream has no in-app updater) — correctness argued from the app's own stated threat model + ZipUtil precedent. No missing upstream fixes.
+
+### Release
+- **v1.2.34 (versionCode 38)** — commit 6067b81. Dispatch HTTP 204; CI/APK verification recorded after completion below.
+
+### Next run starting point (Run 20)
+- **`handler/AngConfigManager.kt` deep second pass** (the import/parse hub — Run 8 covered the fmt/* parsers it delegates to; the hub itself: `importBatchConfig`, share/link dispatch, subscription fetch/merge logic) or `service/CoreTestService.kt` + `RealPingWorkerService.kt` + `SubscriptionUpdateService.kt` (background work: coroutine scopes, worker lifecycle) — pick per risk.
