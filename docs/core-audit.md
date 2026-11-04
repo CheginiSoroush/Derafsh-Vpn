@@ -1149,3 +1149,35 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 ### Next run starting point (Run 39) — periodic mode, rotation continues
 - **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift x5.
 - **(c) Depth rotation**: **`core/` package batch re-verification** — the task's priority surface: `CoreOutboundBuilder.kt` (outbound JSON correctness: VLESS/Trojan/SS/Hysteria2/TUIC, Reality, XTLS-Vision, headers), `CoreConfigContextBuilder.kt`, `CoreServiceManager.kt`, `LauncherManager.kt`, `CoreConfigManager.kt`, `CoreNativeManager.kt` — batch diff each vs upstream raw HEAD, then spot re-read the Reality/XTLS field-emission paths (where Run 2's DNS-leak fix and Run 5's WG outbound block live).
+
+---
+
+## Run 39 — 2026-11-05 (periodic mode; core/ depth rotation — the task's priority surface)
+
+### (a) New-code scan — PASS
+- `git log c52baae..HEAD` non-docs paths: EMPTY. Fork code frozen since Run 38's scan (`git diff ef6883a..HEAD -- V2rayNG/app/src/main/java/` empty).
+
+### (b) Evergreen drift re-check (5 files) — PASS
+- Signature identical to Run 37/38: CoreVpnService 372 (4) / UpdateManager **404 (fork-only)** / AngConfigManager 657 (30) / MainViewModel 969 (40) / WireguardFmt 132 (2). Zero drift.
+
+### (c) Depth rotation: `core/` package (6 files) — PASS, every delta documented
+- **Byte-identical to upstream HEAD (3)**: `CoreConfigContextBuilder.kt` (273), `LauncherManager.kt` (141), `CoreNativeManager.kt` (99).
+- **`CoreOutboundBuilder.kt` (upstream 711): 2 raw hunks, both cosmetic** — (1) the fork's 5-line comment documenting the v1.2.26 WG remote-DNS split fix; (2) whitespace-only (`contains(":") }` vs `contains(":")}`). **All protocol-JSON emission code is upstream-identical.**
+- **`CoreServiceManager.kt` (upstream 521): 6 raw hunks, 1 logical feature** — the complete Derafsh **session timer** (`sessionTimerScope`/`sessionTimerJob` :daemon-scoped; `armSessionTimer` on core-loop start, `cancelSessionTimer` on manual stop + cancel-comment, full arm/expire/cancel block): 30-min deadline persisted via `PREF_SESSION_DEADLINE` for UI countdown, rewarded-ad re-arm opens a fresh window, `isReload` handover intentionally untouched, expiry notifies UI BEFORE `serviceControl.stopService()` teardown (no dialog/broadcast race), CancellationException rethrown, every failure logged not thrown. The exact feature Run 25/34 verified from the UI side — now re-verified from the daemon side.
+- **`CoreConfigManager.kt` (upstream 1321): 5 raw hunks, 2 logical features** — (1) `buildDnsIranModeFromRoutingRules` (Iran counterpart of CN expectIPs mode: direct-routed `geosite:category-ir`/`domain:ir` resolved by domestic servers with `expectIPs geoip:ir`, `skipFallback=true`, graceful empty fallback) — documented Derafsh Iran feature; (2) the two "(sync upstream #6376)" comments marking the v1.2.27 DNS-leak fix (registration order + finalQuery) — comments only.
+- **Reality emission spot re-read** (`populateTlsSettings` L564-603): pin-supersedes-insecure (L566 `allowInsecure = insecure==true && pinnedCA256 blank`); SNI ladder profile→sniExt(domain)→server(domain)→sniExt; security `nullIfBlank` + early return (no TLS block without security); one `TlsSettingsBean` shared by TLS/REALITY with per-field `nullIfBlank` (Gson omits nulls → Reality keys absent from plain-TLS JSON — Run 8 contract); TLS/REALITY **mutual exclusion with explicit nulling** (L592-598); auto-fragment only when `finalMask` absent (L600-602, finalMask parse fail-safe keeps previous fragment).
+- **XTLS-Vision/mux spot re-read** (L58-79): XHTTP network disables mux; VLESS with non-empty flow (Vision) forces `mux.concurrency = -1` (Xray requirement — Vision unmultiplexed); mux pref parse failure → catch → `return false` (fail-closed).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | PASS (no drift) | core/ ×6 + evergreen ×5 | 3 core files byte-identical; the other 3 carry only documented Derafsh features (session timer, Iran DNS) + fix comments + 1 whitespace diff. Protocol-JSON paths upstream-identical. | No action. |
+| 2 | CLEAN (re-read) | CoreOutboundBuilder L564-603, L58-79 | Reality/XTLS emission semantics re-verified: pin-supersedes-insecure, mutual TLS/REALITY exclusion, Vision-mux conflict handled per Xray spec. | No action. |
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 40) — periodic mode, rotation continues
+- **(a)+(b) unchanged**: new-code scan since c52baae + evergreen drift x5.
+- **(c) Depth rotation**: `handler/` second-pass rotation — `MmkvManager.kt` + `SettingsManager.kt` batch diff vs upstream raw HEAD (the storage/settings layer under everything; MmkvManager's documented 29 Derafsh diff lines and SettingsManager's IO-hop paths), then spot re-read `encodeServerConfig`/`decodeServerConfig` round-trip against the Run 36 editors' persistence path.
