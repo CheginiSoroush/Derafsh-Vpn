@@ -1,0 +1,2 @@
+- Config testing parallelism doubled: 32/48/64 workers by pool size (was 16/24/32) — the first full pass on big built-in sources is roughly twice as fast again.
+- Broken configs are removed the moment their test fails, not at the end of the pass — dead servers vanish from the list live while testing continues. The built-in pool always self-cleans; user subscriptions follow the existing "remove invalid after test" toggle.

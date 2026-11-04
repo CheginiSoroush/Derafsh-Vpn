@@ -18,6 +18,7 @@ import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.extension.matchesPattern
 import com.v2ray.ang.extension.moveItem
+import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.DerafshSourceManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.MmkvManager
@@ -274,37 +275,79 @@ class MainViewModel(
         if (testRequests.bulk?.id != request.id) return
 
         val visibleGroupId = _uiState.value.selectedGroupId
-        val updates = cacheMutex.withLock {
+        val (updates, broken) = cacheMutex.withLock {
             val drained = pendingTestResults.toMap()
             pendingTestResults.clear()
+            // Derafsh: configs whose fresh result just failed are pruned from storage while
+            // the pass is still streaming (see removeBrokenConfigsLive) — prune the cached
+            // group lists in the same beat so the rows vanish together.
+            val broken = removeBrokenConfigsLive(drained)
+            fun prune(cached: List<ServersCache>): List<ServersCache> =
+                if (broken.isEmpty()) cached else cached.filter { it.guid !in broken }
             groupDataCache[request.groupId]?.let { cached ->
-                groupDataCache[request.groupId] = applyTestDelayResults(cached, drained)
+                groupDataCache[request.groupId] = applyTestDelayResults(prune(cached), drained)
             }
             // A full-pool pass (group "") streams results for every group: keep the
             // visible tab's cache fresh too so its badges tick in live.
             if (request.groupId.isEmpty() && visibleGroupId.isNotEmpty()) {
                 groupDataCache[visibleGroupId]?.let { cached ->
-                    groupDataCache[visibleGroupId] = applyTestDelayResults(cached, drained)
+                    groupDataCache[visibleGroupId] = applyTestDelayResults(prune(cached), drained)
                 }
             }
-            drained
+            drained to broken
         }
         if (updates.isEmpty()) return
         if (testRequests.bulk?.id != request.id) return
+        fun pruneServers(servers: List<ServersCache>): List<ServersCache> =
+            if (broken.isEmpty()) servers else servers.filter { it.guid !in broken }
+        fun pruneRows(rows: List<ServerRowUiModel>): List<ServerRowUiModel> =
+            if (broken.isEmpty()) rows else rows.filter { it.guid !in broken }
         mutableServerGroupState(request.groupId).update { current ->
             current.copy(
-                servers = applyTestDelayResults(current.servers, updates),
-                rows = applyTestDelayResultsToRows(current.rows, updates),
+                servers = applyTestDelayResults(pruneServers(current.servers), updates),
+                rows = applyTestDelayResultsToRows(pruneRows(current.rows), updates),
             )
         }
         if (request.groupId.isEmpty() && visibleGroupId.isNotEmpty()) {
             mutableServerGroupState(visibleGroupId).update { current ->
                 current.copy(
-                    servers = applyTestDelayResults(current.servers, updates),
-                    rows = applyTestDelayResultsToRows(current.rows, updates),
+                    servers = applyTestDelayResults(pruneServers(current.servers), updates),
+                    rows = applyTestDelayResultsToRows(pruneRows(current.rows), updates),
                 )
             }
         }
+    }
+
+    /**
+     * Live-removes configs whose fresh result just failed (delay < 0) while the pass is
+     * still streaming, so dead servers vanish the moment they are detected instead of
+     * lingering until the end-of-pass sweep. Storage sweep semantics are mirrored:
+     * built-in pool configs (active source + overflow chunk groups) always go — the pool
+     * self-cleans; user-subscription configs go only when
+     * [AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST] is enabled. Never-tested configs
+     * (delay 0) are never touched, and the removal re-checks the stored affiliation so a
+     * stale read can never delete a healthy or unknown config.
+     *
+     * @param updates The drained guid → delay results of this flush beat.
+     * @return The guids actually removed from storage.
+     */
+    private fun removeBrokenConfigsLive(updates: Map<String, Long>): Set<String> {
+        val broken = updates.filterValues { it < 0L }.keys
+        if (broken.isEmpty()) return emptySet()
+        val autoRemoveUserSubs =
+            MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST, false)
+        val chunkPrefix = AngConfigManager.chunkGroupPrefixFor(AppConfig.DEFAULT_SUBSCRIPTION_ID)
+        val removed = mutableSetOf<String>()
+        for (guid in broken) {
+            val profileSub = MmkvManager.decodeServerConfig(guid)?.subscriptionId
+                ?.ifEmpty { AppConfig.DEFAULT_SUBSCRIPTION_ID } ?: continue
+            val isBuiltinPool = profileSub == AppConfig.DEFAULT_SUBSCRIPTION_ID ||
+                    profileSub.startsWith(chunkPrefix)
+            if (isBuiltinPool || autoRemoveUserSubs) {
+                if (dataSource.removeInvalidServerByGuid(guid) > 0) removed.add(guid)
+            }
+        }
+        return removed
     }
 
     // ---------- Public state accessors ----------
