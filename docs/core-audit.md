@@ -770,3 +770,32 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 26)
 - **Leftover small handlers as one closing sweep: `AppLocaleManager.kt` (140), `SettingsChangeManager.kt` (58), `OrphanProfileCleaner.kt` (53), `ProfileReplacement.kt` (76 re-check)** — after this the entire `handler/` + `service/` + `core/` + `fmt/` surface is covered. Then Run 27 = remaining `ui/` viewmodels or a core second pass on any file the interim diff-with-upstream flags — pick per risk.
+
+---
+
+## Run 26 — 2026-11-04
+
+### Files reviewed (closing sweep — handler/ now fully covered)
+- **`handler/AppLocaleManager.kt` (140 lines)** — legacy MMKV language pref ↔ Android per-app locale two-way sync: `initialize` (API 33 prepareMigration / compat path), `onActivityCreated` (completeMigration / AppCompat read-back sync), `setApplicationLanguage` (persist + AppCompatDelegate), `localizedContext` (non-activity contexts during the one-time upgrade window fall back to the still-current MMKV value via createConfigurationContext), `Api33.prepareMigration` (one-time PREF_APP_LOCALE_MIGRATED; framework locales win, else legacy non-AUTO pushed to LocaleManager), `Api33.completeMigration` (Android's required one-time AppCompat handoff after Activity.onCreate, then continuous MMKV←framework sync).
+- **`enums/Language.kt` (37 lines, cross-check)** — 3 entries (AUTO/ENGLISH/PERSIAN); `locale` null only for AUTO; `fromCode` unknown → AUTO; `fromLanguageTag` non-en/fa → AUTO.
+- **`handler/SettingsChangeManager.kt` (58 lines)** — AtomicBoolean flags with CAS consume (`consumeRestartService`/`consumeSetupGroupTab`), `uiOnlyKeys` set (PREF_LANGUAGE etc. → tab refresh only, no core restart).
+- **`handler/OrphanProfileCleaner.kt` (53 lines, internal, pure)** — fail-closed orphan classification: undecodable group index → null (no cleanup), empty profile set → empty, null subscriptionId payload → preserved, selected server → kept, unknown groupId → kept (conservative).
+- **`handler/ProfileReplacement.kt` (76 lines re-check, internal, pure)** — deterministic re-anchor ladder (remarks-full → remarks-only → server+port+password → server+port → server → first) + `findRemovablePayloads` fail-closed (null cross-group refs → emptySet; protected/replacement/cross-referenced all excluded). `isSameText` null/blank → false.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | Api33.prepareMigration:115 | `requireNotNull(legacyLanguage.locale)` cannot throw: the branch is guarded by `legacyLanguage != Language.AUTO` and Language.locale is null ONLY for AUTO (empty languageTag). `fromCode` maps unknown codes → AUTO, so a corrupt MMKV value degrades to AUTO (no migration), never a crash. | No action. |
+| 2 | CLEAN | Migration both directions | Framework locales take precedence when present (system-settings changes win), legacy MMKV only seeds when the framework record is empty; the migration flag makes the handoff exactly-once; post-migration every onActivityCreated re-syncs MMKV ← framework so the legacy pref (read by localizedContext and the pre-13 paths) never goes stale. On 13+ AppCompat.setApplicationLocales writes through to the framework, so in-app selection stays consistent. PREF_LANGUAGE lands in uiOnlyKeys → language change correctly does NOT restart the VPN. | No action. |
+| 3 | CLEAN | SettingsChangeManager (all) | CAS consume = exactly-one-consumer semantics; flags are set-from-anywhere/consumed-on-main — a lost set between set and consume is impossible (CAS from true). This is the Run 15/16-repaired contract (restore restart flag) in its final shape. | No action. |
+| 4 | CLEAN | OrphanProfileCleaner + ProfileReplacement | Both pure, both fail-closed in the correct direction (cleanup/refcount decisions return "do nothing" on uncertainty). The re-anchor ladder is heuristic BY DESIGN (best-effort selection restore after a replace); worst case the selection lands on the first profile — documented in Run 20 #1's fix context. No null-unsafe path, no mutation. | No action. |
+
+### Upstream comparison result
+- **All four files byte-identical to upstream HEAD** (`AppLocaleManager`, `SettingsChangeManager`, `OrphanProfileCleaner`, `ProfileReplacement`). With this run the **entire `handler/` package is covered** (19/19 files across Runs 5, 8, 13, 14, 19–26). No missing upstream fixes.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 27)
+- **`ui/` viewmodels — the last uncovered layer with real logic: `ui/subscription/SubSettingViewModel` / `ui/profile/ProfileViewModel` etc. (coroutine-heavy surfaces: settings IO, MMKV writes, activity-scoped scopes)** — pick the 2-3 largest per risk. Then Run 28 = upstream-drift re-scan: re-diff the three fork-fixed files (`CoreVpnService.kt`, `UpdateManager.kt`, `AngConfigManager.kt`) + the upstream-changed natives against upstream HEAD to catch post-v1.2.25 upstream fixes worth adopting.
