@@ -1,0 +1,2 @@
+- Fix: closing a race in VPN teardown that could leave the VPN "connected" but dead — stopping while a new connection was starting (e.g. tapping connect during a restart or right at session expiry) could close the newly created tunnel interface instead of the old one, blackholing traffic until the next manual disconnect
+- Improvement: teardown now holds the start lock until fully finished, so a start delivered mid-teardown is cleanly retried by the user instead of colliding with it

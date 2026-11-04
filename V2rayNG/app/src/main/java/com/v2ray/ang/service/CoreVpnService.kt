@@ -321,12 +321,20 @@ class CoreVpnService : VpnService(), ServiceControl {
 //        val configName = defaultDPreference.getPrefString(PREF_CURR_CONFIG_GUID, "")
 //        val emptyInfo = VpnNetworkInfo()
 //        val info = loadVpnNetworkInfo(configName, emptyInfo)!! + (lastNetworkInfo ?: emptyInfo)
-//        saveVpnNetworkInfo(configName, info)
-        unlockStart()
+
+        // stopService() also runs on background threads (restart receiver coroutine, session
+        // expiry) while onStartCommand starts a new session on the main thread. Capture the
+        // interface and the tun2socks instance this teardown owns BEFORE anything can begin a
+        // new session: a start that slips in re-assigns mInterface/tun2SocksService, and closing
+        // the fields here would destroy the new session's fd (a connected-but-dead VPN until the
+        // next manual stop). An already-closed captured fd is harmless (guarded, idempotent use).
+        val ifaceToClose = if (::mInterface.isInitialized) mInterface else null
+        val tproxyToStop = tun2SocksService
+
         isRunning = false
 
-        tun2SocksService?.stopTun2Socks()
-        tun2SocksService = null
+        tproxyToStop?.stopTun2Socks()
+        if (tun2SocksService === tproxyToStop) tun2SocksService = null
 
         RootLanSharing.stopClientSharing(this)
 
@@ -350,14 +358,19 @@ class CoreVpnService : VpnService(), ServiceControl {
             }
 
             try {
-                if (::mInterface.isInitialized) {
-                    mInterface.close()
+                ifaceToClose?.close()
+                if (ifaceToClose != null) {
                     LogUtil.i(AppConfig.TAG, "StartCore-VPN: VPN interface closed")
                 }
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "StartCore-VPN: Failed to close interface", e)
             }
         }
+
+        // Release the start lock only after the teardown is fully done: a start delivered while
+        // this teardown is in flight must not re-establish the interface underneath it. The
+        // system VPN start path in onStartCommand still force-unlocks to recover a stuck lock.
+        unlockStart()
     }
 
     fun tryLockStart(): Boolean {
