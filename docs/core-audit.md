@@ -1031,3 +1031,30 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 35)
 - **Per-protocol editors batch 1 (8 small files, 49-109 lines each, all form→ProfileItem over Run 33's verified BaseServerActivity contract):** `ServerSocksActivity` (49), `ServerHttpActivity` (49), `ServerTrojanActivity` (64), `ServerShadowsocksActivity` (68), `ServerVmessActivity` (72), `ServerVlessActivity` (77), `ServerHysteria2Activity` (109), `ServerWireguardActivity` (84) — diff each against upstream raw, focus on protocol field mapping (the outbound-JSON correctness surface). Run 36 = the big editors: `ServerUiState.kt` (258 — `toProfileItem` field mapping hub), `ServerCustomConfigActivity` (506), `ServerProxyChainActivity` (367), `ServerGroupActivity` (325). Then git-diff-driven periodic mode.
+
+---
+
+## Run 35 — 2026-11-05
+
+### Files reviewed (per-protocol editors batch 1 — 8 small files over Run 33's verified BaseServerActivity contract)
+- **`ServerVlessActivity.kt` (77)** — id/encryption/flow fields; `rememberSaveable(ServerUiState.Saver)` survives rotation; validateProtocolConfig re-checks password (redundant with validateCommonConfig's VLESS branch — harmless).
+- **`ServerHysteria2Activity.kt` (109)** — id/obfs/portHopping(+interval)/bandwidth/allowInsecure/sni/ech/pinnedCA256/finalMask; **validateProtocolConfig auto-fills `security = TLS` when blank** (Hysteria2 is TLS-always — side-effectful validation, upstream-identical semantics); no CommonNetworkFields/StreamSecurity (UDP/QUIC protocol — matches Run 33's port-exemption finding).
+- **`ServerSocksActivity.kt` (49) / `ServerHttpActivity.kt` (49)** — plain proxy forms, no transport/stream-security UI (correct for SOCKS/HTTP).
+- **`ServerTrojanActivity.kt` (64) / `ServerShadowsocksActivity.kt` (68) / `ServerVmessActivity.kt` (72)** — full CommonNetworkFields + CommonStreamSecurityFields composition; SS validate = true (password via common layer), Trojan/Vmess protocol checks delegate to the common password gate.
+- **`ServerWireguardActivity.kt` (84)** — fork = upstream + **1 cosmetic hunk**: remote-DNS field's `supportingText` hint removed together with the `server_lab_remote_dns_hint` string resource (verified absent in ALL `res/values*/strings.xml` — coherent removal; the `AppConfig.WIREGUARD_LOCAL_REMOTE_DNS` constant itself remains for real config use). No functional difference.
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | all 8 editors | Composition per protocol is correct (SOCKS/HTTP bare, TROJAN/SS/VMESS full transport stack, HYSTERIA2/WIREGUARD own fields); every editor defers validation/persistence to the Run 33-verified BaseServerActivity ladder; rotation-safe via `ServerUiState.Saver`; these screens are dormant in the curated UI (Run 34) but remain compiled and correct. | No action. |
+| 2 | Info (deliberate) | ServerWireguardActivity:80 | Fork-only cosmetic hint removal (resource-coherent, zero functional impact). | Noted. |
+
+### Upstream comparison result
+- **7 of 8 byte-identical to upstream HEAD** (Socks/Http/Trojan/Shadowsocks/Vmess/Vless/Hysteria2). `ServerWireguardActivity` = upstream + 1 cosmetic hunk (hint removal). No fork-introduced bug; no missing upstream fix.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.36 (versionCode 40) remains latest.
+
+### Next run starting point (Run 36)
+- **The mapping hub + big editors:** `server/ServerUiState.kt` (258 lines — **`toProfileItem` is the form→ProfileItem field-mapping hub every editor funnels through; the closest remaining surface to outbound-JSON correctness**) first, then `ServerGroupActivity.kt` (325), `ServerProxyChainActivity.kt` (367), `ServerCustomConfigActivity.kt` (506) — diff each against upstream raw. After Run 36 the `ui/` layer is fully covered → **switch to git-diff-driven periodic mode**: each run audits (a) fork commits since the last audit scan (`git log`), (b) upstream drift re-check of the evergreen files (CoreVpnService/UpdateManager/AngConfigManager/MainViewModel + any fork-divergent file), (c) one stale audit-area rotation for depth.
