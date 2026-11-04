@@ -649,3 +649,34 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Next run starting point (Run 22)
 - **Remaining `handler/` files by risk: `SpeedtestManager.kt` (second pass — the socket/TLS probe and getRemoteIPInfo paths feed real-ping) + `AppLocaleManager.kt` / `OnboardingManager.kt` / `IntegrityManager.kt` / `CertificateFingerprintManager.kt`** (small, security-adjacent). Then Run 23 = `ui/` ad surfaces (`ui/compose/HouseAds.kt` second pass, banners) or `helper/` (MessageHelper/NotificationHelper) — pick per risk.
+
+---
+
+## Run 22 — 2026-11-04
+
+### Files reviewed
+- **`handler/SpeedtestManager.kt` (94 lines, deep second pass)** — `socketConnectTime` (unconnected Socket + connect timeout, measured window INCLUDES DNS resolution because `start` is captured before the `InetSocketAddress` ctor resolves; finally-close guarded by `isClosed` + inner try), `getRemoteIPInfo` (PREF_IP_API_URL → `AppConfig.IP_API_URL` fallback, `httpPort == 0` early-out, HttpUtil fetch, `JsonUtil.fromJsonSafe` null-tolerant parse, ip ladder ip→clientIp→ip_addr→query and country ladder country_code→country→countryCode→location.country_code).
+- **`handler/CertificateFingerprintManager.kt` (79 lines)** — `fetchForManualFill` (HYSTERIA2 → `Libv2ray.fetchQuicCertSha256`, else TLS path), `buildRequest` (server required, `toIntOrNull>0 ?: DEFAULT_PORT`, `resolveDialAddress` prefers resolved IP with domain fallback, `inferServerName` drops pure-IP SNI), `fetch` (catches `UnsatisfiedLinkError` for libv2ray builds missing the JNI API + generic Exception → null).
+- **`handler/IntegrityManager.kt` (182 lines, fork-only — anti-tamper, advisory by design)** — `check` (per-check try/catch, cache), `signatureMatches`/`getSigningCertSha256` (API 28 signingInfo / legacy GET_SIGNATURES, SHA-256 vs `AppConfig.RELEASE_CERT_SHA256`, fail-closed), `isRooted` (su paths + `which su` exec), `isHookingFrameworkPresent` (Xposed-family packages, Frida port 27042 + staging paths), `isDebuggerAttached` (TracerPid).
+- Contract cross-checks: callers of `socketConnectTime` = RealPingWorkerService startRealPing/startTcping (worker fixed-pool dispatcher, 1000ms override, `toIntOrNull` guard precedes `toInt` on an immutable decoded profile); caller of `getRemoteIPInfo` = CoreServiceManager:416 on `connectionTestScope` (SupervisorJob + Dispatchers.IO) and only after a successful delay measure; caller of `fetchForManualFill` = BaseServerActivity:327 wrapped in `withContext(Dispatchers.IO)` with `isFetchingCert` UI gate; caller of `IntegrityManager.check` = MainActivity.onCreate:132 (main thread, one-shot).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN | SpeedtestManager both paths | Resource-safe: socket closed in finally (isClosed + inner catch); all exceptions → -1; blocking connect is not interruptible on scope cancel but is bounded by the 1s caller timeout and runs on worker-pool threads. getRemoteIPInfo: every failure path returns null (no throw), parse + HTTP both null-tolerant; ladder reads are null-safe. The `UnknownHostException` catch in socketConnectTime is technically dead (InetSocketAddress ctor returns an unresolved address instead of throwing; connect on it hits the generic Exception catch) — harmless. `httpPort == 0` is vestigial (getHttpPort = getSocksPort() + isXray() flip, never 0 with default 10808) but upstream-identical. | No action. |
+| 2 | CLEAN | CertificateFingerprintManager (all) | Null-chain complete: buildRequest null → null; fetch exceptions (incl. UnsatisfiedLinkError) → null; result gated on `error.isBlank()` + non-blank sha256. `resolveDialAddress` falls back to the domain when resolution fails (JNI probe does its own resolution). Caller is IO-dispatched with a button-disable gate (no double-fetch). | No action. |
+| 3 | CLEAN (fail-closed verified) | IntegrityManager signatureMatches | getSigningCertSha256 null → `return false` → SIGNATURE flag; exception inside the signature try → SIGNATURE flag explicitly. Constant matches the official fingerprint (same `RELEASE_CERT_SHA256` Run 19 verified for the updater). Legacy path firstOrNull matches the updater's pattern. | No action. |
+| 4 | Info | IntegrityManager.check:43 cache | Check-then-act on `cached` — two threads could compute twice; the computation is deterministic and the result set is identical, so last-write-wins is benign. Caller today is main-thread-only. | Noted. |
+| 5 | Info | IntegrityManager.isRooted:125-128 | `exec("which su")` has no waitFor timeout and no stderr drain; stdout is drained before waitFor (no stdout deadlock) and `which` never writes near the 64KB stderr pipe bound, so a hang is not realistic. Runs on the main thread in onCreate — realistic worst case (fork+exec ~10-50ms + 150ms localhost socket + 5 binder getPackageInfo) is far below ANR thresholds for a one-shot advisory check. No timeout is the correct-cause-of-no-bug tradeoff, not a defect. | Noted. |
+| 6 | Info | IntegrityManager.isDebuggerAttached:176 | `toIntOrNull() != 0` flags a MALFORMED TracerPid value (null != 0 → true) — spurious HOOKING flag on a non-numeric line, unreachable on stock kernels (TracerPid is always `\t<digits>`); advisory-only impact. | Noted. |
+| 7 | Info (ledger correction) | handler/ listing | `OnboardingManager.kt` listed in the Run 21 tentative plan does not exist under `handler/` (onboarding lives as `ui/OnboardingActivity`). Replaced by the actual remaining small files in future plans. | Noted. |
+
+### Upstream comparison result
+- `SpeedtestManager.kt`: **byte-identical to upstream HEAD**. `CertificateFingerprintManager.kt`: **byte-identical to upstream HEAD**. `IntegrityManager.kt`: **404 upstream — fork-only** (anti-tamper layer documented in-class as advisory/monetization-hardening). No missing upstream fixes in the reviewed set.
+
+### Release
+- None this run (no code changes; docs-only commit). v1.2.35 remains latest.
+
+### Next run starting point (Run 23)
+- **`handler/SubscriptionUpdater.kt` (189 lines — periodic/one-shot subscription scheduling feeding the Run 20-fixed chunked refresh path) + `handler/SubscriptionInfoParser.kt` (121 lines — subscription header/usage parsing)** as one logical flow, then the leftover small handlers (`AppLocaleManager`, `SettingsChangeManager`, `OrphanProfileCleaner`, `ProfileReplacement` re-check) if budget allows. Then Run 24 = `ui/` ad surfaces (`ui/compose/HouseAds.kt` second pass, banner providers) or `NotificationManager.kt` — pick per risk.
