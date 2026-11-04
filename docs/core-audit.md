@@ -247,3 +247,40 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 
 ### Release
 - **v1.2.29 (versionCode 33)** — cross-process refresh serialization. Commit e4adce8. Release note: the first dispatch fired while the push was still rejected by a transient GitHub 500 — the premature run (building the previous main) was cancelled before its release step and v1.2.29 was re-dispatched on e4adce8.
+
+---
+
+## Run 9 — 2026-11-04
+
+### Files reviewed
+- `fmt/VmessFmt.kt` (177 lines) — **byte-identical to upstream**; full line-by-line parse/toUri/parseVmessStd analysis + roundtrip tracing.
+- `fmt/VlessFmt.kt` (47 lines) — **byte-identical to upstream**; full review.
+- `fmt/FmtBase.kt` (175 lines) — **byte-identical to upstream**; `toUri(config,userInfo,dicQuery)` / `getQueryParam` / `getItemFormQuery` / `getQueryDic` deep review (the roundtrip engine all 8 fmts share).
+- `fmt/V2rayNFmt.kt` (73 lines) — **byte-identical to upstream** (bonus: the other parse entry feeding the pool).
+- `service/SubscriptionUpdateService.kt` (235 lines) — full review; upstream diff = 8 additive hunks, ALL fork `MaintenanceStatus` integration (beginSession/finish/setSubLabel/beginTestBatch/reportBatchProgress/endTestBatch). Core update loop (semaphore(2), runningTasks accounting, worker lifecycle, START_NOT_STICKY) upstream-identical.
+- `handler/MaintenanceStatus.kt` (~130 lines, bonus) — cross-process progress store behind the service's additions.
+- Contract tracing: `AngConfigManager.parseConfig` (424-457 per-line try/catch + `configFmtParsers` dispatch table 42-55), `RealPingWorkerService.start` (62-97 Finish-on-cancel contract), `CoreTestService` cancelWorkers (249-259), `Utils.decode` (82-106).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (containment proof) | FmtBase.getQueryParam:43-46 | `it.split("=").let { (k, v) -> ... }` throws `IndexOutOfBoundsException` on any `=`-less query token (`?type=ws&sni`, trailing `&`) — BUT every fmt `parse` runs inside `AngConfigManager.parseConfig`'s per-line `try/catch` (429-456), so a malformed line is dropped and the rest of a 9k-config subscription imports unaffected. Dispatch via `configFmtParsers` (42-55) — distinct scheme keys, no `socks://`/`socks4://` prefix collision (4th char differs). | No action (upstream parity, contained). |
+| 2 | Edge (upstream quirk, no action) | VmessFmt.parse:24 | Std-URI detection requires BOTH `?` AND `&`: `vmess://uuid@host:443?type=ws` (single param) falls into the base64 branch → decode fails → line dropped. Raw base64 can never contain `?`/`&` (alphabet), so no false positives into parseVmessStd. | No action (upstream parity, per-line loss only). |
+| 3 | Edge (upstream quirk, self-healing) | VlessFmt.parse:28 | `encryption=` (present but empty) → `config.method=""` → VLESS outbound with empty encryption → that config fails to connect. In the pool context the failed real-ping marks it dead → `removeInvalidServer` sweeps it on the next test cycle. Upstream-identical. | No action. |
+| 4 | CLEAN (roundtrip) | VmessFmt.toUri + FmtBase.getQueryDic | Traced JSON↔URI roundtrips: TCP `headerType=none` re-parses benign; `security=""` ↔ null (73-75 normalizes non-TLS/REALITY to null); KCP seed/path dual-write consistent; GRPC host/authority overwrite order in toUri:134-135 lands on the same value; `mode` shared by gRPC+XHTTP intentionally (both use query key `mode`); insecure keys precedence (`insecure=0`+`allowInsecure=1` → true) documented upstream; REALITY fields (pbk/sid/spx/pqv) and new ech/fm/pcs roundtrip through `nullIfBlank` guards. `aid` hardcoded "0" on export — upstream dropped alterId entirely (Xray legacy). | No action. |
+| 5 | CLEAN (lifecycle) | SubscriptionUpdateService 96-119 | `runningTasks` accounting correct: one increment per START; each batch decrements in its own `finally` AFTER `deferred.await()` resumed (workers removed from `activeWorkers` in the Finish handler BEFORE await resumes), so at the last decrement `activeWorkers` can only contain another batch's workers if that batch is still mid-await — in which case its decrement is still pending. No 0-crossing missed, no double-decrement. `Semaphore(2)` releases via `withPermit` on all paths. | No action. |
+| 6 | CLEAN (contract) | RealPingWorkerService 85-97 + both consumers | Cancelled workers never emit `Finish` (91-92, deliberate). `SubscriptionUpdateService` awaits `Finish`-only — but its only cancel trigger is `onDestroy` (serviceJob.cancel kills the awaiter too), so no hang. `CoreTestService` is event-driven (no await) and `cancelWorkers` (249-259) explicitly drops progress entries for the never-Finish case. Both consumers honor the contract. | No action. |
+| 7 | Info (cosmetic race) | MaintenanceStatus beginTestBatch/publishTestProgress | `PREF_MAINT_TOTAL` is read-modify-written from the `:tasks` process (beginTestBatch) while `CoreTestService` (main process) writes it absolutely (publishTestProgress) — a concurrent auto-update test + manual bulk test can interleave and show a wrong number on the maintenance card. MMKV MULTI_PROCESS_MODE guarantees visibility, not atomicity. Card-only cosmetic; no connection impact. | Noted (deferred — cosmetic). |
+| 8 | Info | SubscriptionUpdateService 176 | `testSubscriptionServers` snapshots `decodeServerList(subId)` before testing; a concurrent refresh (other semaphore permit) may retire those guids mid-test → `encodeServerTestDelayMillis` writes results for retired guids → orphaned aff entries without an index entry, cleaned by `OrphanProfileCleaner` on next backup. Harmless. | Noted. |
+| 9 | Info | SubscriptionUpdateService 181-190 | `lateinit var worker` captured by its own `onEvent` lambda before assignment — safe only because `RealPingWorkerService` emits events strictly after `start()` (construction launches coroutines on `scope.launch`, never inline). Verified in worker source. | Noted. |
+
+### Upstream comparison result
+- `VmessFmt.kt`, `VlessFmt.kt`, `FmtBase.kt`, `V2rayNFmt.kt`: **zero diff hunks**. `SubscriptionUpdateService.kt`: 8 hunks, all additive fork MaintenanceStatus calls. **No fork regressions, no missing upstream fixes** in the whole parse/roundtrip/update-service flow.
+- Parse-side safety net confirmed end-to-end for the 9k pool: `parseConfig` per-line try/catch → `Utils.decode` (standard → URL-safe → padding-trim retry) → per-line drop on any garbage; nothing can abort a batch import.
+
+### Next run starting point (Run 10)
+- Remaining fmt parsers, same roundtrip focus: **`fmt/TrojanFmt.kt` (51) + `fmt/Hysteria2Fmt.kt` (72) + `fmt/ShadowsocksFmt.kt` (124)** — SS plugin parsing and base64 userinfo edges are the historical bug magnets; then Run 11 = `fmt/SocksFmt.kt` (57) + `fmt/WireguardFmt.kt` (132) + `fmt/CustomFmt.kt` (26) + `fmt/V2rayNFmt` deep-dive (policy-group ChildItems regex escape path).
+
+### Release
+- None this run (no code changes; docs-only commit).
