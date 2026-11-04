@@ -413,3 +413,33 @@ Only ONE hunk differs between fork and upstream for this file — exactly the Wi
 ### Next run starting point (Run 14)
 - **`dto/V2rayConfig.kt` (470 lines)** — the JSON contract all builders serialize into (`getProxyOutbound`, bean defaults, transient/aliased field names vs Xray-core's expectations), then Run 15 = remaining util (`Utils.kt` second pass for `getIpv6Address`/`isPureIpAddress` edge cases) or `handler/WebDavManager.kt` (240, backup/restore path) — pick per risk.
 
+
+---
+
+## Run 14 — 2026-11-04
+
+### Files reviewed
+- `dto/V2rayConfig.kt` (470 lines) — **byte-identical to upstream**; full line-by-line of the JSON contract: V2rayConfig top-level, InboundBean/InSettingsBean/SniffingBean, OutboundBean/OutSettingsBean (the all-protocol union bean), StreamSettingsBean + every settings bean (Tcp/Kcp/Ws/Httpupgrade/Xhttp/Http/Sockopt/Tls+REALITY/Quic/Grpc/Hysteria/FinalMask/Mux), DnsBean/ServersBean (incl. Run 3's `finalQuery`), RoutingBean/RulesBean/BalancerBean/Strategy*, PolicyBean, Observatory/BurstObservatory/Fakedns beans, `getProxyOutbound`/`getAllProxyOutbound`/`getServerAddress`/`getServerPort`/`ensureSockopt`.
+- `util/JsonUtil.kt` (119 lines, bonus — the other half of the contract): `gson = Gson()` (plain — **nulls omitted**), `toJsonPretty` (pretty + disableHtmlEscaping + `ToNumberPolicy.LONG_OR_DOUBLE` + custom whole-Double→Long serializer with the "core will fail to start" comment), `parseString`/`parseHeadersToMap` (contained).
+- Emission-path tracing: core config built via `JsonUtil.toJsonPretty` (CoreConfigManager:126/165/474) → the null-omission and number-fix apply to everything Xray receives; storage encodes use plain `toJson` (nulls omitted; ProfileItem data-class defaults backfill on decode).
+
+### Findings
+
+| # | Severity | Location | Finding | Action |
+|---|---|---|---|---|
+| 1 | CLEAN (contract proof) | V2rayConfig.kt + JsonUtil | The all-protocol union `OutSettingsBean` (id/security/encryption/flow/password/method/version/secretKey/peers/reserved/mtu/remoteDNS in ONE class) is safe BECAUSE plain Gson omits null fields: each protocol's outbound JSON contains only its own keys, and Xray's JSON unmarshaler ignores absent fields. Same for the InSettingsBean union and TlsSettingsBean reused as realitySettings. Verified the emission path runs through `toJsonPretty` which also omits nulls. | No action. |
+| 2 | CLEAN (field-name parity) | StreamSettingsBean tree | Mixed-case sockopt keys (`TcpNoDelay`, `tcpKeepAliveIdle`, `tcpFastOpen`, `tproxy`, `mark`, `dialerProxy`, `domainStrategy`, `happyEyeballs`) and grpc snake_case (`idle_timeout`, `health_check_timeout`) match Xray-core's JSON keys exactly; TLS keys (`pinnedPeerCertSha256`, `echConfigList`, `verifyPeerCertByName`) and REALITY (`publicKey`/`shortId`/`spiderX`/`mldsa65Verify`) likewise. Only two @SerializedName needed (`User-Agent`, `Accept-Encoding` in TCP request headers). | No action. |
+| 3 | CLEAN (number safety) | JsonUtil.toJsonPretty | `Any?`-typed slots (xhttp `extra`, `finalmask`, DNS `servers` list elements, routing `attrs`) go through Gson's Double parse; the custom serializer re-emits whole-number doubles as longs — the documented Xray start-failure on "1.0"-style ints is prevented. LONG_OR_DOUBLE parse keeps big ints exact. | No action. |
+| 4 | CLEAN | OutboundBean.getServerAddress/getServerPort 311-325 | WG endpoint split via `substringBeforeLast(":")`/`substringAfterLast(":")` — bracketed IPv6 (`[::1]:51820`), unbracketed IPv6 and host:port all resolve; missing port → `toIntOrNull()` null → contained downstream (Run 11 #6 CUSTOM loopback fallback). Non-WG: `settings?.address as? String` — the `Any?` address (list form for chain outbounds) safely degrades to null. | No action. |
+| 5 | CLEAN | getProxyOutbound 454-463 | First outbound whose protocol matches any EConfigType name (case-insensitive) — freedom/blackhole/api/logcat outbounds skipped; null return handled by CustomFmt (Run 11 #6). Order-sensitive only for multi-proxy configs (upstream-identical). `getAllProxyOutbound` filters the same predicate. | No action. |
+| 6 | Info | MuxBean default `Mux(false)` | Serialized as `{"enabled":false}` with null concurrencies omitted — mux stays off unless a profile sets it (golden-rule check: contract verified, default untouched). | No action. |
+| 7 | Info (edge, upstream) | GrpcSettingsBean.idle_timeout `Int?` | Xray accepts duration strings ("60s") or seconds ints — the builder emits ints (Run 9 roundtrip note). Upstream-identical. | Noted. |
+
+### Upstream comparison result
+- `V2rayConfig.kt`: **zero diff hunks**. The fork's DnsBean.ServersBean.finalQuery (Run 3) is upstream's own field now. No fork regressions, no missing upstream fixes in the JSON contract layer.
+
+### Next run starting point (Run 15)
+- **`handler/WebDavManager.kt` (240 lines) + the restore path it feeds** (`BackupViewModel`/`SettingsManager` restore → MMKV overwrite) — this is the one write-path that can inject arbitrary MMKV values (the theoretical URL-injector flagged in Run 13 finding #2, and restore-time consistency with the Run 7/8 pool-generation markers). Then Run 16 = `util/Utils.kt` second pass (`getIpv6Address`, `isPureIpAddress`, `isCoreDNSAddress`, `fixIllegalUrl` edge cases) or `handler/AdsManager.kt` — pick per risk.
+
+### Release
+- None this run (no code changes; docs-only commit).
