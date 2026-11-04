@@ -49,7 +49,9 @@ class RealPingWorkerService(
     private val onEvent: (RealPingEvent) -> Unit = {}
 ) {
     private val job = SupervisorJob()
-    private val concurrency = SettingsManager.getRealPingConcurrency()
+    // Adaptive: the worker knows its batch size, so large auto-maintenance pools get more
+    // parallel workers than the small-batch default (see SettingsManager.getRealPingConcurrency).
+    private val concurrency = SettingsManager.getRealPingConcurrency(guids.size)
     private val dispatcher = Executors.newFixedThreadPool(if (onlyTcp) concurrency * 2 else concurrency).asCoroutineDispatcher()
     private val scope = CoroutineScope(job + dispatcher + CoroutineName("RealPingBatchWorker"))
 

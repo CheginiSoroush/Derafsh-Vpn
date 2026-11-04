@@ -5,6 +5,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
@@ -39,6 +40,13 @@ class CoreTestService : Service() {
     private val workerProgress = ConcurrentHashMap<RealPingWorkerService, Pair<Int, Int>>()
     private val settledDone = AtomicInteger(0)
     private val settledTotal = AtomicInteger(0)
+
+    // Progress fan-out throttle: each completion would otherwise cost a cross-process MMKV
+    // write + a notification update + an IPC message to the UI. On multi-thousand-config
+    // pools that churn steals real CPU from the test threads; 400 ms still moves the bar
+    // smoothly while cutting the overhead by orders of magnitude. Result/Finish events are
+    // never throttled.
+    private val lastProgressEmit = ConcurrentHashMap<RealPingWorkerService, Long>()
     private val cancelAction by lazy {
         val intent = Intent(this, CoreTestService::class.java).putExtra(
             "content",
@@ -84,6 +92,7 @@ class CoreTestService : Service() {
         cancelWorkers()
         if (hadActiveWorkers) MaintenanceStatus.abandon()
         workerProgress.clear()
+        lastProgressEmit.clear()
         NotificationHelper.stopForeground(this)
         super.onDestroy()
     }
@@ -171,15 +180,32 @@ class CoreTestService : Service() {
                 // Feed the main-screen maintenance card with the session-wide percentage.
                 if (event.batchTotal > 0) {
                     workerProgress[worker] = event.completedInBatch.coerceAtLeast(0) to event.batchTotal
-                    publishMaintenanceTestProgress()
+                    // Throttled fan-out: always emit the first beat and the batch-final beat,
+                    // otherwise at most every PROGRESS_EMIT_INTERVAL_MS.
+                    val now = SystemClock.elapsedRealtime()
+                    val last = lastProgressEmit[worker] ?: 0L
+                    if (last == 0L || event.completedInBatch >= event.batchTotal
+                        || now - last >= PROGRESS_EMIT_INTERVAL_MS
+                    ) {
+                        lastProgressEmit[worker] = now
+                        publishMaintenanceTestProgress()
+                        NotificationHelper.updateNotification(
+                            channelType = NotificationChannelType.CORE_TEST,
+                            context = this,
+                            title = getString(R.string.app_name),
+                            content = getString(R.string.connection_running_task_left, event.text)
+                        )
+                        MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, event.text, requestId)
+                    }
+                } else {
+                    NotificationHelper.updateNotification(
+                        channelType = NotificationChannelType.CORE_TEST,
+                        context = this,
+                        title = getString(R.string.app_name),
+                        content = getString(R.string.connection_running_task_left, event.text)
+                    )
+                    MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, event.text, requestId)
                 }
-                NotificationHelper.updateNotification(
-                    channelType = NotificationChannelType.CORE_TEST,
-                    context = this,
-                    title = getString(R.string.app_name),
-                    content = getString(R.string.connection_running_task_left, event.text)
-                )
-                MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_NOTIFY, event.text, requestId)
             }
 
             is RealPingEvent.Result -> {
@@ -200,6 +226,10 @@ class CoreTestService : Service() {
                         settledTotal.addAndGet(total)
                     }
                 }
+                lastProgressEmit.remove(worker)
+                // Republish the settled sums immediately so the card never freezes on a
+                // throttled intermediate figure between batches.
+                publishMaintenanceTestProgress()
                 if (message.subscriptionId.isNotEmpty()) {
                     if (MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_REMOVE_INVALID_AFTER_TEST, false)) {
                         AngConfigManager.removeInvalidServer(message.subscriptionId)
@@ -252,9 +282,13 @@ class CoreTestService : Service() {
             if (activeWorkers.remove(worker, requestId)) {
                 // Cancelled workers never emit Finish, so drop their progress entry here.
                 workerProgress.remove(worker)
+                lastProgressEmit.remove(worker)
                 worker.cancel()
                 MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", requestId)
             }
         }
     }
 }
+
+/** Minimum gap between throttled progress fan-outs (notification + IPC + MMKV publish). */
+private const val PROGRESS_EMIT_INTERVAL_MS = 400L

@@ -1,0 +1,2 @@
+- Faster config testing: latency-test parallelism is now adaptive — small batches keep the proven 16 workers, while large pools (hundreds to thousands of configs) scale up to 32, roughly halving the first full-pass time on big built-in sources.
+- Lighter test overhead: the per-completion progress fan-out (system notification update + cross-process write + IPC message) is throttled to a few updates per second instead of firing thousands of times per pass, so the test threads keep the CPU instead of feeding the UI plumbing.

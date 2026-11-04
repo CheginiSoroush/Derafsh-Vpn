@@ -479,11 +479,24 @@ object SettingsManager {
 
     /**
      * Get real ping concurrency.
-     * @return The number of concurrent real-ping tests (clamped to 1..64).
+     * An explicitly stored value always wins. Otherwise the default scales with the batch
+     * size: small manual batches keep the proven 16, while large auto-maintenance pools
+     * (hundreds to thousands of configs) run at higher parallelism so a first full pass
+     * doesn't crawl — the per-test cost is dominated by spinning up a short-lived core
+     * instance, and bigger pools amortize it across more workers.
+     * @param batchSize Number of configs in the batch (0 = treat as a small batch).
+     * @return The number of concurrent real-ping tests (clamped to 1..128).
      */
-    fun getRealPingConcurrency(): Int {
-        val value = MmkvManager.decodeSettingsString(AppConfig.PREF_REAL_PING_CONCURRENCY)?.toIntOrNull() ?: 16
-        return value.coerceIn(1, 128)
+    fun getRealPingConcurrency(batchSize: Int = 0): Int {
+        val stored = MmkvManager.decodeSettingsString(AppConfig.PREF_REAL_PING_CONCURRENCY)
+        if (stored != null) {
+            return stored.toIntOrNull()?.coerceIn(1, 128) ?: 16
+        }
+        return when {
+            batchSize <= 256 -> 16
+            batchSize <= 1500 -> 24
+            else -> 32
+        }
     }
 
     /**
