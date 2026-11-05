@@ -22,7 +22,6 @@ import com.v2ray.ang.fmt.TrojanFmt
 import com.v2ray.ang.fmt.V2rayNFmt
 import com.v2ray.ang.fmt.VlessFmt
 import com.v2ray.ang.fmt.VmessFmt
-import com.v2ray.ang.fmt.WireguardFmt
 import com.v2ray.ang.util.HttpUtil
 import com.v2ray.ang.util.JsonUtil
 import com.v2ray.ang.util.LogUtil
@@ -48,7 +47,6 @@ object AngConfigManager {
             AppConfig.SOCKS5 to SocksFmt::parse,
             EConfigType.TROJAN.protocolScheme to TrojanFmt::parse,
             EConfigType.VLESS.protocolScheme to VlessFmt::parse,
-            EConfigType.WIREGUARD.protocolScheme to WireguardFmt::parse,
             EConfigType.HYSTERIA2.protocolScheme to Hysteria2Fmt::parse,
             AppConfig.HY2 to Hysteria2Fmt::parse,
         )
@@ -164,7 +162,6 @@ object AngConfigManager {
                 EConfigType.SOCKS -> SocksFmt.toUri(config)
                 EConfigType.VLESS -> VlessFmt.toUri(config)
                 EConfigType.TROJAN -> TrojanFmt.toUri(config)
-                EConfigType.WIREGUARD -> WireguardFmt.toUri(config)
                 EConfigType.HYSTERIA2 -> Hysteria2Fmt.toUri(config)
                 EConfigType.CUSTOM -> MmkvManager.decodeServerRaw(guid).orEmpty()
                 else -> config.description.orEmpty()
@@ -388,23 +385,6 @@ object AngConfigManager {
                 throw e
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.TAG, "Failed to parse custom config server as single config", e)
-            }
-            return 0
-        } else if (server.startsWith("[Interface]") && server.contains("[Peer]")) {
-            try {
-                val config = WireguardFmt.parseWireguardConfFile(server)
-                config.subscriptionId = subid
-                config.description = generateDescription(config)
-                commitProfiles(
-                    configs = listOf(ParsedProfile(config, server)),
-                    subid = subid,
-                    append = append,
-                )
-                return 1
-            } catch (e: ProfileStorageException) {
-                throw e
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to parse WireGuard config file", e)
             }
             return 0
         } else {

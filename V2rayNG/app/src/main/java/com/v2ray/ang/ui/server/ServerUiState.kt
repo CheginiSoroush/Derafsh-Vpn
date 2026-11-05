@@ -6,9 +6,6 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import com.v2ray.ang.AppConfig.DEFAULT_PORT
 import com.v2ray.ang.AppConfig.REALITY
-import com.v2ray.ang.AppConfig.WIREGUARD_LOCAL_ADDRESS_V4
-import com.v2ray.ang.AppConfig.WIREGUARD_LOCAL_MTU
-import com.v2ray.ang.AppConfig.WIREGUARD_LOCAL_REMOTE_DNS
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.enums.NetworkType
@@ -25,13 +22,6 @@ class ServerUiState(
     flow: String = "",
     encryption: String = "",
     username: String = "",
-    secretKey: String = "",
-    publicKey: String = "",
-    preSharedKey: String = "",
-    reserved: String = "0,0,0",
-    localAddress: String = WIREGUARD_LOCAL_ADDRESS_V4,
-    mtu: String = WIREGUARD_LOCAL_MTU,
-    remoteDNS: String = WIREGUARD_LOCAL_REMOTE_DNS,
     obfsPassword: String = "",
     portHopping: String = "",
     portHoppingInterval: String = "",
@@ -74,13 +64,6 @@ class ServerUiState(
     var flow by mutableStateOf(flow)
     var encryption by mutableStateOf(encryption)
     var username by mutableStateOf(username)
-    var secretKey by mutableStateOf(secretKey)
-    var publicKey by mutableStateOf(publicKey)
-    var preSharedKey by mutableStateOf(preSharedKey)
-    var reserved by mutableStateOf(reserved)
-    var localAddress by mutableStateOf(localAddress)
-    var mtu by mutableStateOf(mtu)
-    var remoteDNS by mutableStateOf(remoteDNS)
     var obfsPassword by mutableStateOf(obfsPassword)
     var portHopping by mutableStateOf(portHopping)
     var portHoppingInterval by mutableStateOf(portHoppingInterval)
@@ -124,7 +107,6 @@ class ServerUiState(
         val isVless = configType == EConfigType.VLESS
         val isShadowsocks = configType == EConfigType.SHADOWSOCKS
         val isSocksOrHttp = configType == EConfigType.SOCKS || configType == EConfigType.HTTP
-        val isWireguard = configType == EConfigType.WIREGUARD
         val isHysteria2 = configType == EConfigType.HYSTERIA2
 
         return initialConfig.copy(
@@ -140,17 +122,7 @@ class ServerUiState(
             },
             flow = if (isVless) flow else null,
             username = if (isSocksOrHttp) username else null,
-            secretKey = if (isWireguard) secretKey else null,
-            publicKey = when {
-                isWireguard -> publicKey
-                streamSecurity == REALITY -> publicKeyReality
-                else -> null
-            },
-            preSharedKey = if (isWireguard) preSharedKey else null,
-            reserved = if (isWireguard) reserved else null,
-            localAddress = if (isWireguard) localAddress else null,
-            mtu = if (isWireguard) mtu.toIntOrNull() else null,
-            remoteDNS = if (isWireguard) remoteDNS else null,
+            publicKey = if (streamSecurity == REALITY) publicKeyReality else null,
             obfsPassword = if (isHysteria2) obfsPassword else null,
             portHopping = if (isHysteria2) portHopping else null,
             portHoppingInterval = if (isHysteria2) portHoppingInterval else null,
@@ -202,13 +174,6 @@ class ServerUiState(
                 flow = initialConfig.flow ?: "",
                 encryption = initialConfig.method ?: "",
                 username = initialConfig.username ?: "",
-                secretKey = initialConfig.secretKey ?: "",
-                publicKey = initialConfig.publicKey ?: "",
-                preSharedKey = initialConfig.preSharedKey ?: "",
-                reserved = initialConfig.reserved ?: "0,0,0",
-                localAddress = initialConfig.localAddress ?: WIREGUARD_LOCAL_ADDRESS_V4,
-                mtu = initialConfig.mtu?.toString() ?: WIREGUARD_LOCAL_MTU,
-                remoteDNS = initialConfig.remoteDNS ?: WIREGUARD_LOCAL_REMOTE_DNS,
                 obfsPassword = initialConfig.obfsPassword ?: "",
                 portHopping = initialConfig.portHopping ?: "",
                 portHoppingInterval = initialConfig.portHoppingInterval ?: "",

@@ -44,6 +44,7 @@ object SettingsManager {
         initRoutingRulesets(context)
         migrateServerListToSubscriptions()
         migrateHysteria2PinSHA256()
+        migrateRemoveWireguardProfiles()
     }
 
     /**
@@ -619,6 +620,30 @@ object SettingsManager {
             MmkvManager.encodeServerConfig(guid, profile)
         }
 
+        MmkvManager.encodeSettings(migrationKey, true)
+    }
+
+    /**
+     * One-time migration: WireGuard was removed from the app (no editor, no import paths),
+     * so any stored type-7 profile is retired everywhere it can appear — every group index,
+     * all payload stores, and the selected-server pointer when it pointed at one of them.
+     * The EConfigType.WIREGUARD enum value itself is kept so decoding never trips on the
+     * retired value during this sweep.
+     */
+    private fun migrateRemoveWireguardProfiles() {
+        val migrationKey = "wireguard_profiles_removed"
+        if (MmkvManager.decodeSettingsBool(migrationKey, false)) {
+            return
+        }
+
+        val guids = MmkvManager.decodeAllServerList()
+            .filter { guid ->
+                MmkvManager.decodeServerConfig(guid)?.configType == EConfigType.WIREGUARD
+            }
+        if (guids.isNotEmpty()) {
+            MmkvManager.removeServerProfiles(guids)
+            LogUtil.i(AppConfig.TAG, "Removed ${guids.size} retired WireGuard profile(s)")
+        }
         MmkvManager.encodeSettings(migrationKey, true)
     }
 

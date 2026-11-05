@@ -86,7 +86,6 @@ data class V2rayNShareItem(
             6 -> EConfigType.TROJAN
             7 -> EConfigType.HYSTERIA2
             // 8 -> EConfigType.TUIC
-            9 -> EConfigType.WIREGUARD
             10 -> EConfigType.HTTP
             101 -> EConfigType.POLICYGROUP
             102 -> EConfigType.PROXYCHAIN
@@ -139,11 +138,6 @@ data class V2rayNShareItem(
             shortId = ShortId,
             spiderX = SpiderX,
             mldsa65Verify = Mldsa65Verify,
-            secretKey = if (configType == EConfigType.WIREGUARD) Password else null,
-            preSharedKey = ProtoExtraObj?.WgPresharedKey,
-            localAddress = ProtoExtraObj?.WgInterfaceAddress,
-            reserved = ProtoExtraObj?.WgReserved,
-            mtu = ProtoExtraObj?.WgMtu,
             obfsPassword = ProtoExtraObj?.SalamanderPass,
             portHopping = ProtoExtraObj?.Ports,
             portHoppingInterval = ProtoExtraObj?.HopInterval,

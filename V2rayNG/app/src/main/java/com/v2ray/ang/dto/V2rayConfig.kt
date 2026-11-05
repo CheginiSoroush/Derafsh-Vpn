@@ -94,19 +94,7 @@ data class V2rayConfig(
             var method: String? = null,
             /*Hysteria/Hysteria2*/
             var version: Int? = null,
-            /*Wireguard*/
-            var secretKey: String? = null,
-            val peers: List<WireGuardBean>? = null,
-            var reserved: List<Int>? = null,
-            var mtu: Int? = null,
-            var remoteDNS: List<String>? = null,
-        ) {
-            data class WireGuardBean(
-                var publicKey: String = "",
-                var preSharedKey: String? = null,
-                var endpoint: String = ""
-            )
-        }
+        )
 
         data class StreamSettingsBean(
             var network: String? = AppConfig.DEFAULT_NETWORK,
@@ -309,19 +297,11 @@ data class V2rayConfig(
         )
 
         fun getServerAddress(): String? {
-            return if (protocol.equals(EConfigType.WIREGUARD.name, true)) {
-                settings?.peers?.firstOrNull()?.endpoint?.substringBeforeLast(":")
-            } else {
-                settings?.address as? String
-            }
+            return settings?.address as? String
         }
 
         fun getServerPort(): Int? {
-            return if (protocol.equals(EConfigType.WIREGUARD.name, true)) {
-                settings?.peers?.firstOrNull()?.endpoint?.substringAfterLast(":")?.toIntOrNull()
-            } else {
-                settings?.port
-            }
+            return settings?.port
         }
 
         fun ensureSockopt(): StreamSettingsBean.SockoptBean {

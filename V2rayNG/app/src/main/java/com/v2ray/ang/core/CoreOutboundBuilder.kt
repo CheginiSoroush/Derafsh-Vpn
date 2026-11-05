@@ -29,7 +29,6 @@ object CoreOutboundBuilder {
             EConfigType.SOCKS -> toOutboundSocks(profileItem)
             EConfigType.VLESS -> toOutboundVless(profileItem)
             EConfigType.TROJAN -> toOutboundTrojan(profileItem)
-            EConfigType.WIREGUARD -> toOutboundWireguard(profileItem)
             EConfigType.HYSTERIA2 -> toOutboundHysteria2(profileItem)
             EConfigType.HTTP -> toOutboundHttp(profileItem)
             else -> null
@@ -50,7 +49,6 @@ object CoreOutboundBuilder {
                 || protocol.equals(EConfigType.SOCKS.name, true)
                 || protocol.equals(EConfigType.HTTP.name, true)
                 || protocol.equals(EConfigType.TROJAN.name, true)
-                || protocol.equals(EConfigType.WIREGUARD.name, true)
                 || protocol.equals(EConfigType.HYSTERIA2.name, true)
                 || protocol.equals(EConfigType.HYSTERIA.name, true)
             ) {
@@ -91,14 +89,6 @@ object CoreOutboundBuilder {
                 protocol = configType.name.lowercase(),
                 settings = OutboundBean.OutSettingsBean(),
                 streamSettings = OutboundBean.StreamSettingsBean()
-            )
-
-            EConfigType.WIREGUARD -> OutboundBean(
-                protocol = configType.name.lowercase(),
-                settings = OutboundBean.OutSettingsBean(
-                    secretKey = "",
-                    peers = listOf(OutboundBean.OutSettingsBean.WireGuardBean())
-                )
             )
 
             EConfigType.HYSTERIA,
@@ -232,69 +222,6 @@ object CoreOutboundBuilder {
             }
         }
 
-        return outboundBean
-    }
-
-    private fun toOutboundWireguard(profileItem: ProfileItem): OutboundBean? {
-        val outboundBean = createInitOutbound(EConfigType.WIREGUARD)
-
-        val rawAddresses = profileItem.localAddress
-            ?.split(",")
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.ifEmpty { null }
-            ?: listOf(AppConfig.WIREGUARD_LOCAL_ADDRESS_V4)
-
-        val addresses = if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true) {
-            rawAddresses
-        } else {
-            val ipv4Addresses = rawAddresses.filter { !it.contains(":") }
-            ipv4Addresses.ifEmpty { listOf(AppConfig.WIREGUARD_LOCAL_ADDRESS_V4) }
-        }
-
-        // Synced with upstream fix: the default remote DNS is a comma-separated list and
-        // must be split into proper entries. Wrapping it with listOf() produced one
-        // malformed "1.1.1.1,1.0.0.1,…" string, and with IPv6 disabled that single entry
-        // contains ":" (from its IPv6 parts) so the IPv4 filter dropped it and the
-        // fallback re-inserted the same malformed string — WireGuard tunnel DNS was broken.
-        val defaultDns = AppConfig.WIREGUARD_LOCAL_REMOTE_DNS.split(",").map { it.trim() }
-
-        val rawDNS = profileItem.remoteDNS
-            ?.split(",")
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() }
-            ?.ifEmpty { null }
-            ?: defaultDns
-
-        val remotes = if (MmkvManager.decodeSettingsBool(AppConfig.PREF_IPV6_ENABLED) == true) {
-            rawDNS
-        } else {
-            rawDNS.filter { !it.contains(":") }
-                // falling back to the IPv4 entries of the default list
-                .ifEmpty { defaultDns.filter { !it.contains(":") } }
-        }
-
-        outboundBean?.settings?.let { wireguard ->
-            wireguard.secretKey = profileItem.secretKey
-            wireguard.address = addresses
-            wireguard.port = null
-            wireguard.peers?.firstOrNull()?.let { peer ->
-                peer.publicKey = profileItem.publicKey.orEmpty()
-                peer.preSharedKey = profileItem.preSharedKey?.nullIfBlank()
-                peer.endpoint = Utils.getIpv6Address(profileItem.server) + ":${profileItem.serverPort}"
-            }
-            wireguard.mtu = profileItem.mtu
-            wireguard.remoteDNS = remotes
-            wireguard.reserved = profileItem.reserved?.takeIf { it.isNotBlank() }?.split(",")?.filter { it.isNotBlank() }?.map { it.trim().toInt() }
-        }
-
-        if (!profileItem.finalMask.isNullOrBlank()) {
-            outboundBean?.streamSettings = OutboundBean.StreamSettingsBean()
-            outboundBean?.streamSettings?.let {
-                updateOutboundFinalMask(it, profileItem)
-                it.network = null
-            }
-        }
         return outboundBean
     }
 

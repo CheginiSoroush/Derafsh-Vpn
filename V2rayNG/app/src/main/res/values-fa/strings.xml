@@ -44,7 +44,6 @@
     <string name="menu_item_import_config_manually_socks">افزودن [SOCKS]</string>
     <string name="menu_item_import_config_manually_http">افزودن [HTTP]</string>
     <string name="menu_item_import_config_manually_trojan">افزودن [Trojan]</string>
-    <string name="menu_item_import_config_manually_wireguard">افزودن [WireGuard]</string>
     <string name="menu_item_import_config_manually_hysteria2">افزودن [Hysteria2]</string>
     <string name="confirm_delete_visible_profiles">آیا مطمئن هستید که می‌خواهید همه پروفایل‌های نمایش‌داده‌شده را حذف کنید؟</string>
     <string name="confirm_delete_duplicate_profiles">آیا مطمئن هستید که می‌خواهید همه پروفایل‌های تکراری نمایش‌داده‌شده را حذف کنید؟</string>

@@ -1,0 +1,2 @@
+- WireGuard support removed from the app: the editor, the manual-add entry, wg:// link parsing and .conf file import are all gone. Nothing in the built-in pool or real-world usage needed it — the protocol menus are cleaner now.
+- Any old saved WireGuard profiles are silently cleaned up on the first launch of this version, so nothing broken or uneditable is left behind.
