@@ -436,6 +436,12 @@
     <string name="title_pref_fragment_interval">Fragment Interval (min-max)</string>
     <string name="title_pref_fragment_enabled">Enable Fragment</string>
     <string name="title_pref_fragment_maxsplit">Fragment Max Split</string>
+    <string name="fragment_presets">Fragment Presets</string>
+    <string name="fragment_preset_mci">MCI</string>
+    <string name="fragment_preset_irancel">Irancell</string>
+    <string name="fragment_preset_rightel">Rightel</string>
+    <string name="fragment_preset_off">Off</string>
+    <string name="fragment_preset_applied">Preset applied</string>
     <string name="title_observatory_settings">Observatory Settings</string>
     <string name="title_pref_observatory_least_ping_interval">leastPing Interval</string>
     <string name="title_pref_observatory_least_load_interval">leastLoad Interval</string>

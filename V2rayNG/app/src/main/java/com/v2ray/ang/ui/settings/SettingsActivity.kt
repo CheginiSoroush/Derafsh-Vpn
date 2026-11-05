@@ -5,16 +5,22 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.viewModels
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -95,6 +101,7 @@ class SettingsActivity : BaseComponentActivity() {
  * Only the choices a regular user actually needs are exposed:
  *  - Speed display in notification
  *  - Confirm before removing a profile
+ *  - Fragment presets for Iranian operators (MCI / Irancell / Rightel / Off)
  *  - Language (فارسی / English)
  *  - Theme mode (system / light / dark)
  *  - Start on boot
@@ -125,6 +132,23 @@ fun SettingsScreen(
     }
     var uiModeNight by rememberMmkvString(AppConfig.PREF_UI_MODE_NIGHT, "0")
     var isBooted by rememberMmkvBool(AppConfig.PREF_IS_BOOTED, false)
+
+    var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(true) }
+    var fragmentEnabled by rememberMmkvBool(AppConfig.PREF_FRAGMENT_ENABLED, false)
+    var fragmentPackets by rememberMmkvString(AppConfig.PREF_FRAGMENT_PACKETS, "tlshello")
+    var fragmentLength by rememberMmkvString(AppConfig.PREF_FRAGMENT_LENGTH, "50-100")
+    var fragmentInterval by rememberMmkvString(AppConfig.PREF_FRAGMENT_INTERVAL, "10-20")
+
+    val applyFragmentPreset: (Boolean, String, String, String) -> Unit =
+        { enabled, packets, length, interval ->
+            fragmentEnabled = enabled
+            if (enabled) {
+                fragmentPackets = packets
+                fragmentLength = length
+                fragmentInterval = interval
+            }
+            viewModel.toastSuccess(R.string.fragment_preset_applied)
+        }
 
     val languageEntries = stringArrayResource(R.array.language_select).toList()
     val languageValues = stringArrayResource(R.array.language_select_value).toList()
@@ -206,6 +230,49 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.summary_system_vpn_settings),
                         onClick = onSystemVpnSettingsClicked
                     )
+                }
+            }
+
+            CollapsiblePreferenceGroupHeader(
+                title = stringResource(R.string.title_fragment_settings),
+                expanded = fragmentSettingsExpanded,
+                onExpandedChange = { fragmentSettingsExpanded = it }
+            )
+            if (fragmentSettingsExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.fragment_presets),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AssistChip(
+                            onClick = { applyFragmentPreset(true, "tlshello", "100-200", "10-20") },
+                            label = { Text(stringResource(R.string.fragment_preset_mci)) }
+                        )
+                        AssistChip(
+                            onClick = { applyFragmentPreset(true, "1-3", "50-100", "10-20") },
+                            label = { Text(stringResource(R.string.fragment_preset_irancel)) }
+                        )
+                        AssistChip(
+                            onClick = { applyFragmentPreset(true, "tlshello", "10-50", "5-10") },
+                            label = { Text(stringResource(R.string.fragment_preset_rightel)) }
+                        )
+                        AssistChip(
+                            onClick = { applyFragmentPreset(false, "", "", "") },
+                            label = { Text(stringResource(R.string.fragment_preset_off)) }
+                        )
+                    }
                 }
             }
 

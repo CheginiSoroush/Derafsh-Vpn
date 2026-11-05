@@ -1,0 +1,3 @@
+New: one-tap Fragment presets for Iranian operators — MCI, Irancell and Rightel, plus an Off switch.
+Applying a preset fills the fragment packets/length/interval fields instantly; a toast confirms it.
+The new Fragment section lives at the bottom of Settings.
