@@ -13,6 +13,12 @@ object AppConfig {
     const val WEBDAV_BACKUP_DIR = "backups"
     const val WEBDAV_BACKUP_FILE_NAME = "backup_ng.zip"
 
+    // WebDAV automatic daily backup (WorkManager periodic task)
+    const val WEBDAV_AUTO_BACKUP_TASK_NAME = "WEBDAV_AUTO_BACKUP"
+    const val PREF_WEBDAV_AUTO_BACKUP = "PREF_WEBDAV_AUTO_BACKUP"
+    const val PREF_WEBDAV_LAST_AUTO_BACKUP = "PREF_WEBDAV_LAST_AUTO_BACKUP"
+    const val PREF_WEBDAV_LAST_AUTO_BACKUP_SUCCESS = "PREF_WEBDAV_LAST_AUTO_BACKUP_SUCCESS"
+
     /** Legacy configuration keys. */
     const val ANG_CONFIG = "ang_config"
 

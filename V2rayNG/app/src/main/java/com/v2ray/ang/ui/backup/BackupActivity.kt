@@ -3,6 +3,7 @@ package com.v2ray.ang.ui.backup
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.text.format.DateUtils
 import androidx.activity.viewModels
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +48,7 @@ import com.v2ray.ang.ui.compose.InputField
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsMenuItem
+import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -94,6 +99,8 @@ class BackupActivity : HelperBaseComponentActivity() {
         BackupScreen(
             isLoadingState = viewModel.isLoading,
             webDavConfigState = viewModel.webDavConfig,
+            webDavAutoBackupState = viewModel.webDavAutoBackupEnabled,
+            webDavLastAutoBackupState = viewModel.webDavLastAutoBackup,
             onBackupOptionSelected = { location ->
                 when (location) {
                     BackupLocation.Local -> backupViaLocal()
@@ -109,6 +116,8 @@ class BackupActivity : HelperBaseComponentActivity() {
             },
             onCleanupProfiles = viewModel::cleanupProfileStorage,
             onWebDavSave = { config -> viewModel.saveWebDavConfig(config) },
+            onWebDavAutoBackupToggle = viewModel::setWebDavAutoBackup,
+            onWebDavAutoBackupRefresh = viewModel::refreshWebDavAutoBackup,
             onBackClick = { finish() }
         )
     }
@@ -186,21 +195,30 @@ class BackupActivity : HelperBaseComponentActivity() {
 fun BackupScreen(
     isLoadingState: StateFlow<Boolean>,
     webDavConfigState: StateFlow<WebDavConfig?>,
+    webDavAutoBackupState: StateFlow<Boolean>,
+    webDavLastAutoBackupState: StateFlow<Long>,
     onBackupOptionSelected: (BackupLocation) -> Unit,
     onShareClick: () -> Unit,
     onRestoreOptionSelected: (BackupLocation) -> Unit,
     onCleanupProfiles: () -> Unit,
     onWebDavSave: (WebDavConfig) -> Unit,
+    onWebDavAutoBackupToggle: (Boolean) -> Unit,
+    onWebDavAutoBackupRefresh: () -> Unit,
     onBackClick: () -> Unit
 ) {
     val isLoading by isLoadingState.collectAsState()
     val currentWebDavConfig by webDavConfigState.collectAsState()
+    val webDavAutoBackupEnabled by webDavAutoBackupState.collectAsState()
+    val webDavLastAutoBackup by webDavLastAutoBackupState.collectAsState()
     var showBackupDialog by remember { mutableStateOf(false) }
     var showRestoreDialog by remember { mutableStateOf(false) }
     var showCleanupDialog by remember { mutableStateOf(false) }
     var showWebDavDialog by remember { mutableStateOf(false) }
 
     val webDavSummary = currentWebDavConfig?.baseUrl
+
+    // Refresh the auto-backup toggle + last-run time whenever the screen enters.
+    LaunchedEffect(Unit) { onWebDavAutoBackupRefresh() }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -245,6 +263,25 @@ fun BackupScreen(
                 title = stringResource(R.string.title_webdav_config_setting),
                 subtitle = webDavSummary,
                 onClick = { showWebDavDialog = true }
+            )
+            SettingsSwitchItem(
+                title = stringResource(R.string.webdav_auto_backup_title),
+                summary = stringResource(R.string.webdav_auto_backup_summary),
+                checked = webDavAutoBackupEnabled,
+                onCheckedChange = onWebDavAutoBackupToggle
+            )
+            Text(
+                text = stringResource(
+                    R.string.webdav_last_auto_backup,
+                    if (webDavLastAutoBackup > 0L) {
+                        DateUtils.getRelativeTimeSpanString(webDavLastAutoBackup).toString()
+                    } else {
+                        "—"
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp)
             )
             NavigationBarsSpacer()
         }

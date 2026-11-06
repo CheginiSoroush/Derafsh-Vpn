@@ -489,6 +489,9 @@
     <string name="title_webdav_user">نام کاربری</string>
     <string name="title_webdav_pass">رمز عبور</string>
     <string name="title_webdav_remote_path">دایرکتوری راه دور (اختیاری)</string>
+    <string name="webdav_auto_backup_title">بکاپ خودکار روزانه</string>
+    <string name="webdav_auto_backup_summary">روزی یک‌بار، وقتی شبکه در دسترس باشد، همهٔ پروفایل‌ها روی سرور WebDAV شما بکاپ گرفته می‌شود.</string>
+    <string name="webdav_last_auto_backup">آخرین بکاپ خودکار: %s</string>
 
     <string name="share_method_qrcode">کد QR</string>
     <string name="share_method_clipboard">کپی لینک کانفیگ</string>

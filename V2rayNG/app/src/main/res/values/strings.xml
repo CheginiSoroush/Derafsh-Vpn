@@ -489,6 +489,9 @@
     <string name="title_webdav_user">Username</string>
     <string name="title_webdav_pass">Password</string>
     <string name="title_webdav_remote_path">Remote directory (optional)</string>
+    <string name="webdav_auto_backup_title">Daily auto backup</string>
+    <string name="webdav_auto_backup_summary">Back up all profiles to your WebDAV server once a day when a network is available.</string>
+    <string name="webdav_last_auto_backup">Last auto backup: %s</string>
 
     <string name="share_method_qrcode">QR code</string>
     <string name="share_method_clipboard">Copy profile link</string>

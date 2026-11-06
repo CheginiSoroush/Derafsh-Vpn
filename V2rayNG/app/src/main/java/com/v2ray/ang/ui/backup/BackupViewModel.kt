@@ -8,6 +8,7 @@ import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.WebDavConfig
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
+import com.v2ray.ang.handler.WebDavAutoBackup
 import com.v2ray.ang.handler.WebDavManager
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.ui.base.ViewModelEvent
@@ -27,6 +28,16 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
     private val _webDavConfig = MutableStateFlow(MmkvManager.decodeWebDavConfig())
     val webDavConfig: StateFlow<WebDavConfig?> = _webDavConfig.asStateFlow()
 
+    private val _webDavAutoBackupEnabled = MutableStateFlow(
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_WEBDAV_AUTO_BACKUP, false)
+    )
+    val webDavAutoBackupEnabled: StateFlow<Boolean> = _webDavAutoBackupEnabled.asStateFlow()
+
+    private val _webDavLastAutoBackup = MutableStateFlow(
+        MmkvManager.decodeSettingsLong(AppConfig.PREF_WEBDAV_LAST_AUTO_BACKUP, 0L)
+    )
+    val webDavLastAutoBackup: StateFlow<Long> = _webDavLastAutoBackup.asStateFlow()
+
     sealed interface BackupViewModelEvent : ViewModelEvent {
         data class ShareFile(val filePath: String) : BackupViewModelEvent
         data class ExportLocal(val cachePath: String, val targetUri: Uri) : BackupViewModelEvent
@@ -37,6 +48,23 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         MmkvManager.encodeWebDavConfig(config)
         _webDavConfig.value = config
         toastSuccess(R.string.toast_success)
+    }
+
+    /**
+     * Toggles the daily WebDAV auto-backup and re-syncs the periodic task immediately.
+     */
+    fun setWebDavAutoBackup(enabled: Boolean) {
+        MmkvManager.encodeSettings(AppConfig.PREF_WEBDAV_AUTO_BACKUP, enabled)
+        WebDavAutoBackup.sync(getApplication())
+        _webDavAutoBackupEnabled.value = enabled
+    }
+
+    /** Re-reads the auto-backup toggle and last-run timestamp (e.g. on screen entry). */
+    fun refreshWebDavAutoBackup() {
+        _webDavAutoBackupEnabled.value =
+            MmkvManager.decodeSettingsBool(AppConfig.PREF_WEBDAV_AUTO_BACKUP, false)
+        _webDavLastAutoBackup.value =
+            MmkvManager.decodeSettingsLong(AppConfig.PREF_WEBDAV_LAST_AUTO_BACKUP, 0L)
     }
 
     fun cleanupProfileStorage() {

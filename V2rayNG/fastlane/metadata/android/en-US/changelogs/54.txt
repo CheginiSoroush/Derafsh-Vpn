@@ -1,0 +1,2 @@
+New: automatic daily WebDAV backup — enable it in Backup → WebDAV settings and your profiles are uploaded once a day over any available network, using the same backup file and location as the manual backup.
+The time of the last automatic backup is shown right under the toggle.
