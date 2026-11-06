@@ -128,9 +128,10 @@ object AppConfig {
     const val PREF_POLICY_CONSENT_VERSION = "pref_policy_consent_version"
 
     /** Derafsh premium license (LicenseManager; premium-design.md §6). */
-    // License API base URL — MUST be replaced with the production HTTPS domain before the
-    // task-8 release (blocked on the server/domain decision, see PREMIUM_TODO BLOCKERS).
-    const val LICENSE_API_BASE = "http://REPLACE_BEFORE_RELEASE:3010"
+    // License API base URL — production Cloudflare Worker behind the custom domain
+    // imsoroush.top (workers.dev is filtered in Iran). Contract: premium-design.md §5
+    // (/health, /v1/activate, /v1/status, /v1/sub/<code>?device=).
+    const val LICENSE_API_BASE = "https://imsoroush.top"
     // Max offline window after the last successful server confirmation inside which premium
     // stays unlocked. Reference time is max(device time, last server-confirmed time), so a
     // backward clock shift cannot extend a license; a forward shift can only lock it early.
@@ -146,10 +147,9 @@ object AppConfig {
     const val PREF_LICENSE_EXPIRES = "pref_license_expires"
     const val PREF_LICENSE_LAST_OK = "pref_license_last_ok"
     const val PREF_LICENSE_DEVICE = "pref_license_device"
-    // Telegram bot that sells subscriptions and issues activation codes. Blank until the
-    // bot username is chosen (@BotFather token is a user blocker); the UI hides the bot
-    // entry points while this is blank and task 8 must set it before release.
-    const val DERAFSH_BOT_URL = ""
+    // Telegram bot that sells subscriptions and issues activation codes (@PDerafshVpnbot,
+    // live webhook on the license worker). The UI hides the bot entry points while blank.
+    const val DERAFSH_BOT_URL = "https://t.me/PDerafshVpnbot"
     // Renewal reminder (task 7): once the remaining license window drops below this
     // threshold, the :bg worker posts a renewal notification and the main screen shows
     // a renewal banner; both clear again as soon as the license is renewed or revoked.
