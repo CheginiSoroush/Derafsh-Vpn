@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -43,7 +42,6 @@ fun FormTextField(
     isError: Boolean = false,
     supportingText: String? = null,
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
-    textAlign: TextAlign? = null,
 ) {
     Box(
         modifier = modifier
@@ -61,7 +59,6 @@ fun FormTextField(
             maxLines = maxLines,
             enabled = enabled,
             textStyle = textStyle,
-            textAlign = textAlign,
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,

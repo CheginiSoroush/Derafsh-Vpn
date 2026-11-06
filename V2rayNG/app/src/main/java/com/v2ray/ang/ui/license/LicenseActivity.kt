@@ -54,7 +54,7 @@ import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.handler.LicenseManager
-import com.v2ray.ang.handler.MessageHelper
+import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
@@ -233,8 +233,8 @@ fun LicenseScreen(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
                 ),
-                textAlign = TextAlign.Center,
                 supportingText = stringResource(R.string.license_code_format_hint),
             )
 
