@@ -20,6 +20,7 @@ import com.v2ray.ang.extension.matchesPattern
 import com.v2ray.ang.extension.moveItem
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.DerafshSourceManager
+import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.StaleProfileTracker
@@ -112,6 +113,16 @@ class MainViewModel(
     /** Derafsh: index of the active built-in source shown in the source switcher. */
     private val _derafshActiveSource = MutableStateFlow(DerafshSourceManager.activeIndex())
     val derafshActiveSource: StateFlow<Int> = _derafshActiveSource.asStateFlow()
+
+    /**
+     * Derafsh premium: whether a valid (or in-grace) license unlocks premium entries.
+     * Read at interaction time — NOT cached — so returning from the activation screen
+     * takes effect immediately without recreating the ViewModel.
+     */
+    fun isPremiumUnlocked(): Boolean = LicenseManager.isPremiumUnlocked(app)
+
+    /** Derafsh premium: feedback when a licensed user taps a premium entry whose feed is not wired yet (Phase 2, task 9). */
+    fun notifyPremiumComingSoon() = toast(R.string.license_premium_soon)
 
     // ---------- Keyword filtering ----------
     @Volatile

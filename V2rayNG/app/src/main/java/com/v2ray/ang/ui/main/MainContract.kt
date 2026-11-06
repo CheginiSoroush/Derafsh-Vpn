@@ -50,6 +50,7 @@ data class MainUiState(
 enum class MainDestination {
     Settings,
     About,
+    License,
 }
 
 /**

@@ -142,6 +142,7 @@ fun MainScreen(
 
     var showServerPicker by rememberSaveable { mutableStateOf(false) }
     var showDerafshSources by rememberSaveable { mutableStateOf(false) }
+    var showPremiumGate by rememberSaveable { mutableStateOf(false) }
 
     val selectedRow = remember(allServers, uiState.selectedGuid) {
         uiState.selectedGuid?.let { guid -> allServers.firstOrNull { it.guid == guid } }
@@ -341,7 +342,27 @@ fun MainScreen(
                 showDerafshSources = false
                 onAction(MainAction.SwitchDerafshSource(index))
             },
+            onPremiumClick = {
+                showDerafshSources = false
+                if (mainViewModel.isPremiumUnlocked()) {
+                    // Licensed: the premium feed itself is wired in Phase 2 (task 9) —
+                    // for now the subscriber gets honest feedback instead of a dead end.
+                    mainViewModel.notifyPremiumComingSoon()
+                } else {
+                    showPremiumGate = true
+                }
+            },
             onDismiss = { showDerafshSources = false },
+        )
+    }
+
+    if (showPremiumGate) {
+        DerafshPremiumGateDialog(
+            onActivate = {
+                showPremiumGate = false
+                onNavigate(MainDestination.License)
+            },
+            onDismiss = { showPremiumGate = false },
         )
     }
 

@@ -31,6 +31,7 @@ import com.v2ray.ang.handler.SubscriptionInfoParser
 import com.v2ray.ang.handler.UpdateManager
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
+import com.v2ray.ang.ui.license.LicenseActivity
 import com.v2ray.ang.ui.onboarding.OnboardingActivity
 import com.v2ray.ang.ui.server.ProfileEditorResult
 import com.v2ray.ang.ui.server.ServerCustomConfigActivity
@@ -241,6 +242,7 @@ class MainActivity : HelperBaseComponentActivity() {
         val intent = when (destination) {
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.About -> Intent(this, AboutActivity::class.java)
+            MainDestination.License -> Intent(this, LicenseActivity::class.java)
         }
         settingsActivityLauncher.launch(intent)
     }
