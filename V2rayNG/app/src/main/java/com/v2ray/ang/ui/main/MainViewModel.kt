@@ -405,7 +405,7 @@ class MainViewModel(
     val showStaleProfiles: StateFlow<Boolean> = _showStaleProfiles.asStateFlow()
 
     /** The picker dialog's rows: [allServerRows] with stale rows hidden when the filter is off. */
-    val pickerServerRows: StateFlow<List<ServerRowUiModel>> = combine(
+    internal val pickerServerRows: StateFlow<List<ServerRowUiModel>> = combine(
         allServerRows,
         _showStaleProfiles,
     ) { rows, showStale ->
