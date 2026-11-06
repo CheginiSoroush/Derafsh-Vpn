@@ -127,6 +127,26 @@ object AppConfig {
     const val PREF_ONBOARDING_DONE = "pref_onboarding_done"
     const val PREF_POLICY_CONSENT_VERSION = "pref_policy_consent_version"
 
+    /** Derafsh premium license (LicenseManager; premium-design.md §6). */
+    // License API base URL — MUST be replaced with the production HTTPS domain before the
+    // task-8 release (blocked on the server/domain decision, see PREMIUM_TODO BLOCKERS).
+    const val LICENSE_API_BASE = "http://REPLACE_BEFORE_RELEASE:3010"
+    // Max offline window after the last successful server confirmation inside which premium
+    // stays unlocked. Reference time is max(device time, last server-confirmed time), so a
+    // backward clock shift cannot extend a license; a forward shift can only lock it early.
+    const val LICENSE_GRACE_MS = 72L * 60 * 60 * 1000
+    // Periodic server re-validation cadence (design §7.3); also the staleness threshold for
+    // the "running on grace" UI hint in the license screens.
+    const val LICENSE_REFRESH_INTERVAL_MS = 24L * 60 * 60 * 1000
+    // Cached Device ID (canonical, dash-less): SHA-256(ANDROID_ID).take(16) hex upper-cased.
+    const val PREF_DERAFSH_DEVICE_ID = "pref_derafsh_device_id"
+    // Stored license: user-entered code (canonical), server expiry, last server-confirmed
+    // time (epoch millis) and the device the license is bound to.
+    const val PREF_LICENSE_CODE = "pref_license_code"
+    const val PREF_LICENSE_EXPIRES = "pref_license_expires"
+    const val PREF_LICENSE_LAST_OK = "pref_license_last_ok"
+    const val PREF_LICENSE_DEVICE = "pref_license_device"
+
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
 
