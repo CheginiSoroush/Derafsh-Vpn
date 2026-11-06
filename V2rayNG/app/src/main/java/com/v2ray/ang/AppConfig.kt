@@ -97,6 +97,13 @@ object AppConfig {
     // UI process can render the countdown straight from multiprocess MMKV.
     const val PREF_SESSION_DEADLINE = "pref_session_deadline"
 
+    /** Derafsh stale-profile tracking: consecutive real-delay test failures per GUID (JSON map,
+     *  capped) and the derived set of stale GUIDs. Mark-only — nothing is ever deleted here. */
+    const val PREF_GUID_FAIL_STREAK = "pref_guid_fail_streak"
+    const val PREF_STALE_GUID_SET = "pref_stale_guid_set"
+    // Server-picker display filter only: show (default) or hide stale rows. Never removes data.
+    const val PREF_SHOW_STALE_PROFILES = "pref_show_stale_profiles"
+
     /**
      * Derafsh auto-maintenance: silent subscription refresh cadence (4 hours). The real-delay
      * speed test itself runs on EVERY app open and is announced on the main-screen card.

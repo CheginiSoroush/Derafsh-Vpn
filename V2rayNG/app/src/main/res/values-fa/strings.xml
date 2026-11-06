@@ -417,6 +417,8 @@
     <string name="phase_testing_servers">در حال آزمودن سرورها…</string>
     <string name="about_third_party_note">درفش کاویانی از سرورهای عمومی و رایگانِ اداره‌شده توسط اشخاص ثالث استفاده می‌کند. هیچ‌کدام از این سرورها متعلق به ما نیستند و دربارهٔ لاگ‌نگاری یا امنیت آن‌ها وعده‌ای نمی‌دهیم. هستهٔ متن‌باز بر پایهٔ v2rayNG (GPL-3.0).</string>
     <string name="choose_server">انتخاب سرور</string>
+    <string name="server_stale_badge">کهنه</string>
+    <string name="show_stale_toggle">نمایش سرورهای کهنه</string>
     <string name="server_fastest_hint">سریع‌ترین سرور</string>
     <string name="menu_update_subs">به‌روزرسانی کانفیگ‌ها</string>
     <string name="menu_test_all">تست سرورها</string>

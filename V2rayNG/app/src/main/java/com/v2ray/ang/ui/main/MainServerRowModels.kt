@@ -16,6 +16,8 @@ internal data class ServerRowUiModel(
     val typeDescription: String,
     val testDelayMillis: Long,
     val subscriptionBadge: String,
+    /** Derafsh: the profile's consecutive-failure streak marked it stale (badge + pick bias). */
+    val isStale: Boolean = false,
 )
 
 internal data class ServerGroupUiState(
@@ -26,6 +28,7 @@ internal data class ServerGroupUiState(
 internal fun buildServerRowUiModel(
     server: ServersCache,
     subscriptionRemarks: String,
+    staleGuids: Set<String> = emptySet(),
 ): ServerRowUiModel {
     val profile = server.profile
     return ServerRowUiModel(
@@ -39,6 +42,7 @@ internal fun buildServerRowUiModel(
         typeDescription = serverProtocolDescription(profile),
         testDelayMillis = server.testDelayMillis,
         subscriptionBadge = subscriptionRemarks.firstOrNull()?.toString().orEmpty(),
+        isStale = server.guid in staleGuids,
     )
 }
 

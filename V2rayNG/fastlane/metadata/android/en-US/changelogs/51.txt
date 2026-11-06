@@ -1,0 +1,2 @@
+New: stale profiles are now tracked — configs that fail the real-delay test 5+ times in a row get a dimmed "Stale" badge in the server picker and are skipped by the fastest-server pick while healthier options remain.
+Added a "Show stale servers" view filter to the server picker (on by default). Nothing is ever deleted or reordered — stale marking is advisory only.

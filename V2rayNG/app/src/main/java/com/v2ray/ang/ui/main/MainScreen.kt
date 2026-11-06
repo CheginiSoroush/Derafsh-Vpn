@@ -114,6 +114,8 @@ fun MainScreen(
     val connectPhase by mainViewModel.connectPhase.collectAsStateWithLifecycle()
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val allServers by mainViewModel.allServerRows.collectAsStateWithLifecycle()
+    val pickerServers by mainViewModel.pickerServerRows.collectAsStateWithLifecycle()
+    val showStaleProfiles by mainViewModel.showStaleProfiles.collectAsStateWithLifecycle()
     val sessionDeadlineMillis by mainViewModel.sessionDeadlineMillis.collectAsStateWithLifecycle()
     val derafshActiveSource by mainViewModel.derafshActiveSource.collectAsStateWithLifecycle()
 
@@ -320,8 +322,10 @@ fun MainScreen(
 
     if (showServerPicker) {
         DerafshServerPickerDialog(
-            servers = allServers,
+            servers = pickerServers,
             selectedGuid = uiState.selectedGuid,
+            showStale = showStaleProfiles,
+            onToggleShowStale = { onAction(MainAction.SetShowStale(it)) },
             onSelect = { guid ->
                 showServerPicker = false
                 onAction(MainAction.SelectServer(guid))

@@ -417,6 +417,8 @@
     <string name="phase_testing_servers">Testing servers…</string>
     <string name="about_third_party_note">Derafsh Kaviani connects through free public servers operated by third parties. We do not run these servers and make no promises about their logging or security. Open-source core based on v2rayNG (GPL-3.0).</string>
     <string name="choose_server">Choose server</string>
+    <string name="server_stale_badge">Stale</string>
+    <string name="show_stale_toggle">Show stale servers</string>
     <string name="server_fastest_hint">Fastest server</string>
     <string name="menu_update_subs">Update configs</string>
     <string name="menu_test_all">Test servers</string>

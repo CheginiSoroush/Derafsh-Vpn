@@ -22,6 +22,7 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.DerafshSourceManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.StaleProfileTracker
 import com.v2ray.ang.handler.SubscriptionInfoParser
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
@@ -297,6 +298,9 @@ class MainViewModel(
             drained to broken
         }
         if (updates.isEmpty()) return
+        // Derafsh: feed the drained results into the stale tracker (consecutive-failure
+        // streaks + stale set). Mark-only: the tracker never deletes or moves profiles.
+        StaleProfileTracker.recordTestResults(updates, broken)
         if (testRequests.bulk?.id != request.id) return
         fun pruneServers(servers: List<ServersCache>): List<ServersCache> =
             if (broken.isEmpty()) servers else servers.filter { it.guid !in broken }
@@ -393,6 +397,29 @@ class MainViewModel(
             initialValue = emptyList(),
         )
 
+    // ---------- Stale-profile display filter (Derafsh) ----------
+    /** Server-picker view filter only: show (default) or hide stale rows. Removes nothing. */
+    private val _showStaleProfiles = MutableStateFlow(
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_SHOW_STALE_PROFILES, true)
+    )
+    val showStaleProfiles: StateFlow<Boolean> = _showStaleProfiles.asStateFlow()
+
+    /** The picker dialog's rows: [allServerRows] with stale rows hidden when the filter is off. */
+    val pickerServerRows: StateFlow<List<ServerRowUiModel>> = combine(
+        allServerRows,
+        _showStaleProfiles,
+    ) { rows, showStale ->
+        if (showStale) rows else rows.filterNot { it.isStale }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+        initialValue = emptyList(),
+    )
+
+    private fun setShowStaleProfiles(show: Boolean) {
+        _showStaleProfiles.value = show
+        MmkvManager.encodeSettings(AppConfig.PREF_SHOW_STALE_PROFILES, show)
+    }
 
     private fun currentServers(): List<ServersCache> =
         mutableServerGroupState(uiState.value.selectedGroupId).value.servers
@@ -420,6 +447,7 @@ class MainViewModel(
             MainAction.LocateHandled -> consumeLocateTarget()
             MainAction.DismissSessionTimeUp -> dismissSessionTimeUp()
             is MainAction.SwitchDerafshSource -> switchDerafshSourceAsync(action.index)
+            is MainAction.SetShowStale -> setShowStaleProfiles(action.show)
             is MainAction.ShareQRCode -> {
                 val bitmap = dataSource.share2QRCode(action.guid)
                 _uiState.update { it.copy(shareQRCodeBitmap = bitmap) }
@@ -576,6 +604,7 @@ class MainViewModel(
     }
 
     private fun buildServerRows(groupId: String, servers: List<ServersCache>): List<ServerRowUiModel> {
+        val staleGuids = StaleProfileTracker.staleGuidSet()
         val subscriptionRemarks = if (groupId.isEmpty()) {
             servers.asSequence()
                 .map { it.profile.subscriptionId }
@@ -590,7 +619,8 @@ class MainViewModel(
         return servers.map { server ->
             buildServerRowUiModel(
                 server = server,
-                subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty()
+                subscriptionRemarks = subscriptionRemarks[server.profile.subscriptionId].orEmpty(),
+                staleGuids = staleGuids,
             )
         }
     }
@@ -1279,8 +1309,15 @@ class MainViewModel(
      * insecure profiles are only used when nothing secure passed the test. With no positive
      * result at all, fall back to the previously selected server, else the first valid
      * profile; null only when nothing is connectable.
+     *
+     * Derafsh stale bias: profiles whose consecutive-failure streak marked them stale are
+     * skipped first — fresh candidates win within each security tier — and only when no
+     * non-stale candidate remains does the pick fall back to the full set. Security still
+     * dominates staleness: a verified-secure (even stale) winner is never displaced by an
+     * insecure profile.
      */
     private fun pickBestGuid(allGuids: List<String>): String? {
+        val staleGuids = StaleProfileTracker.staleGuidSet()
         val working = allGuids.mapNotNull { guid ->
             val delay = dataSource.decodeAffiliationInfo(guid)?.testDelayMillis
                 ?.takeIf { it > 0L }
@@ -1288,7 +1325,10 @@ class MainViewModel(
             val secure = dataSource.decodeServerConfig(guid)?.insecure != true
             Triple(guid, delay, secure)
         }
+        val fresh = working.filter { it.first !in staleGuids }
+        fresh.filter { it.third }.minByOrNull { it.second }?.let { return it.first }
         working.filter { it.third }.minByOrNull { it.second }?.let { return it.first }
+        fresh.minByOrNull { it.second }?.let { return it.first }
         working.minByOrNull { it.second }?.let { return it.first }
 
         return dataSource.getSelectServer()

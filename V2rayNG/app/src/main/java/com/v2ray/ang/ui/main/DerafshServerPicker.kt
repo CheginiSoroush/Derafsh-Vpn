@@ -1,5 +1,6 @@
 package com.v2ray.ang.ui.main
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,14 +11,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -33,6 +37,10 @@ import com.v2ray.ang.ui.compose.verticalScrollbar
  * Server picker shown from the main connect screen: every server across all groups, flattened by
  * the ViewModel, keyed by GUID. Tapping a row selects it through the regular [MainAction]
  * pipeline and closes the dialog.
+ *
+ * Derafsh stale profiles: rows whose consecutive-failure streak marked them stale show a dimmed
+ * badge and reduced opacity; the "show stale" toggle above the list is a view filter only —
+ * hiding stale rows never removes or reorders any profile.
  */
 @Composable
 internal fun DerafshServerPickerDialog(
@@ -40,6 +48,8 @@ internal fun DerafshServerPickerDialog(
     selectedGuid: String?,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
+    showStale: Boolean = true,
+    onToggleShowStale: (Boolean) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val maxListHeight = LocalConfiguration.current.screenHeightDp.dp * PICKER_MAX_HEIGHT_FRACTION
@@ -48,30 +58,52 @@ internal fun DerafshServerPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.choose_server)) },
         text = {
-            if (servers.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.toast_none_data),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 16.dp),
-                )
-            } else {
-                LazyColumn(
-                    state = listState,
+            Column {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = maxListHeight)
-                        .verticalScrollbar(listState),
+                        .toggleable(
+                            value = showStale,
+                            role = Role.Switch,
+                            onValueChange = onToggleShowStale,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    itemsIndexed(
-                        items = servers,
-                        key = { _, row -> row.guid },
-                    ) { _, row ->
-                        ServerPickerRow(
-                            row = row,
-                            isSelected = row.guid == selectedGuid,
-                            onSelect = { onSelect(row.guid) },
-                        )
+                    Text(
+                        text = stringResource(R.string.show_stale_toggle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Switch(
+                        checked = showStale,
+                        onCheckedChange = null,
+                    )
+                }
+                if (servers.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.toast_none_data),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 16.dp),
+                    )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxListHeight)
+                            .verticalScrollbar(listState),
+                    ) {
+                        itemsIndexed(
+                            items = servers,
+                            key = { _, row -> row.guid },
+                        ) { _, row ->
+                            ServerPickerRow(
+                                row = row,
+                                isSelected = row.guid == selectedGuid,
+                                onSelect = { onSelect(row.guid) },
+                            )
+                        }
                     }
                 }
             }
@@ -93,6 +125,7 @@ private fun ServerPickerRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (row.isStale) STALE_ROW_ALPHA else 1f)
             .selectable(
                 selected = isSelected,
                 role = Role.Button,
@@ -118,6 +151,15 @@ private fun ServerPickerRow(
         )
         Spacer(modifier = Modifier.width(8.dp))
         ServerDelayText(testDelayMillis = row.testDelayMillis)
+        if (row.isStale) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.server_stale_badge),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
         if (isSelected) {
             Spacer(modifier = Modifier.width(8.dp))
             // Selection state is already announced by the selectable row node.
@@ -151,3 +193,6 @@ internal fun ServerDelayText(
 }
 
 private const val PICKER_MAX_HEIGHT_FRACTION = 0.7f
+
+/** Dimming applied to stale server rows so they read as deprioritized, not hidden. */
+private const val STALE_ROW_ALPHA = 0.55f

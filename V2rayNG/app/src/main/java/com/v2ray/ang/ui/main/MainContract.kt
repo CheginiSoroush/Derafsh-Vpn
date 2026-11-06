@@ -99,4 +99,7 @@ sealed interface MainAction {
 
     /** Derafsh: switch the active built-in source ("Derafsh N"); the new active pool is refreshed immediately. */
     data class SwitchDerafshSource(val index: Int) : MainAction
+
+    /** Derafsh: server-picker display filter for stale profiles — a view filter only, nothing is removed. */
+    data class SetShowStale(val show: Boolean) : MainAction
 }
