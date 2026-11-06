@@ -7,6 +7,7 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.v2ray.ang.AppConfig.ANG_PACKAGE
 import com.v2ray.ang.handler.AppLocaleManager
+import com.v2ray.ang.handler.LicenseReminder
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.WebDavAutoBackup
@@ -48,6 +49,10 @@ class AngApplication : Application() {
 
         // Sync the daily WebDAV auto-backup periodic task with the stored toggle
         WebDavAutoBackup.sync(this)
+
+        // Ensure the license renewal reminder periodic task exists (self-skips when
+        // no license is stored, so it stays harmless for free users)
+        LicenseReminder.sync(this)
 
         // Initialize theme state from MMKV
         ThemeManager.refresh()

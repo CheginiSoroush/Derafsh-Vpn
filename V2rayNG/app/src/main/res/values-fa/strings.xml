@@ -490,6 +490,11 @@
     <string name="derafsh_premium_gate_title">این بخش پرمیوم است</string>
     <string name="derafsh_premium_gate_text">فیدهای کانفیگ پرمیوم مخصوص مشترکین است. کد فعال‌سازی خود را در «درفش پرمیوم» وارد کنید یا از بات تلگرام درفش کد بگیرید.</string>
     <string name="derafsh_premium_gate_get_code">دریافت کد از بات</string>
+    <string name="license_renew">تمدید</string>
+    <string name="license_renew_banner_hint">رو به پایان است — برای حفظ پرمیوم تمدید کنید</string>
+    <string name="notification_channel_license_reminders">یادآور اشتراک</string>
+    <string name="license_reminder_title">اشتراک درفش رو به پایان است</string>
+    <string name="license_reminder_content">اشتراک پرمیوم شما در تاریخ %s به پایان می‌رسد — برای حفظ پرمیوم تمدید کنید.</string>
 
     <string name="title_policy_group_type">نوع گروه خط مشی</string>
     <string name="title_policy_group_subscription_id">از گروه اشتراک</string>

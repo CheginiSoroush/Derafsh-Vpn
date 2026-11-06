@@ -88,9 +88,12 @@ import android.provider.Settings
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.UpdateManager
 import com.v2ray.ang.ui.compose.BannerAd
+import com.v2ray.ang.ui.license.LicenseViewModel
+import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import java.util.Locale
@@ -119,20 +122,26 @@ fun MainScreen(
     val sessionDeadlineMillis by mainViewModel.sessionDeadlineMillis.collectAsStateWithLifecycle()
     val derafshActiveSource by mainViewModel.derafshActiveSource.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val appContext = context.applicationContext
+
     // Maintenance (":tasks" process) publishes the subscription refresh + speed-test
     // progress through the multi-process MMKV store; poll it with a cheap ticker while
-    // the screen is visible so both background jobs are announced live.
+    // the screen is visible so both background jobs are announced live. The license
+    // state rides the same ticker (a pure MMKV read), so returning from the activation
+    // screen corrects the renewal banner within a second.
     var maintenance by remember { mutableStateOf(MaintenanceStatus.read()) }
+    var licenseState by remember { mutableStateOf(LicenseManager.current(appContext)) }
     LaunchedEffect(Unit) {
         while (isActive) {
             maintenance = MaintenanceStatus.read()
+            licenseState = LicenseManager.current(appContext)
             delay(700)
         }
     }
 
     // Respect the system "remove animations" accessibility setting: no ambient loops and
     // entrance transitions land instantly.
-    val appContext = LocalContext.current.applicationContext
     val reducedMotion = remember {
         Settings.Global.getFloat(
             appContext.contentResolver,
@@ -270,6 +279,30 @@ fun MainScreen(
                     remainingMillis = remainingMillis,
                 )
             }
+        }
+
+        // Derafsh premium renewal (task 7): a quiet countdown banner while the license is
+        // active but inside the 3-day reminder window. The Renew shortcut opens the
+        // Telegram bot when configured, otherwise the in-app activation screen; the
+        // banner disappears by itself once the license is renewed or revoked.
+        val renewalState = licenseState
+        if (renewalState.active && renewalState.expiresAt != null &&
+            renewalState.expiresAt - System.currentTimeMillis() <= AppConfig.LICENSE_REMIND_MS
+        ) {
+            DerafshRenewalBanner(
+                expiresAt = renewalState.expiresAt,
+                onRenew = {
+                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                    } else {
+                        onNavigate(MainDestination.License)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 12.dp),
+            )
         }
 
         // Derafsh status section 1: background maintenance (sub refresh + speed test).
@@ -1143,6 +1176,59 @@ private fun DerafshProgressBar(
                         cornerRadius = corner,
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Derafsh premium renewal banner (task 7): shown on the main screen while the license is
+ * within the renewal reminder window. Reuses the license screen's expiry line, adds the
+ * "ending soon" hint and the Renew shortcut (Telegram bot or the activation screen).
+ */
+@Composable
+private fun DerafshRenewalBanner(
+    expiresAt: Long,
+    onRenew: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        shape = RoundedCornerShape(CARD_CORNER_RADIUS.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = modifier,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_derafsh_emblem),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(
+                        R.string.license_status_active_until,
+                        LicenseViewModel.formatExpiry(expiresAt)
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.license_renew_banner_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            TextButton(onClick = onRenew) {
+                Text(stringResource(R.string.license_renew))
             }
         }
     }

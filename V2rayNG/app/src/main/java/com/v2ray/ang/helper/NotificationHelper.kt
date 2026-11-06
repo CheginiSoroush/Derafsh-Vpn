@@ -3,6 +3,7 @@ package com.v2ray.ang.helper
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.os.Build
@@ -32,16 +33,22 @@ object NotificationHelper {
      * @param context The context for building the notification
      * @param title The notification title
      * @param content The notification content text
+     * @param contentIntent Optional intent fired when the notification is tapped
+     *   (the notification then auto-cancels); null keeps the tap a no-op.
      */
     fun notify(
         channelType: NotificationChannelType,
         context: Context,
         title: String,
-        content: String
+        content: String,
+        contentIntent: PendingIntent? = null
     ) {
         ensureChannelCreated(channelType, context)
         val notificationManager = getNotificationManager(context)
         val builder = buildNotificationBuilder(channelType, context, title, content)
+        if (contentIntent != null) {
+            builder.setContentIntent(contentIntent).setAutoCancel(true)
+        }
         notificationManager.notify(channelType.notificationId, builder.build())
     }
 

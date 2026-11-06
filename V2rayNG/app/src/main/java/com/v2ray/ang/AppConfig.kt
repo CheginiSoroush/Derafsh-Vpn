@@ -150,6 +150,13 @@ object AppConfig {
     // bot username is chosen (@BotFather token is a user blocker); the UI hides the bot
     // entry points while this is blank and task 8 must set it before release.
     const val DERAFSH_BOT_URL = ""
+    // Renewal reminder (task 7): once the remaining license window drops below this
+    // threshold, the :bg worker posts a renewal notification and the main screen shows
+    // a renewal banner; both clear again as soon as the license is renewed or revoked.
+    const val LICENSE_REMIND_MS = 3L * 24 * 60 * 60 * 1000
+    // Unique periodic-work name for the LicenseReminder WorkManager task (24h cadence;
+    // also performs the design §7.3 background re-validation of the stored license).
+    const val LICENSE_REMINDER_TASK_NAME = "derafsh_license_reminder"
 
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"

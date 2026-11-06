@@ -490,6 +490,11 @@
     <string name="derafsh_premium_gate_title">This section is premium</string>
     <string name="derafsh_premium_gate_text">Premium config feeds are reserved for subscribers. Enter your activation code in Derafsh Premium, or get a code from the Derafsh Telegram bot.</string>
     <string name="derafsh_premium_gate_get_code">Get a code from the bot</string>
+    <string name="license_renew">Renew</string>
+    <string name="license_renew_banner_hint">Ending soon — renew to keep premium</string>
+    <string name="notification_channel_license_reminders">License reminders</string>
+    <string name="license_reminder_title">Derafsh Premium is ending soon</string>
+    <string name="license_reminder_content">Your premium subscription ends on %s — renew to keep premium.</string>
 
     <string name="title_policy_group_type">Policy group type</string>
     <string name="title_policy_group_subscription_id">From subscription group</string>
