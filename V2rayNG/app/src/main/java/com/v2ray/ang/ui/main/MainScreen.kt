@@ -88,6 +88,7 @@ import android.provider.Settings
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.handler.DerafshSourceManager
 import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.UpdateManager
@@ -137,6 +138,15 @@ fun MainScreen(
             maintenance = MaintenanceStatus.read()
             licenseState = LicenseManager.current(appContext)
             delay(700)
+        }
+    }
+
+    // Premium pool revert (task 9): if the built-in sub points at the locked premium
+    // endpoint but the license is no longer unlocked (revoked, expired locally, device
+    // mismatch), fall back to the last free source right away.
+    LaunchedEffect(licenseState) {
+        if (DerafshSourceManager.isPremiumSourceActive() && !licenseState.active) {
+            mainViewModel.onPremiumLicenseLost()
         }
     }
 
@@ -378,9 +388,9 @@ fun MainScreen(
             onPremiumClick = {
                 showDerafshSources = false
                 if (mainViewModel.isPremiumUnlocked()) {
-                    // Licensed: the premium feed itself is wired in Phase 2 (task 9) —
-                    // for now the subscriber gets honest feedback instead of a dead end.
-                    mainViewModel.notifyPremiumComingSoon()
+                    // Licensed: point the built-in subscription at the locked premium
+                    // pool endpoint and refresh immediately (task 9).
+                    mainViewModel.selectPremiumSource()
                 } else {
                     showPremiumGate = true
                 }

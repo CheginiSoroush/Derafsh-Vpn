@@ -486,6 +486,7 @@
     <string name="license_error_network">Network error — check your connection</string>
     <string name="license_premium_soon">You are premium — the premium feeds arrive in the next update. Thank you!</string>
     <string name="derafsh_sources_premium_label">Derafsh Premium 🔒</string>
+    <string name="derafsh_premium_source_name">Derafsh Premium</string>
     <string name="derafsh_sources_premium_subtitle">Subscriber-only config feeds — tap to unlock</string>
     <string name="derafsh_premium_gate_title">This section is premium</string>
     <string name="derafsh_premium_gate_text">Premium config feeds are reserved for subscribers. Enter your activation code in Derafsh Premium, or get a code from the Derafsh Telegram bot.</string>

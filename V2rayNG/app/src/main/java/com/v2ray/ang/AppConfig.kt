@@ -231,6 +231,9 @@ object AppConfig {
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
     const val PREF_DERAFSH_ACTIVE_SOURCE = "pref_derafsh_active_source"
 
+    /** "1" while the built-in subscription points at the locked premium pool (task 9). */
+    const val PREF_DERAFSH_PREMIUM_SOURCE = "pref_derafsh_premium_source"
+
     /** Max configs per built-in pool group; bigger sources split into "(k)" overflow groups. */
     const val DERAFSH_POOL_CHUNK_SIZE = 200
 

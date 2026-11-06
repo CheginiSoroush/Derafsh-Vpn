@@ -111,7 +111,7 @@ class MainViewModel(
     val connectPhase: StateFlow<ConnectPhase> = _connectPhase.asStateFlow()
 
     /** Derafsh: index of the active built-in source shown in the source switcher. */
-    private val _derafshActiveSource = MutableStateFlow(DerafshSourceManager.activeIndex())
+    private val _derafshActiveSource = MutableStateFlow(DerafshSourceManager.activeUiIndex())
     val derafshActiveSource: StateFlow<Int> = _derafshActiveSource.asStateFlow()
 
     /**
@@ -121,8 +121,74 @@ class MainViewModel(
      */
     fun isPremiumUnlocked(): Boolean = LicenseManager.isPremiumUnlocked(app)
 
-    /** Derafsh premium: feedback when a licensed user taps a premium entry whose feed is not wired yet (Phase 2, task 9). */
-    fun notifyPremiumComingSoon() = toast(R.string.license_premium_soon)
+    /**
+     * Derafsh premium (task 9): point the built-in subscription at the locked premium
+     * pool endpoint and refresh immediately. The URL embeds the stored license code and
+     * the canonical device id, so only this device can fetch the pool.
+     */
+    fun selectPremiumSource() {
+        if (!LicenseManager.isPremiumUnlocked(app)) return
+        val url = LicenseManager.premiumSubUrl(app) ?: return
+        launchLoading {
+            withContext(ioDispatcher) {
+                try {
+                    DerafshSourceManager.setPremiumSourceActive(true)
+                    _derafshActiveSource.value = DerafshSourceManager.PREMIUM_UI_INDEX
+
+                    val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
+                    val item = dataSource.getSubscriptionItem(subId) ?: SubscriptionItem(
+                        enabled = true,
+                        autoUpdate = true,
+                        updateInterval = 240, // every 4 hours
+                    )
+                    item.remarks = dataSource.getString(R.string.derafsh_premium_source_name)
+                    item.url = url
+                    MmkvManager.encodeSubscription(subId, item)
+
+                    val result = dataSource.updateConfigViaSub(SubscriptionCache(subId, item))
+                    when {
+                        result.successCount + result.failureCount + result.skipCount == 0 ->
+                            toast(R.string.title_update_subscription_no_subscription)
+
+                        result.successCount > 0 && result.failureCount + result.skipCount == 0 ->
+                            toast(
+                                getQuantityString(
+                                    R.plurals.title_update_config_count,
+                                    result.configCount,
+                                    result.configCount,
+                                )
+                            )
+
+                        else ->
+                            toast(dataSource.getString(R.string.title_update_subscription_result, result.configCount, result.successCount, result.failureCount, result.skipCount))
+                    }
+                    if (result.configCount > 0) {
+                        setupGroupTab(forceRefresh = true)
+                        refreshSelectedGuid()
+                        if (pendingTestGuids(dataSource.getServerGuidList("")).isNotEmpty()) {
+                            MaintenanceStatus.beginSession()
+                            testAllRealPing(allGroups = true, skipTested = true)
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (e: Exception) {
+                    LogUtil.e(AppConfig.TAG, "Derafsh premium source switch failed", e)
+                    toastError(R.string.toast_failure)
+                }
+            }
+        }
+    }
+
+    /**
+     * Derafsh premium: the license died while the built-in subscription still points at
+     * the locked pool — fall back to the last free source (reuses the regular switch
+     * pipeline: URL rewrite + immediate fetch + toasts).
+     */
+    fun onPremiumLicenseLost() {
+        if (!DerafshSourceManager.isPremiumSourceActive()) return
+        switchDerafshSourceAsync(DerafshSourceManager.activeIndex())
+    }
 
     // ---------- Keyword filtering ----------
     @Volatile
@@ -809,6 +875,7 @@ class MainViewModel(
             withContext(ioDispatcher) {
                 try {
                     DerafshSourceManager.setActiveIndex(index)
+                    DerafshSourceManager.setPremiumSourceActive(false)
                     _derafshActiveSource.value = index
 
                     val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID

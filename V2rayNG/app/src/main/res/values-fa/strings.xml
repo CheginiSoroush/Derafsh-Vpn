@@ -486,6 +486,7 @@
     <string name="license_error_network">خطای شبکه — اتصال اینترنت را بررسی کنید</string>
     <string name="license_premium_soon">شما پرمیوم هستید — فیدهای پرمیوم در به‌روزرسانی بعدی اضافه می‌شود. سپاسگزاریم!</string>
     <string name="derafsh_sources_premium_label">درفش پرمیوم 🔒</string>
+    <string name="derafsh_premium_source_name">درفش پرمیوم</string>
     <string name="derafsh_sources_premium_subtitle">فیدهای کانفیگ مخصوص مشترکین — برای باز کردن بزنید</string>
     <string name="derafsh_premium_gate_title">این بخش پرمیوم است</string>
     <string name="derafsh_premium_gate_text">فیدهای کانفیگ پرمیوم مخصوص مشترکین است. کد فعال‌سازی خود را در «درفش پرمیوم» وارد کنید یا از بات تلگرام درفش کد بگیرید.</string>

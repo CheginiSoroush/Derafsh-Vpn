@@ -189,6 +189,10 @@ object LicenseManager {
                     current(context)
                 } else {
                     clearLicense()
+                    // Premium pool access dies with the license: if the built-in
+                    // subscription points at the locked premium endpoint, revert it to
+                    // the last free source (task 9).
+                    DerafshSourceManager.onLicenseLost(context)
                     LicenseState(active = false, expiresAt = null, inGrace = false, lastError = null)
                 }
             }
@@ -234,6 +238,17 @@ object LicenseManager {
 
     /** Convenience gate for premium content (design §6). */
     fun isPremiumUnlocked(context: Context): Boolean = current(context).active
+
+    /**
+     * Locked premium-pool subscription URL (task 9): embeds the stored license code and
+     * the canonical device id, so only the licensed device can fetch the pool from the
+     * license API. Null when no license code is stored.
+     */
+    fun premiumSubUrl(context: Context): String? {
+        val code = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE) ?: return null
+        val base = AppConfig.LICENSE_API_BASE.trimEnd('/')
+        return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}"
+    }
 
     /** Wipes the stored license; the Device ID cache is intentionally kept. */
     fun clearLicense() {
