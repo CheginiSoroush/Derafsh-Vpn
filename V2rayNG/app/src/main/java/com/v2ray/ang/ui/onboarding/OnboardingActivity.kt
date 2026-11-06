@@ -263,7 +263,7 @@ class OnboardingActivity : BaseComponentActivity() {
         }
     }
 
-    /** Closing slide: the developer behind Derafsh, with a direct link to the GitHub profile. */
+    /** Closing slide: the developer behind Derafsh, funneling to the Telegram bot. */
     @Composable
     private fun ProfileSlide() {
         val context = LocalContext.current
@@ -290,14 +290,18 @@ class OnboardingActivity : BaseComponentActivity() {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
-        TextButton(onClick = { Utils.openUri(context, AppConfig.DEV_PROFILE_URL) }) {
+        TextButton(onClick = {
+            if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+            }
+        }) {
             Icon(
-                painter = painterResource(R.drawable.ic_github_24dp),
+                painter = painterResource(R.drawable.ic_telegram_24dp),
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.width(8.dp))
-            Text(text = stringResource(R.string.onboarding_open_github))
+            Text(text = stringResource(R.string.onboarding_open_bot))
         }
     }
 

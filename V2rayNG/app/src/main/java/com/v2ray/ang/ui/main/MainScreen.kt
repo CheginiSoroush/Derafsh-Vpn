@@ -91,7 +91,6 @@ import com.v2ray.ang.R
 import com.v2ray.ang.handler.DerafshSourceManager
 import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
-import com.v2ray.ang.handler.UpdateManager
 import com.v2ray.ang.ui.compose.BannerAd
 import com.v2ray.ang.ui.license.LicenseViewModel
 import com.v2ray.ang.util.Utils
@@ -103,9 +102,8 @@ import kotlin.math.roundToInt
 /**
  * Derafsh one-tap connect screen. A big connect button with ambient animations (breathing glow
  * while idle, radar rings while connecting, rotating glow + session countdown ring while
- * connected), staggered entrance animations, and a self-update card when a new version is
- * available. All operations are dispatched through [MainAction]; navigation through
- * [MainDestination].
+ * connected), staggered entrance animations, and a premium upsell card for free installs.
+ * All operations are dispatched through [MainAction]; navigation through [MainDestination].
  */
 @Composable
 fun MainScreen(
@@ -335,20 +333,24 @@ fun MainScreen(
                 .padding(bottom = 12.dp),
         )
 
-        // Derafsh status section 2: self-update.
-        UpdateCard(
-            reducedMotion = reducedMotion,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 12.dp),
-        )
-
-        // One-shot prominent notice when the startup check found a newer release: the dialog
-        // pops over the freshly revealed screen ("Download" fires the in-app update right
-        // away, "Later" only closes it) while the persistent card above keeps the download
-        // reachable afterwards.
-        UpdateStartupDialog()
+        // v1.2.52 monetization: the premium pitch for free installs — premium means
+        // unlimited time (no 60-minute session) plus every locked source. Opens the bot
+        // (or the activation screen) on tap.
+        if (!licenseState.active) {
+            DerafshPremiumUpsellCard(
+                onAction = {
+                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                    } else {
+                        onNavigate(MainDestination.License)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 12.dp),
+            )
+        }
 
         SelectedServerCard(
             selectedRow = selectedRow,
@@ -381,9 +383,17 @@ fun MainScreen(
     if (showDerafshSources) {
         DerafshSourcesDialog(
             activeIndex = derafshActiveSource,
+            premiumUnlocked = mainViewModel.isPremiumUnlocked(),
             onSelect = { index ->
                 showDerafshSources = false
-                onAction(MainAction.SwitchDerafshSource(index))
+                val locked = !mainViewModel.isPremiumUnlocked() &&
+                    index >= AppConfig.DERAFSH_FREE_SOURCE_COUNT &&
+                    index != derafshActiveSource
+                if (locked) {
+                    showPremiumGate = true
+                } else {
+                    onAction(MainAction.SwitchDerafshSource(index))
+                }
             },
             onPremiumClick = {
                 showDerafshSources = false
@@ -412,6 +422,14 @@ fun MainScreen(
     if (uiState.sessionTimeUp) {
         SessionTimeUpDialog(
             onExtend = { onAction(MainAction.ExtendSessionWithAd) },
+            onPremium = {
+                onAction(MainAction.DismissSessionTimeUp)
+                if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                    Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                } else {
+                    onNavigate(MainDestination.License)
+                }
+            },
             onClose = { onAction(MainAction.DismissSessionTimeUp) },
         )
     }
@@ -833,153 +851,50 @@ private fun formatSessionRemaining(remainingMillis: Long): String {
 }
 
 /**
- * Derafsh self-update card: appears above the banner when a new version is available,
- * shows download progress, and finally offers the install action.
+ * v1.2.52 monetization: the always-visible premium pitch for installs without a license —
+ * "the free hour ends, premium never does". Sits where the GitHub self-update card used to,
+ * right beside the maintenance card the user already reads every app open.
  */
 @Composable
-private fun UpdateCard(
-    reducedMotion: Boolean,
+private fun DerafshPremiumUpsellCard(
+    onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val state by UpdateManager.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    AnimatedVisibility(
-        visible = state !is UpdateManager.UpdateState.Idle,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
-        modifier = modifier,
-    ) {
-        when (val current = state) {
-            is UpdateManager.UpdateState.Available -> UpdateActionCard(
-                title = stringResource(R.string.update_available, current.info.versionName),
-                actionText = stringResource(R.string.update_download),
-                onAction = { UpdateManager.downloadUpdate(context) },
-                onDismiss = { UpdateManager.dismiss() },
-                highlighted = true,
-            )
-
-            is UpdateManager.UpdateState.Downloading -> Surface(
-                shape = RoundedCornerShape(CARD_CORNER_RADIUS.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                    Text(
-                        text = stringResource(R.string.update_downloading, current.percent),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DerafshProgressBar(
-                        fraction = current.percent / 100f,
-                        active = true,
-                        reducedMotion = reducedMotion,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            is UpdateManager.UpdateState.Ready -> UpdateActionCard(
-                title = stringResource(R.string.update_ready),
-                actionText = stringResource(R.string.update_install),
-                onAction = { UpdateManager.installApk(context, current.file) },
-                onDismiss = null,
-                highlighted = true,
-            )
-
-            is UpdateManager.UpdateState.Failed -> UpdateActionCard(
-                title = stringResource(R.string.update_failed),
-                actionText = stringResource(R.string.update_download),
-                onAction = { UpdateManager.downloadUpdate(context) },
-                onDismiss = { UpdateManager.dismiss() },
-                highlighted = false,
-            )
-
-            else -> {}
-        }
-    }
-}
-
-/**
- * Prominent one-shot message at app open when the startup check found a newer release:
- * version in the title, a "Download" action that starts the in-app update immediately and
- * a "Later" that only closes the dialog. The persistent [UpdateCard] banner stays visible
- * either way, so the download remains one tap away after dismissal.
- */
-@Composable
-private fun UpdateStartupDialog() {
-    val state by UpdateManager.state.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    var dialogHandled by rememberSaveable { mutableStateOf(false) }
-
-    val available = state as? UpdateManager.UpdateState.Available ?: return
-    if (dialogHandled) return
-
-    AlertDialog(
-        onDismissRequest = { dialogHandled = true },
-        title = {
-            Text(stringResource(R.string.update_available, available.info.versionName))
-        },
-        text = { Text(stringResource(R.string.update_dialog_message)) },
-        confirmButton = {
-            TextButton(onClick = {
-                dialogHandled = true
-                UpdateManager.downloadUpdate(context)
-            }) {
-                Text(stringResource(R.string.update_download), fontWeight = FontWeight.SemiBold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { dialogHandled = true }) {
-                Text(stringResource(R.string.update_later))
-            }
-        },
-    )
-}
-
-@Composable
-private fun UpdateActionCard(
-    title: String,
-    actionText: String,
-    onAction: () -> Unit,
-    onDismiss: (() -> Unit)?,
-    highlighted: Boolean,
-) {
     Surface(
+        onClick = onAction,
         shape = RoundedCornerShape(CARD_CORNER_RADIUS.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_refresh_24dp),
+                painter = painterResource(R.drawable.ic_derafsh_emblem),
                 contentDescription = null,
-                tint = if (highlighted) {
-                    MaterialTheme.colorScheme.secondary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onAction) {
-                Text(actionText, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.premium_upsell_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.premium_upsell_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            if (onDismiss != null) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.update_later))
-                }
+            TextButton(onClick = onAction) {
+                Text(stringResource(R.string.premium_upsell_cta), fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1244,10 +1159,14 @@ private fun DerafshRenewalBanner(
     }
 }
 
-/** Derafsh monetization: 30-minute session expired; extend by watching a rewarded ad, or close. */
+/**
+ * Derafsh monetization (v1.2.52): the free hour is over. Premium = unlimited time + every
+ * locked source; the ad path stays as the secondary "keep testing" option.
+ */
 @Composable
 private fun SessionTimeUpDialog(
     onExtend: () -> Unit,
+    onPremium: () -> Unit,
     onClose: () -> Unit,
 ) {
     AlertDialog(
@@ -1255,13 +1174,13 @@ private fun SessionTimeUpDialog(
         title = { Text(stringResource(R.string.session_time_up)) },
         text = { Text(stringResource(R.string.session_time_up_body)) },
         confirmButton = {
-            TextButton(onClick = onExtend) {
-                Text(stringResource(R.string.session_extend_ad))
+            TextButton(onClick = onPremium) {
+                Text(stringResource(R.string.session_premium_cta), fontWeight = FontWeight.SemiBold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onClose) {
-                Text(stringResource(R.string.action_close))
+            TextButton(onClick = onExtend) {
+                Text(stringResource(R.string.session_extend_ad))
             }
         },
     )

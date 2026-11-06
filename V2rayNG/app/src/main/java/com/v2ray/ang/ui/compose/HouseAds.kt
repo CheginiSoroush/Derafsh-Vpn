@@ -49,8 +49,9 @@ import kotlinx.coroutines.delay
 private const val HOUSE_INTERSTITIAL_DURATION_MS = 4_000L
 
 /**
- * Branded banner card shown in the main screen's ad slot. Tapping it opens the project page.
- * Deliberately static (no looping animation) to respect reduced-motion accessibility.
+ * Branded banner card shown in the main screen's ad slot. Tapping it opens the Telegram bot
+ * (v1.2.52: the GitHub project page is gone from the app). Deliberately static (no looping
+ * animation) to respect reduced-motion accessibility.
  */
 @Composable
 fun DerafshHouseBanner(modifier: Modifier = Modifier) {
@@ -65,7 +66,11 @@ fun DerafshHouseBanner(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(64.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable { Utils.openUri(context, AppConfig.APP_URL) }
+            .clickable {
+                if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                    Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                }
+            }
             .semantics { contentDescription = a11y },
     ) {
         Row(

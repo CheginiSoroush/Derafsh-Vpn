@@ -20,6 +20,7 @@ import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
@@ -240,14 +241,26 @@ object CoreServiceManager {
     // ---------- Derafsh session timer (:daemon only) ----------
 
     /**
-     * Arms the fixed 30-minute session deadline after the core loop started successfully. The
+     * Arms the free-session deadline after the core loop started successfully. The
      * deadline is persisted so the UI process can render its countdown straight from
      * multiprocess MMKV. Re-arming (restart / rewarded-ad extension) always opens a fresh
      * window; a network-handover reload (launchCore isReload=true) intentionally does not
      * touch the deadline.
+     *
+     * v1.2.52: a valid (or in-grace) premium license means UNLIMITED time — the timer is
+     * never armed and any persisted deadline is cleared. The license is read live from
+     * multiprocess MMKV (same store the daemon already shares with the UI), so a purchase
+     * made while connected takes effect on the next (re)start, and a revoked one falls
+     * back into the free 60-minute window.
      */
     private fun armSessionTimer(service: Service) {
         cancelSessionTimer()
+        if (LicenseManager.isPremiumUnlocked(service)) {
+            MmkvManager.encodeSettings(AppConfig.PREF_SESSION_DEADLINE, 0L)
+            MessageHelper.sendMsg2UI(service, AppConfig.MSG_SESSION_EXTENDED, "0")
+            LogUtil.i(AppConfig.TAG, "Session timer: premium license active — unlimited session")
+            return
+        }
         val deadline = System.currentTimeMillis() + AppConfig.SESSION_DURATION_MS
         MmkvManager.encodeSettings(AppConfig.PREF_SESSION_DEADLINE, deadline)
         MessageHelper.sendMsg2UI(service, AppConfig.MSG_SESSION_EXTENDED, deadline.toString())

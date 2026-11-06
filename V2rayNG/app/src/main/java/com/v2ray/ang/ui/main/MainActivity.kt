@@ -28,7 +28,6 @@ import com.v2ray.ang.handler.OnboardingManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SubscriptionInfoParser
-import com.v2ray.ang.handler.UpdateManager
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.license.LicenseActivity
@@ -134,9 +133,6 @@ class MainActivity : HelperBaseComponentActivity() {
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
 
-        // Silent in-app self-update check (GitHub Releases); no-op on failure.
-        lifecycleScope.launch { UpdateManager.checkForUpdate() }
-
         // Hold the branded splash long enough to register, then reveal content and gate it
         // with the app-open ad (preloaded while the splash was showing). The ad waterfall
         // (Tapsell → AdMob → house) runs inside AdsManager.
@@ -166,11 +162,6 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        // Hot re-open with the process still alive (e.g. the app sat in recents for days):
-        // refresh the silent update check so a release published meanwhile is still offered.
-        // UpdateManager throttles internally (30s), so this never double-fires the
-        // cold-open check launched in onCreate above.
-        lifecycleScope.launch { UpdateManager.checkForUpdate() }
     }
 
     /**

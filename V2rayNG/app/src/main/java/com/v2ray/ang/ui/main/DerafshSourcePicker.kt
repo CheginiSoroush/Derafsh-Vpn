@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -22,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -37,12 +40,15 @@ import com.v2ray.ang.util.Utils
  * the regular [MainAction] pipeline — the active subscription is immediately refreshed and
  * only the active source is ever auto-updated.
  *
- * A separated premium entry sits below the free sources (task 6): it is never selectable —
- * [onPremiumClick] decides between the premium gate (no license) and the licensed path.
+ * v1.2.52 monetization: only the first [AppConfig.DERAFSH_FREE_SOURCE_COUNT] entries stay
+ * free — every other row (except the already-active one, so no install is stranded) shows
+ * a lock and routes to the premium gate. Premium subscribers keep switching freely. The
+ * separated premium entry at the bottom (task 6) points at the locked premium pool itself.
  */
 @Composable
 internal fun DerafshSourcesDialog(
     activeIndex: Int,
+    premiumUnlocked: Boolean,
     onSelect: (Int) -> Unit,
     onPremiumClick: () -> Unit,
     onDismiss: () -> Unit,
@@ -73,9 +79,13 @@ internal fun DerafshSourcesDialog(
                         items = sources,
                         key = { _, index -> index },
                     ) { _, index ->
+                        val locked = !premiumUnlocked &&
+                            index >= AppConfig.DERAFSH_FREE_SOURCE_COUNT &&
+                            index != activeIndex
                         SourcePickerRow(
                             label = stringResource(R.string.derafsh_source_name, index + 1),
                             isSelected = index == activeIndex,
+                            locked = locked,
                             onSelect = { onSelect(index) },
                         )
                     }
@@ -98,6 +108,7 @@ internal fun DerafshSourcesDialog(
 private fun SourcePickerRow(
     label: String,
     isSelected: Boolean,
+    locked: Boolean,
     onSelect: () -> Unit,
 ) {
     Row(
@@ -105,7 +116,7 @@ private fun SourcePickerRow(
             .fillMaxWidth()
             .selectable(
                 selected = isSelected,
-                role = Role.RadioButton,
+                role = if (locked) Role.Button else Role.RadioButton,
                 onClick = onSelect,
             )
             .padding(vertical = 4.dp),
@@ -116,8 +127,21 @@ private fun SourcePickerRow(
         Text(
             text = label,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (locked) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
         )
+        if (locked) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lock_24dp),
+                contentDescription = stringResource(R.string.derafsh_source_locked),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
 

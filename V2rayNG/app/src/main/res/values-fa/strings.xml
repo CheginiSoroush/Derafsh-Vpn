@@ -282,7 +282,7 @@
 
     <!-- AboutActivity -->
     <string name="title_pref_feedback">بازخورد</string>
-    <string name="summary_pref_feedback">بازخورد یا گزارش اشکالات در گیت‌ هاب</string>
+    <string name="summary_pref_feedback">از طریق بات تلگرام با ما در تماس باش</string>
     <string name="summary_pref_tg_group">عضویت در گروه تلگرام</string>
     <string name="toast_tg_app_not_found">برنامه تلگرام پیدا نشد</string>
     <string name="title_privacy_policy">حریم خصوصی</string>
@@ -291,7 +291,7 @@
     <string name="title_source_code">کد منبع</string>
     <string name="title_oss_license">مجوز های منبع باز</string>
     <string name="title_translators">مترجمان</string>
-    <string name="title_tg_channel">کانال تلگرام</string>
+    <string name="title_tg_channel">بات تلگرام</string>
 
     <string name="title_pref_promotion">تبلیغات</string>
 
@@ -426,9 +426,10 @@
 
     <!-- Derafsh session limit -->
     <string name="session_time_up">زمان تموم شد!</string>
-    <string name="session_time_up_body">جلسهٔ شما به پایان رسید. برای دریافت ۳۰ دقیقهٔ دیگر تبلیغ ببینید.</string>
-    <string name="session_extend_ad">تبلیغ ببین +۳۰ دقیقه</string>
+    <string name="session_time_up_body">ساعت رایگانت تموم شد. پرمیوم یعنی زمان بی‌نهایت + همه سرورهای قفل‌شده.</string>
+    <string name="session_extend_ad">تبلیغ ببین +۱ ساعت</string>
     <string name="session_remaining">%1$s باقی مونده</string>
+    <string name="session_premium_cta">💎 پرمیوم = بی‌نهایت</string>
 
     <string name="import_subscription_success">اشتراک با موفقیت وارد شد</string>
     <string name="import_subscription_failure">وارد کردن اشتراک ناموفق بود</string>
@@ -473,6 +474,7 @@
     <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
     <string name="license_activate">فعال‌سازی</string>
     <string name="license_recheck">بررسی مجدد وضعیت</string>
+    <string name="license_code_format_hint">فرمت: DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
     <string name="license_get_code">چگونه کد بگیرم؟</string>
     <string name="license_get_code_summary">بات تلگرام درفش را باز کنید، اشتراک بخرید و کد فعال‌سازی را دریافت کنید</string>
     <string name="license_activated">پرمیوم فعال شد 🎉</string>
@@ -486,12 +488,16 @@
     <string name="license_error_network">خطای شبکه — اتصال اینترنت را بررسی کنید</string>
     <string name="license_premium_soon">شما پرمیوم هستید — فیدهای پرمیوم در به‌روزرسانی بعدی اضافه می‌شود. سپاسگزاریم!</string>
     <string name="derafsh_sources_premium_label">درفش پرمیوم 🔒</string>
+    <string name="derafsh_source_locked">منبع پرمیوم</string>
     <string name="derafsh_premium_source_name">درفش پرمیوم</string>
     <string name="derafsh_sources_premium_subtitle">فیدهای کانفیگ مخصوص مشترکین — برای باز کردن بزنید</string>
     <string name="derafsh_premium_gate_title">این بخش پرمیوم است</string>
     <string name="derafsh_premium_gate_text">فیدهای کانفیگ پرمیوم مخصوص مشترکین است. کد فعال‌سازی خود را در «درفش پرمیوم» وارد کنید یا از بات تلگرام درفش کد بگیرید.</string>
     <string name="derafsh_premium_gate_get_code">دریافت کد از بات</string>
     <string name="license_renew">تمدید</string>
+    <string name="premium_upsell_title">پرمیوم: زمان بی‌نهایت</string>
+    <string name="premium_upsell_body">منابع رایگان هر بار ۱ ساعت زمان دارند. پرمیوم این محدودیت را برمی‌دارد و همه سرورهای سریع را باز می‌کند.</string>
+    <string name="premium_upsell_cta">دریافت پرمیوم</string>
     <string name="license_renew_banner_hint">رو به پایان است — برای حفظ پرمیوم تمدید کنید</string>
     <string name="notification_channel_license_reminders">یادآور اشتراک</string>
     <string name="license_reminder_title">اشتراک درفش رو به پایان است</string>
@@ -680,13 +686,13 @@
     <string name="onboarding_read_policy">مطالعه سیاست حریم خصوصی</string>
     <string name="onboarding_6_title">توسعه‌دهنده را بشناسید</string>
     <string name="onboarding_6_body">درفش توسط سروش ساخته و نگهداری می‌شود. برای دنبال‌کردن به‌روزرسانی‌ها، گزارش مشکلات یا دیدن سورس‌کد، پروژه را در گیت‌هاب دنبال کنید.</string>
-    <string name="onboarding_open_github">مشاهده پروفایل گیت‌هاب</string>
+    <string name="onboarding_open_bot">باز کردن بات تلگرام</string>
     <string name="onboarding_back_to_consent">بازگشت به تأیید قوانین</string>
     <string name="about_developer_name">سروش</string>
-    <string name="about_developer_handle">\@CheginiSoroush — توسعه‌دهنده</string>
+    <string name="about_developer_handle">\@PDerafshVpnbot — پشتیبانی و آپدیت</string>
 
     <string name="derafsh_sources_title">منابع درفش</string>
     <string name="derafsh_source_name">درفش %d</string>
-    <string name="derafsh_sources_hint">فقط منبع فعال به‌روزرسانی می‌شود؛ با انتخاب هر منبع، به آن سوییچ کرده و سرورهایش تازه می‌شوند. هر منبع به گروه‌های حداکثر ۲۰۰تایی تقسیم می‌شود و کانفیگ‌های ناسالم پس از هر تست به‌طور خودکار حذف می‌شوند.</string>
+    <string name="derafsh_sources_hint">فقط منبع فعال به‌روزرسانی می‌شود؛ با انتخاب هر منبع، به آن سوییچ کرده و سرورهایش تازه می‌شوند. هر منبع به گروه‌های حداکثر ۲۰۰تایی تقسیم می‌شود و کانفیگ‌های ناسالم پس از هر تست به‌طور خودکار حذف می‌شوند. فقط درفش ۱ رایگانه — بقیه منابع پرمیوم هستند 🔒.</string>
     <string name="derafsh_unhealthy_removed">%1$d کانفیگ ناسالم پس از تست سرعت حذف شد</string>
 </resources>

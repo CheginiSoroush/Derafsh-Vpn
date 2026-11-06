@@ -869,8 +869,19 @@ class MainViewModel(
      * Derafsh source switcher: point the single built-in subscription at the chosen source
      * and refresh it immediately. Only the active source is ever updated — switching reuses
      * the same subscription id, so the previous pool's servers are replaced in place.
+     *
+     * v1.2.52 monetization: only [AppConfig.DERAFSH_FREE_SOURCE_COUNT] sources stay free;
+     * every other index (except the already-active one, so no install is stranded) requires
+     * a premium license. The picker routes locked taps to the premium gate — this check is
+     * the server-side guard behind it.
      */
     private fun switchDerafshSourceAsync(index: Int) {
+        if (index >= AppConfig.DERAFSH_FREE_SOURCE_COUNT &&
+            index != DerafshSourceManager.activeIndex() &&
+            !LicenseManager.isPremiumUnlocked(app)
+        ) {
+            return
+        }
         launchLoading {
             withContext(ioDispatcher) {
                 try {

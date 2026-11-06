@@ -1,9 +1,14 @@
 package com.v2ray.ang.ui.license
 
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.VpnService
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,18 +40,35 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.handler.LicenseManager
+import com.v2ray.ang.handler.MessageHelper
+import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.FormTextField
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SettingsMenuItem
+import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Derafsh premium activation screen (task 5): shows the Device ID (copyable), the current
@@ -57,10 +79,96 @@ class LicenseActivity : BaseComponentActivity() {
 
     private val viewModel: LicenseViewModel by viewModels()
 
+    /** v1.2.52 auto-connect: the code held while the VPN permission prompt is on screen. */
+    private var pendingCode: String? = null
+
+    private val vpnPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val code = pendingCode
+            pendingCode = null
+            when {
+                result.resultCode == RESULT_OK && code != null -> activateAfterTunnel(code)
+                code != null -> viewModel.activate(code) // denied — try the direct call anyway
+            }
+        }
+
     private fun copyDeviceId(deviceId: String) {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText("Derafsh Device ID", deviceId))
         viewModel.toast(R.string.license_copied)
+    }
+
+    /**
+     * v1.2.52 (user feedback): activation must ride the tunnel — the worker sits behind
+     * Cloudflare and some Iranian networks only reach it through the VPN. Make sure the
+     * VPN is up before calling the API; the permission prompt (once per install) is part
+     * of that flow. If the user declines, activation still proceeds directly.
+     */
+    private fun activateClicked(code: String) {
+        pendingCode = code
+        if (SettingsManager.isVpnMode()) {
+            val intent = VpnService.prepare(this)
+            if (intent != null) {
+                vpnPermissionLauncher.launch(intent)
+                return
+            }
+        }
+        activateAfterTunnel(code)
+    }
+
+    private fun activateAfterTunnel(code: String) {
+        lifecycleScope.launch {
+            ensureTunnelRunning()
+            viewModel.activate(code)
+        }
+    }
+
+    /**
+     * Best-effort tunnel bootstrap: ask the daemon its state (MSG_REGISTER_CLIENT →
+     * RUNNING / NOT_RUNNING); when nothing answers or the answer is "not running", run the
+     * regular service start flow and wait briefly for the start broadcast. NEVER blocks
+     * activation: on any failure the API call proceeds anyway (imsoroush.top is reachable
+     * without the tunnel on most networks).
+     */
+    private suspend fun ensureTunnelRunning(): Boolean {
+        val appContext = applicationContext
+        val listener = ServiceStateListener()
+        try {
+            ContextCompat.registerReceiver(
+                appContext, listener, IntentFilter(AppConfig.BROADCAST_ACTION_ACTIVITY), Utils.receiverFlags()
+            )
+            MessageHelper.sendMsg2Service(appContext, AppConfig.MSG_REGISTER_CLIENT, "")
+            if (listener.awaitState(1_500L) == true) return true
+            if (MmkvManager.getSelectServer().isNullOrEmpty()) return false
+            listener.reset()
+            LauncherManager.startService(this)
+            return listener.awaitState(15_000L) == true
+        } catch (e: Exception) {
+            LogUtil.e(AppConfig.TAG, "License: auto-connect before activation failed", e)
+            return false
+        } finally {
+            runCatching { appContext.unregisterReceiver(listener) }
+        }
+    }
+
+    /** Catches the daemon's state broadcasts: RUNNING / START_SUCCESS → true, else false. */
+    private class ServiceStateListener : BroadcastReceiver() {
+        private val state = MutableStateFlow<Boolean?>(null)
+
+        fun reset() {
+            state.value = null
+        }
+
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            when (intent?.getIntExtra("key", 0)) {
+                AppConfig.MSG_STATE_RUNNING, AppConfig.MSG_STATE_START_SUCCESS -> state.value = true
+                AppConfig.MSG_STATE_NOT_RUNNING, AppConfig.MSG_STATE_START_FAILURE -> state.value = false
+            }
+        }
+
+        suspend fun awaitState(timeoutMs: Long): Boolean? = withTimeoutOrNull(timeoutMs) {
+            state.filterNotNull().first()
+        }
     }
 
     @Composable
@@ -69,6 +177,7 @@ class LicenseActivity : BaseComponentActivity() {
             viewModel = viewModel,
             onBackClick = { finish() },
             onCopyDeviceId = ::copyDeviceId,
+            onActivate = ::activateClicked,
         )
     }
 }
@@ -78,6 +187,7 @@ fun LicenseScreen(
     viewModel: LicenseViewModel,
     onBackClick: () -> Unit,
     onCopyDeviceId: (String) -> Unit,
+    onActivate: (String) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -117,10 +227,19 @@ fun LicenseScreen(
                 keyboardType = KeyboardType.Ascii,
                 placeholder = stringResource(R.string.license_code_placeholder),
                 maxLines = 1,
+                // v1.2.52: the 24-char code must fit and read clearly — monospace, sized
+                // to the box, centered, with the expected shape spelled out below it.
+                textStyle = TextStyle(
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                ),
+                textAlign = TextAlign.Center,
+                supportingText = stringResource(R.string.license_code_format_hint),
             )
 
             Button(
-                onClick = { viewModel.activate(codeInput) },
+                onClick = { onActivate(codeInput) },
                 enabled = codeInput.isNotBlank() && !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()

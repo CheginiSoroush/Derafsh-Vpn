@@ -117,9 +117,10 @@ object AppConfig {
     const val PREF_LAST_AUTO_MAINTENANCE = "pref_last_auto_maintenance"
     const val AUTO_MAINTENANCE_INTERVAL_MS = 4L * 60 * 60 * 1000
 
-    /** Derafsh session limit enforced by the daemon process. 30 minutes keeps the
-     *  rewarded-ad extension a natural, frequent part of the monetization loop. */
-    const val SESSION_DURATION_MS = 30L * 60L * 1000L
+    /** Derafsh session limit enforced by the daemon process: one free hour per session.
+     *  Premium licenses never arm this timer at all (unlimited time) — see
+     *  CoreServiceManager.armSessionTimer. */
+    const val SESSION_DURATION_MS = 60L * 60L * 1000L
 
     /** Derafsh first-launch onboarding: intro carousel + privacy-policy consent.
      *  Consent is re-collected automatically whenever the stored script version falls
@@ -190,42 +191,29 @@ object AppConfig {
     const val UPLINK = "uplink"
     const val DOWNLINK = "downlink"
 
-    /** URLs for various resources. */
+    /** URLs for various resources.
+     *  v1.2.52 privacy pass: the developer's GitHub coordinates are gone from the app —
+     *  support/updates funnel to the Telegram bot, the privacy policy is served by the
+     *  license worker (/privacy), and the GitHub-based self-updater was removed entirely
+     *  (releases are announced through the bot with the APK attached). Only third-party
+     *  infrastructure feeds (geoip assets, per-app package list, free-config pools) and
+     *  the legacy-sub migration URL remain. */
     const val GITHUB_URL = "https://github.com"
     const val GITHUB_RAW_URL = "https://raw.githubusercontent.com"
     const val GITHUB_DOWNLOAD_URL = "$GITHUB_URL/%s/releases/latest/download"
     const val ANDROID_PACKAGE_NAME_LIST_URL = "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
-    const val APP_URL = "$GITHUB_URL/CheginiSoroush/Derafsh-Vpn"
-    const val APP_API_URL = "https://api.github.com/repos/CheginiSoroush/Derafsh-Vpn/releases"
-    const val APP_ISSUES_URL = "$APP_URL/issues"
-    const val APP_WIKI_MODE = "$APP_URL/wiki/Mode"
-    const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/CheginiSoroush/Derafsh-Vpn/main/PRIVACY.md"
-    const val APP_PROMOTION_URL = "aHR0cHM6Ly9naXRodWIuY29tL1Nvcm91c2hjcS9EZXJhZnNoLVZwbg=="
-    const val TG_CHANNEL_URL = "https://github.com/CheginiSoroush/Derafsh-Vpn"
-    const val DEV_PROFILE_URL = "$GITHUB_URL/CheginiSoroush"
+    const val APP_PRIVACY_POLICY = "https://imsoroush.top/privacy"
 
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */
     const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"
 
-    /** Latest release metadata used by the in-app auto-updater (first entry = newest, includes prereleases). */
-    const val DERAFSH_UPDATE_API_URL = "$APP_API_URL?per_page=1"
-
-    /** Rate-limit-proof self-update fallback (used when the API above fails, e.g. the
-     *  60 req/hour/IP unauthenticated quota exhausted behind carrier-grade NAT): the
-     *  releases atom feed for the newest tag, then the per-tag expanded_assets fragment
-     *  for APK download paths. Both live on github.com and carry no API quota. */
-    const val DERAFSH_UPDATE_FEED_URL = "$APP_URL/releases.atom"
-    const val DERAFSH_UPDATE_ASSETS_URL = "$APP_URL/releases/expanded_assets"
-
     /**
-     * Legacy single built-in source (primary of the built-in sources below; also used for
-     * migration of old installs).
+     * Default built-in source (primary of the built-in sources below). The pre-v1.2.37
+     * legacy sub URL (which pointed at the developer's GitHub) was removed in v1.2.52 —
+     * old installs simply keep their stored URL until they switch sources in the picker.
      */
     const val DERAFSH_SUB_URL = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
-
-    /** Previous built-in sub URL; existing installs are migrated from it on startup. */
-    const val DERAFSH_LEGACY_SUB_URL = "https://raw.githubusercontent.com/CheginiSoroush/Derafsh-Vpn/sub/sub.txt"
     const val PREF_DEFAULT_SUB_SEEDED = "pref_default_sub_seeded"
 
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
@@ -236,6 +224,11 @@ object AppConfig {
 
     /** Max configs per built-in pool group; bigger sources split into "(k)" overflow groups. */
     const val DERAFSH_POOL_CHUNK_SIZE = 200
+
+    /** v1.2.52 monetization: exactly this many built-in sources stay free (Derafsh 1);
+     *  every other entry in the switcher requires a premium license. The already-active
+     *  source always remains switchable-when-selected so an install is never stranded. */
+    const val DERAFSH_FREE_SOURCE_COUNT = 1
 
     /** subId prefix of the overflow chunk groups carved out of any subscription with more
      *  than [DERAFSH_POOL_CHUNK_SIZE] configs; group ids are namespaced per primary

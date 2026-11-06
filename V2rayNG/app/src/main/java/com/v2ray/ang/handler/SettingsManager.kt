@@ -55,12 +55,9 @@ object SettingsManager {
      */
     private fun seedDefaultSubscription(context: Context) {
         val existing = decodeSubscription(DEFAULT_SUBSCRIPTION_ID)
-        if (existing != null && existing.url == AppConfig.DERAFSH_LEGACY_SUB_URL) {
-            // Migration: point the built-in subscription at the new free-config source.
-            existing.url = AppConfig.DERAFSH_SUB_URL
-            encodeSubscription(DEFAULT_SUBSCRIPTION_ID, existing)
-            LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription URL")
-        }
+        // v1.2.52: the pre-v1.2.37 legacy sub URL (the developer's GitHub) is no longer
+        // referenced anywhere in the app; installs still pointing at it keep working off
+        // their stored URL and re-join the built-in source through the source picker.
         // Migration: installs seeded with the older 6-hour cadence move to the 4-hour cycle.
         if (existing != null && existing.updateInterval == 360L) {
             existing.updateInterval = 240L

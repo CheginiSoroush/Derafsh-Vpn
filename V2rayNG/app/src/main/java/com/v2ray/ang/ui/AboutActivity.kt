@@ -93,16 +93,16 @@ fun AboutScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Developer identity card — the face behind Derafsh.
+            // Developer identity card — the face behind Derafsh. v1.2.52: the GitHub profile
+            // link is gone; the card funnels to the Telegram bot (support + updates).
             DeveloperCard(
                 name = stringResource(R.string.about_developer_name),
                 handle = stringResource(R.string.about_developer_handle),
-                onClick = { Utils.openUri(context, AppConfig.DEV_PROFILE_URL) },
-            )
-            SettingsMenuItem(
-                icon = painterResource(R.drawable.ic_source_code_24dp),
-                title = stringResource(R.string.title_source_code),
-                onClick = { Utils.openUri(context, AppConfig.APP_URL) }
+                onClick = {
+                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                    }
+                },
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.license_24px),
@@ -117,12 +117,20 @@ fun AboutScreen(
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_feedback_24dp),
                 title = stringResource(R.string.title_pref_feedback),
-                onClick = { Utils.openUri(context, AppConfig.APP_ISSUES_URL) }
+                onClick = {
+                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                    }
+                }
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_telegram_24dp),
                 title = stringResource(R.string.title_tg_channel),
-                onClick = { Utils.openUri(context, AppConfig.TG_CHANNEL_URL) }
+                onClick = {
+                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                    }
+                }
             )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_privacy_24dp),
@@ -173,7 +181,7 @@ fun AboutScreen(
     }
 }
 
-/** Developer identity card: circular avatar, name and GitHub handle; opens the profile. */
+/** Developer identity card: circular avatar, name and support handle; opens the bot. */
 @Composable
 private fun DeveloperCard(name: String, handle: String, onClick: () -> Unit) {
     Row(

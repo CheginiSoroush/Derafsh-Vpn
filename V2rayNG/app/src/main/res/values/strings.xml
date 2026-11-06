@@ -282,7 +282,7 @@
 
     <!-- AboutActivity -->
     <string name="title_pref_feedback">Feedback</string>
-    <string name="summary_pref_feedback">Suggest improvements or report bugs on GitHub</string>
+    <string name="summary_pref_feedback">Contact us on Telegram</string>
     <string name="summary_pref_tg_group">Join the Telegram group</string>
     <string name="toast_tg_app_not_found">Telegram app not found</string>
     <string name="title_privacy_policy">Privacy policy</string>
@@ -291,7 +291,7 @@
     <string name="title_source_code">Source code</string>
     <string name="title_oss_license">Open-source licenses</string>
     <string name="title_translators">Translators</string>
-    <string name="title_tg_channel">Telegram channel</string>
+    <string name="title_tg_channel">Telegram bot</string>
 
     <string name="title_pref_promotion">Promotion</string>
 
@@ -426,9 +426,10 @@
 
     <!-- Derafsh session limit -->
     <string name="session_time_up">Time is up!</string>
-    <string name="session_time_up_body">Your session has ended. Watch an ad to get 30 more minutes.</string>
-    <string name="session_extend_ad">Watch ad +30 min</string>
+    <string name="session_time_up_body">Your free hour is over. Premium means unlimited time plus every locked source.</string>
+    <string name="session_extend_ad">Watch ad +1 hour</string>
     <string name="session_remaining">%1$s left</string>
+    <string name="session_premium_cta">💎 Premium = unlimited</string>
 
     <string name="import_subscription_success">Subscription imported successfully</string>
     <string name="import_subscription_failure">Import subscription failed</string>
@@ -473,6 +474,7 @@
     <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
     <string name="license_activate">Activate</string>
     <string name="license_recheck">Check status again</string>
+    <string name="license_code_format_hint">Format: DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
     <string name="license_get_code">How do I get a code?</string>
     <string name="license_get_code_summary">Open the Derafsh Telegram bot to buy a subscription and receive your code</string>
     <string name="license_activated">Premium activated 🎉</string>
@@ -486,12 +488,16 @@
     <string name="license_error_network">Network error — check your connection</string>
     <string name="license_premium_soon">You are premium — the premium feeds arrive in the next update. Thank you!</string>
     <string name="derafsh_sources_premium_label">Derafsh Premium 🔒</string>
+    <string name="derafsh_source_locked">Premium source</string>
     <string name="derafsh_premium_source_name">Derafsh Premium</string>
     <string name="derafsh_sources_premium_subtitle">Subscriber-only config feeds — tap to unlock</string>
     <string name="derafsh_premium_gate_title">This section is premium</string>
     <string name="derafsh_premium_gate_text">Premium config feeds are reserved for subscribers. Enter your activation code in Derafsh Premium, or get a code from the Derafsh Telegram bot.</string>
     <string name="derafsh_premium_gate_get_code">Get a code from the bot</string>
     <string name="license_renew">Renew</string>
+    <string name="premium_upsell_title">Premium: unlimited time</string>
+    <string name="premium_upsell_body">Free sources get 1 hour per session. Premium removes the limit and unlocks all the fast servers.</string>
+    <string name="premium_upsell_cta">Get Premium</string>
     <string name="license_renew_banner_hint">Ending soon — renew to keep premium</string>
     <string name="notification_channel_license_reminders">License reminders</string>
     <string name="license_reminder_title">Derafsh Premium is ending soon</string>
@@ -681,13 +687,13 @@
     <string name="onboarding_read_policy">Read the Privacy Policy</string>
     <string name="onboarding_6_title">Meet the developer</string>
     <string name="onboarding_6_body">Derafsh is built and maintained by Soroush. Follow the project on GitHub for updates, to report issues, or to explore the source code.</string>
-    <string name="onboarding_open_github">Open GitHub profile</string>
+    <string name="onboarding_open_bot">Open the Telegram bot</string>
     <string name="onboarding_back_to_consent">Back to consent</string>
     <string name="about_developer_name">Soroush</string>
-    <string name="about_developer_handle">\@CheginiSoroush — Developer</string>
+    <string name="about_developer_handle">\@PDerafshVpnbot — Support &amp; updates</string>
 
     <string name="derafsh_sources_title">Derafsh sources</string>
     <string name="derafsh_source_name">Derafsh %d</string>
-    <string name="derafsh_sources_hint">Only the active source is updated. Tap one to switch and refresh its servers. Each source is split into groups of at most 200 configs, and configs that fail the speed test are removed automatically.</string>
+    <string name="derafsh_sources_hint">Only the active source is updated. Tap one to switch and refresh its servers. Each source is split into groups of at most 200 configs, and configs that fail the speed test are removed automatically. Only Derafsh 1 is free — the other sources are premium 🔒.</string>
     <string name="derafsh_unhealthy_removed">Removed %1$d unhealthy config(s) after the speed test</string>
 </resources>
