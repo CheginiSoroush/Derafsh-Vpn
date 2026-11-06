@@ -139,6 +139,9 @@
             android:name=".ui.apppicker.AppPickerActivity"
             android:exported="false" />
         <activity
+            android:name=".ui.license.LicenseActivity"
+            android:exported="false" />
+        <activity
             android:name=".ui.ScannerActivity"
             android:exported="false" />
         <activity

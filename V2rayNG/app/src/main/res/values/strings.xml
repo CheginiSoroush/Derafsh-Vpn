@@ -460,6 +460,31 @@
     <string name="update_check_pre_release">Check pre-release versions</string>
     <string name="update_checking_for_update">Checking for update…</string>
 
+    <string name="title_license_activation">Derafsh Premium</string>
+    <string name="license_settings_entry_summary">Subscribe or enter an activation code</string>
+    <string name="license_status_active_until">Premium active until %s</string>
+    <string name="license_status_grace">License server unreachable — premium stays active for now</string>
+    <string name="license_status_inactive">No active subscription</string>
+    <string name="license_device_id">Your Device ID</string>
+    <string name="license_device_id_hint">Send this ID to the Derafsh bot when buying a subscription</string>
+    <string name="license_copy">Copy device ID</string>
+    <string name="license_copied">Copied to clipboard</string>
+    <string name="license_code_label">Activation code</string>
+    <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
+    <string name="license_activate">Activate</string>
+    <string name="license_recheck">Check status again</string>
+    <string name="license_get_code">How do I get a code?</string>
+    <string name="license_get_code_summary">Open the Derafsh Telegram bot to buy a subscription and receive your code</string>
+    <string name="license_activated">Premium activated 🎉</string>
+    <string name="license_error_bad_request">Invalid code format</string>
+    <string name="license_error_invalid_code">This code is not valid</string>
+    <string name="license_error_expired_code">This code has expired</string>
+    <string name="license_error_device_mismatch">This code is bound to another device</string>
+    <string name="license_error_revoked">This code has been revoked</string>
+    <string name="license_error_rate_limited">Too many attempts — please try again later</string>
+    <string name="license_error_server">License server error — please try again later</string>
+    <string name="license_error_network">Network error — check your connection</string>
+
     <string name="title_policy_group_type">Policy group type</string>
     <string name="title_policy_group_subscription_id">From subscription group</string>
     <string name="title_policy_group_subscription_filter">Remarks regex filter</string>

@@ -146,6 +146,10 @@ object AppConfig {
     const val PREF_LICENSE_EXPIRES = "pref_license_expires"
     const val PREF_LICENSE_LAST_OK = "pref_license_last_ok"
     const val PREF_LICENSE_DEVICE = "pref_license_device"
+    // Telegram bot that sells subscriptions and issues activation codes. Blank until the
+    // bot username is chosen (@BotFather token is a user blocker); the UI hides the bot
+    // entry points while this is blank and task 8 must set it before release.
+    const val DERAFSH_BOT_URL = ""
 
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"

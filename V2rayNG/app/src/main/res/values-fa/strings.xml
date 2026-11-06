@@ -460,6 +460,31 @@
     <string name="update_check_pre_release">بررسی نسخه پیش از انتشار</string>
     <string name="update_checking_for_update">در حال بررسی برای به‌روزرسانی…</string>
 
+    <string name="title_license_activation">درفش پرمیوم</string>
+    <string name="license_settings_entry_summary">خرید اشتراک یا ورود کد فعال‌سازی</string>
+    <string name="license_status_active_until">اشتراک پرمیوم فعال تا %s</string>
+    <string name="license_status_grace">سرور لایسنس در دسترس نیست — اشتراک فعلاً فعال می‌ماند</string>
+    <string name="license_status_inactive">اشتراک فعالی ندارید</string>
+    <string name="license_device_id">شناسه دستگاه شما</string>
+    <string name="license_device_id_hint">هنگام خرید اشتراک، این شناسه را برای بات درفش بفرستید</string>
+    <string name="license_copy">کپی شناسه دستگاه</string>
+    <string name="license_copied">در حافظه کپی شد</string>
+    <string name="license_code_label">کد فعال‌سازی</string>
+    <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
+    <string name="license_activate">فعال‌سازی</string>
+    <string name="license_recheck">بررسی مجدد وضعیت</string>
+    <string name="license_get_code">چگونه کد بگیرم؟</string>
+    <string name="license_get_code_summary">بات تلگرام درفش را باز کنید، اشتراک بخرید و کد فعال‌سازی را دریافت کنید</string>
+    <string name="license_activated">پرمیوم فعال شد 🎉</string>
+    <string name="license_error_bad_request">قالب کد درست نیست</string>
+    <string name="license_error_invalid_code">این کد معتبر نیست</string>
+    <string name="license_error_expired_code">این کد منقضی شده است</string>
+    <string name="license_error_device_mismatch">این کد به دستگاه دیگری متصل است</string>
+    <string name="license_error_revoked">این کد باطل شده است</string>
+    <string name="license_error_rate_limited">تلاش‌های زیاد — کمی بعد دوباره امتحان کنید</string>
+    <string name="license_error_server">خطای سرور لایسنس — کمی بعد دوباره امتحان کنید</string>
+    <string name="license_error_network">خطای شبکه — اتصال اینترنت را بررسی کنید</string>
+
     <string name="title_policy_group_type">نوع گروه خط مشی</string>
     <string name="title_policy_group_subscription_id">از گروه اشتراک</string>
     <string name="title_policy_group_subscription_filter">فیلتر توضیحات با عبارت منظم</string>
