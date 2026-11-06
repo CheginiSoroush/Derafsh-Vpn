@@ -1,0 +1,141 @@
+# Derafsh manual baseline profile — faster app startup (BASE-7).
+# Format: HSPL<class-descriptor>-><method>(<params>)<return>  (H=hot, S=startup, P=post-startup)
+# Class rules (L<class-descriptor>;) preload and verify the class at install time.
+# Every method signature below was taken from the real source code of this repo
+# (com/v2ray/ang/**) — no guessed rules. Hot paths only; everything else stays
+# covered by the class-level rules.
+
+# ============================================================
+# Application entry point (com.v2ray.ang.AngApplication)
+# Runs before anything else on every process start.
+# ============================================================
+Lcom/v2ray/ang/AngApplication;
+HSPLcom/v2ray/ang/AngApplication;-><init>()V
+HSPLcom/v2ray/ang/AngApplication;->attachBaseContext(Landroid/content/Context;)V
+HSPLcom/v2ray/ang/AngApplication;->onCreate()V
+
+# ============================================================
+# MMKV storage layer (com.v2ray.ang.handler.MmkvManager)
+# All settings/profile reads happen before the first frame.
+# ============================================================
+Lcom/v2ray/ang/handler/MmkvManager;
+HSPLcom/v2ray/ang/handler/MmkvManager;->initialize(Landroid/content/Context;)V
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsString(Ljava/lang/String;)Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsString(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsBool(Ljava/lang/String;)Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsBool(Ljava/lang/String;Z)Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsInt(Ljava/lang/String;I)I
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsLong(Ljava/lang/String;J)J
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSettingsStringSet(Ljava/lang/String;)Ljava/util/Set;
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeSettings(Ljava/lang/String;Ljava/lang/String;)Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeSettings(Ljava/lang/String;Z)Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeSettings(Ljava/lang/String;I)Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeStartOnBoot()Z
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeStartOnBoot(Z)V
+HSPLcom/v2ray/ang/handler/MmkvManager;->getSelectServer()Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/MmkvManager;->setSelectServer(Ljava/lang/String;)V
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeAllServerList()Ljava/util/List;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeServerList(Ljava/lang/String;)Ljava/util/List;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeServerConfig(Ljava/lang/String;)Lcom/v2ray/ang/dto/entities/ProfileItem;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeServerAffiliationInfo(Ljava/lang/String;)Lcom/v2ray/ang/dto/entities/ServerAffiliationInfo;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeSubscriptions()Ljava/util/List;
+HSPLcom/v2ray/ang/handler/MmkvManager;->decodeServerRaw(Ljava/lang/String;)Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeServerRaw(Ljava/lang/String;Ljava/lang/String;)V
+HSPLcom/v2ray/ang/handler/MmkvManager;->encodeServerTestDelayMillis(Ljava/lang/String;J)V
+
+# ============================================================
+# Settings layer (com.v2ray.ang.handler.SettingsManager)
+# initApp runs inside Application.onCreate; the getters run on
+# every settings screen open and on service start.
+# ============================================================
+Lcom/v2ray/ang/handler/SettingsManager;
+HSPLcom/v2ray/ang/handler/SettingsManager;->initApp(Landroid/content/Context;)V
+HSPLcom/v2ray/ang/handler/SettingsManager;->isVpnMode()Z
+HSPLcom/v2ray/ang/handler/SettingsManager;->getSocksPort()I
+HSPLcom/v2ray/ang/handler/SettingsManager;->getHttpPort()I
+HSPLcom/v2ray/ang/handler/SettingsManager;->getSocksUsername()Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/SettingsManager;->getSocksPassword()Ljava/lang/String;
+HSPLcom/v2ray/ang/handler/SettingsManager;->getVpnMtu()I
+
+# ============================================================
+# Locale + theme bootstrap (called from Application.onCreate and
+# first composition)
+# ============================================================
+Lcom/v2ray/ang/handler/AppLocaleManager;
+HSPLcom/v2ray/ang/handler/AppLocaleManager;->initialize(Landroid/content/Context;)V
+Lcom/v2ray/ang/ui/compose/ThemeManager;
+HSPLcom/v2ray/ang/ui/compose/ThemeManager;->refresh()V
+HSPLcom/v2ray/ang/ui/compose/ThemeManager;->setThemeMode(Ljava/lang/String;)V
+
+# ============================================================
+# Main activity + view model + main screen (com.v2ray.ang.ui.main)
+# Class-level rules cover the big composable files wholesale.
+# ============================================================
+Lcom/v2ray/ang/ui/base/BaseComponentActivity;
+Lcom/v2ray/ang/ui/base/HelperBaseComponentActivity;
+Lcom/v2ray/ang/ui/main/MainActivity;
+HSPLcom/v2ray/ang/ui/main/MainActivity;-><init>()V
+HSPLcom/v2ray/ang/ui/main/MainActivity;->onCreate(Landroid/os/Bundle;)V
+HSPLcom/v2ray/ang/ui/main/MainActivity;->onStart()V
+Lcom/v2ray/ang/ui/main/MainViewModel;
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->initialize()V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->onAction(Lcom/v2ray/ang/ui/main/MainAction;)V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->refreshUiSettings()V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->reloadServerList()V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->updateSelectedGuid(Ljava/lang/String;)V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->filterConfig(Ljava/lang/String;)V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->isAutoPickFastestEnabled()Z
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->testCurrentServerRealPing()V
+HSPLcom/v2ray/ang/ui/main/MainViewModel;->pickFastestServer(Lkotlin/jvm/functions/Function1;)V
+Lcom/v2ray/ang/ui/main/MainRepository;
+Lcom/v2ray/ang/ui/main/MainScreenKt;
+Lcom/v2ray/ang/ui/main/DerafshServerPickerKt;
+Lcom/v2ray/ang/ui/main/MainContractKt;
+Lcom/v2ray/ang/ui/main/MainAction;
+Lcom/v2ray/ang/dto/entities/ProfileItem;
+Lcom/v2ray/ang/dto/entities/ServersCache;
+
+# ============================================================
+# Handler objects touched on the startup path (ads init, integrity
+# check, onboarding gate, settings-change flags)
+# ============================================================
+Lcom/v2ray/ang/handler/AdsManager;
+Lcom/v2ray/ang/handler/IntegrityManager;
+Lcom/v2ray/ang/handler/OnboardingManager;
+Lcom/v2ray/ang/handler/SettingsChangeManager;
+Lcom/v2ray/ang/AppConfig;
+
+# ============================================================
+# In-app self-update check (runs inside MainActivity.onCreate/onStart)
+# ============================================================
+Lcom/v2ray/ang/handler/UpdateManager;
+HSPLcom/v2ray/ang/handler/UpdateManager;->checkForUpdate(Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+HPLcom/v2ray/ang/handler/UpdateManager;->downloadUpdate(Landroid/content/Context;)V
+HPLcom/v2ray/ang/handler/UpdateManager;->installApk(Landroid/content/Context;Ljava/io/File;)V
+HPLcom/v2ray/ang/handler/UpdateManager;->dismiss()V
+
+# ============================================================
+# VPN services + service launcher (connect time; also the whole
+# startup path in the auto-start-on-boot process)
+# ============================================================
+Lcom/v2ray/ang/core/LauncherManager;
+HSPLcom/v2ray/ang/core/LauncherManager;->startService(Landroid/content/Context;Ljava/lang/String;)V
+HSPLcom/v2ray/ang/core/LauncherManager;->startServiceFromToggle(Landroid/content/Context;)Z
+HSPLcom/v2ray/ang/core/LauncherManager;->stopService(Landroid/content/Context;)V
+HSPLcom/v2ray/ang/core/LauncherManager;->restartService(Landroid/content/Context;)V
+HSPLcom/v2ray/ang/core/LauncherManager;->restartServiceOrStart(Landroid/content/Context;Lkotlin/jvm/functions/Function0;)V
+Lcom/v2ray/ang/service/CoreVpnService;
+HSPLcom/v2ray/ang/service/CoreVpnService;->onCreate()V
+HSPLcom/v2ray/ang/service/CoreVpnService;->onStartCommand(Landroid/content/Intent;II)I
+HSPLcom/v2ray/ang/service/CoreVpnService;->onRevoke()V
+Lcom/v2ray/ang/service/CoreProxyOnlyService;
+Lcom/v2ray/ang/service/CoreRootService;
+Lcom/v2ray/ang/service/CoreTestService;
+Lcom/v2ray/ang/service/NetworkMonitor;
+HSPLcom/v2ray/ang/service/NetworkMonitor;->register()V
+
+# ============================================================
+# Speed test layer (TCP ping / remote IP lookup at test time)
+# ============================================================
+Lcom/v2ray/ang/handler/SpeedtestManager;
+HPLcom/v2ray/ang/handler/SpeedtestManager;->socketConnectTime(Ljava/lang/String;II)J

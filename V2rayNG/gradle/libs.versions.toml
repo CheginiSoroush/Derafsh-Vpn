@@ -5,6 +5,7 @@ gradleLicensePlugin = "0.9.91"
 kotlin = "2.4.21"
 coreKtx = "1.19.1"
 coreSplashscreen = "1.0.1"
+profileinstaller = "1.4.1"
 junit = "6.1.3"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
@@ -28,6 +29,7 @@ guavaAndroid = "33.4.8-android"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
+androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugarJdkLibs" }
 gradle-license-plugin = { module = "com.jaredsburrows:gradle-license-plugin", version.ref = "gradleLicensePlugin" }
 junit-bom = { group = "org.junit", name = "junit-bom", version.ref = "junit" }

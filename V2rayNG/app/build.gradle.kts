@@ -14,8 +14,8 @@ android {
         applicationId = "com.derafsh.vpn"
         minSdk = 24
         targetSdk = 37
-        versionCode = 51
-        versionName = "1.2.47"
+        versionCode = 52
+        versionName = "1.2.48"
 
         // Ad placement provider: "house" = first-party Derafsh promo surfaces (current);
         // "admob" = Google AdMob with the IDs below (enable when production IDs are ready).
@@ -187,6 +187,10 @@ dependencies {
     // AndroidX Core Libraries
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
+
+    // Baseline Profile installer: writes the compiled startup profile to the ART reference
+    // profile directory on sideloaded installs, so cold start AOT compilation actually happens.
+    implementation(libs.androidx.profileinstaller)
 
     // Compose Libraries
     implementation(platform(libs.androidx.compose.bom))

@@ -1,0 +1,2 @@
+Faster app startup: a hand-crafted baseline profile now ships with the APK, pre-compiling the hot startup paths (app init, MMKV storage reads, main screen composition, service launch) so cold start feels instant.
+Added ProfileInstaller so the startup profile is applied automatically on every install type.
