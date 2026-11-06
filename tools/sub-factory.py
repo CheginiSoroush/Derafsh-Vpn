@@ -16,27 +16,45 @@ Derafsh Sub Factory (درفش) — Local Cron Edition
   6. هر chunk یک نسخه base64 هم دارد (subN_b64.txt)
   7. خروجی در manifest.json + sub-stats.json ثبت می‌شود
 
+حالت پرمیوم (`--premium`، کار ۱۰):
+  همان خط لوله دریافت/تکراری‌زدایی، سپس:
+  8. از هر کانفیگ (host, port) استخراج می‌شود
+  9. تست TCP-connect موازی — فقط کانفیگ‌های «زنده» نگه داشته می‌شوند
+ 10. مرتب بر اساس latency، سقف DERAFSH_PREMIUM_MAX → premium-sub.txt
+  خروجی سروِ endpoint قفل‌دار license-api است (GET /v1/sub/<code>) و هرگز
+  روی برنچ عمومی `sub` آپلود نمی‌شود.
+
 خروجی‌ها (OUT_DIR):
   sub1.txt … subN.txt        هر فایل حداکثر MAX_PER_SUB کانفیگ
   sub1_b64.txt … subN_b64    نسخه base64 هر chunk
   sub.txt / sub_base64.txt   لیست کامل (برای سازگاری با لینک‌های قدیمی)
   manifest.json              فهرست فایل‌ها و تعدادشان
   sub-stats.json             آمار آخرین اجرا
+  premium-sub.txt            [فقط --premium] پول زنده‌ی ساب پرمیوم
+  premium-stats.json         [فقط --premium] آمار تست latency
 
 متغیرهای محیطی:
-  DERAFSH_SUB_OUT_DIR   پوشه خروجی (پیش‌فرض: /home/z/my-project/download)
-  DERAFSH_SUB_CHUNK     اندازه هر ساب (پیش‌فرض: 200)
-  DERAFSH_SUB_SOURCES   منابع سفارشی، جدا‌شده با خط جدید (اختیاری)
+  DERAFSH_SUB_OUT_DIR        پوشه خروجی (پیش‌فرض: /home/z/my-project/download)
+  DERAFSH_SUB_CHUNK          اندازه هر ساب (پیش‌فرض: 200)
+  DERAFSH_SUB_SOURCES        منابع سفارشی، جدا‌شده با خط جدید (اختیاری)
+  DERAFSH_PREMIUM_MAX        سقف کانفیگ‌های پرمیوم (پیش‌فرض: 100)
+  DERAFSH_PREMIUM_CANDIDATES سقف کاندیدها قبل از تست (پیش‌فرض: 2000)
+  DERAFSH_PREMIUM_TIMEOUT    تایم‌اوت TCP-connect ثانیه (پیش‌فرض: 2.0)
 """
 
 import base64
 import json
 import math
 import os
+import random
 import re
+import socket
 import ssl
 import sys
+import time
+import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 # ── تنظیمات ────────────────────────────────────────────────────────────
@@ -55,6 +73,12 @@ MAX_PER_SUB = int(os.environ.get("DERAFSH_SUB_CHUNK", "200"))   # سقف کان�
 MAX_PER_SOURCE = 20000          # سقف ایمنی برای هر منبع
 FETCH_TIMEOUT = 60              # ثانیه
 USER_AGENT = "Derafsh-SubFactory/1.1"
+
+# پرمیوم (کار ۱۰)
+PREMIUM_MAX = int(os.environ.get("DERAFSH_PREMIUM_MAX", "100"))
+PREMIUM_CANDIDATES = int(os.environ.get("DERAFSH_PREMIUM_CANDIDATES", "2000"))
+PREMIUM_TIMEOUT = float(os.environ.get("DERAFSH_PREMIUM_TIMEOUT", "2.0"))
+PREMIUM_WORKERS = 64
 
 SCHEME = re.compile(r"^\s*(vmess|vless|trojan|ss|socks|hysteria2|hy2|tuic)://\S+\s*$", re.IGNORECASE)
 
@@ -88,8 +112,9 @@ def write(path: str, content: str) -> None:
 
 
 # ── خط لوله اصلی ───────────────────────────────────────────────────────
-def main() -> int:
-    started = datetime.now(timezone.utc)
+# ── خط لوله مشترک: دریافت + تکراری‌زدایی + پاکسازی ─────────────────────
+def collect_configs() -> tuple:
+    """منابع را می‌خواند، base64 را باز می‌کند، تکراری‌ها و خط‌های خراب را حذف می‌کند."""
     per_source = {}
 
     sources = [
@@ -123,6 +148,14 @@ def main() -> int:
 
     # پاکسازی ورودی‌های واضحاً خراب (بدون host معنادار)
     cleaned = [ln for ln in uniq if re.match(r"^\w+://", ln) and len(ln) > 20]
+    return cleaned, per_source
+
+
+# ── خط لوله اصلی ───────────────────────────────────────────────────────
+def main() -> int:
+    started = datetime.now(timezone.utc)
+
+    cleaned, per_source = collect_configs()
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -186,5 +219,105 @@ def main() -> int:
     return 0
 
 
+# ── حالت پرمیوم (کار ۱۰): تست latency سمت فکتوری ──────────────────────
+def parse_endpoint(line: str):
+    """(host, port) از هر کانفیگ؛ vmess (b64 JSON) و بقیه URIهای استاندارد. خراب → None."""
+    try:
+        scheme, _, rest = line.partition("://")
+        if scheme.lower() == "vmess":
+            pad = rest.split("#", 1)[0].strip()
+            obj = json.loads(base64.b64decode(pad + "=" * (-len(pad) % 4)).decode("utf-8", "ignore"))
+            host = str(obj.get("add", "")).strip()
+            port = int(obj.get("port", 0))
+            return (host, port) if host and 0 < port < 65536 else None
+
+        u = urllib.parse.urlsplit(line)
+        host, port = u.hostname, u.port
+        if not host:
+            # ss قدیمی: کل بخش بعد از ss:// یک b64 از method:pass@host:port است
+            raw = rest.split("#", 1)[0].split("?", 1)[0].strip()
+            dec = base64.b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8", "ignore")
+            u2 = urllib.parse.urlsplit("ss://" + dec)
+            host, port = u2.hostname, u2.port
+        if not host or not port or not (0 < port < 65536):
+            return None
+        return (host.strip("[]"), int(port))
+    except Exception:  # noqa: BLE001 — خط خراب فقط حذف می‌شود
+        return None
+
+
+def tcp_probe(host: str, port: int):
+    """TCP-connect handshake؛ latency ثانیه یا None اگر زنده نباشد."""
+    t0 = time.monotonic()
+    try:
+        with socket.create_connection((host, port), timeout=PREMIUM_TIMEOUT):
+            return time.monotonic() - t0
+    except OSError:
+        return None
+
+
+def run_premium() -> int:
+    started = datetime.now(timezone.utc)
+    cleaned, per_source = collect_configs()
+    if not cleaned:
+        print("FAIL no configs collected", file=sys.stderr)
+        return 1
+
+    # نمونه‌گیری متنوع (ترتیب منابع را می‌شکند تا یک منبع انحصاری نشود)
+    candidates = cleaned[:]
+    random.shuffle(candidates)
+    candidates = candidates[:PREMIUM_CANDIDATES]
+
+    # هر (host, port) فقط یک‌بار تست شود؛ یک نماینده از هر سرور کافی است
+    endpoints = {}
+    for ln in candidates:
+        ep = parse_endpoint(ln)
+        if ep:
+            endpoints.setdefault(ep, ln)
+
+    print(f"INFO testing {len(endpoints)} unique endpoint(s) "
+          f"(from {len(candidates)} candidates, timeout={PREMIUM_TIMEOUT}s, workers={PREMIUM_WORKERS})")
+
+    with ThreadPoolExecutor(max_workers=PREMIUM_WORKERS) as pool:
+        results = list(pool.map(lambda ep: (ep, tcp_probe(ep[0], ep[1])), endpoints.keys()))
+    live = [(ep, lat) for ep, lat in results if lat is not None]
+    live.sort(key=lambda kv: kv[1])
+
+    picked, used = [], set()
+    for ep, lat in live:
+        ln = endpoints[ep]
+        if ln not in used:
+            picked.append(ln)
+            used.add(ln)
+        if len(picked) >= PREMIUM_MAX:
+            break
+
+    os.makedirs(OUT_DIR, exist_ok=True)
+    body = "\n".join(picked) + ("\n" if picked else "")
+    write(os.path.join(OUT_DIR, "premium-sub.txt"), body)
+
+    finished = datetime.now(timezone.utc)
+    stats = {
+        "generated_utc": finished.isoformat(timespec="seconds"),
+        "generator": "Derafsh-SubFactory/1.1-premium",
+        "sources": per_source,
+        "pool_size_before_dedupe": len(cleaned),
+        "candidates": len(candidates),
+        "unique_endpoints": len(endpoints),
+        "reachable": len(live),
+        "selected": len(picked),
+        "timeout_seconds": PREMIUM_TIMEOUT,
+        "median_latency_seconds": (round(live[len(live) // 2][1], 3) if live else None),
+        "duration_seconds": round((finished - started).total_seconds(), 1),
+    }
+    write(os.path.join(OUT_DIR, "premium-stats.json"),
+          json.dumps(stats, ensure_ascii=False, indent=2) + "\n")
+
+    print(f"OK premium: {len(live)}/{len(endpoints)} endpoint(s) reachable -> "
+          f"{len(picked)} configs in {stats['duration_seconds']}s -> "
+          f"{os.path.join(OUT_DIR, 'premium-sub.txt')}")
+    return 0 if picked else 1
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run_premium() if "--premium" in sys.argv else main())
