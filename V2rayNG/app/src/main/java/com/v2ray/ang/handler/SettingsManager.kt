@@ -231,12 +231,9 @@ object SettingsManager {
      * @return The RulesetItem.
      */
     fun getRoutingRuleset(index: Int): RulesetItem? {
-        if (index < 0) return null
-
-        val rulesetList = MmkvManager.decodeRoutingRulesets()
-        if (rulesetList.isNullOrEmpty()) return null
-
-        return rulesetList[index]
+        val rulesetList = MmkvManager.decodeRoutingRulesets().orEmpty()
+        val resolved = resolveRulesetIndex(index, rulesetList.size) ?: return null
+        return rulesetList[resolved]
     }
 
     /**
@@ -252,7 +249,7 @@ object SettingsManager {
             rulesetList = mutableListOf()
         }
 
-        if (index < 0 || index >= rulesetList.count()) {
+        if (resolveRulesetIndex(index, rulesetList.count()) == null) {
             rulesetList.add(0, ruleset)
         } else {
             rulesetList[index] = ruleset
@@ -265,13 +262,21 @@ object SettingsManager {
      * @param index The index of the ruleset.
      */
     fun removeRoutingRuleset(index: Int) {
-        if (index < 0) return
-
-        val rulesetList = MmkvManager.decodeRoutingRulesets()
-        if (rulesetList.isNullOrEmpty()) return
-
-        rulesetList.removeAt(index)
+        val rulesetList = MmkvManager.decodeRoutingRulesets() ?: return
+        val resolved = resolveRulesetIndex(index, rulesetList.size) ?: return
+        rulesetList.removeAt(resolved)
         MmkvManager.encodeRoutingRulesets(rulesetList)
+    }
+
+    /**
+     * Resolves a caller-supplied list index against the current list size, or null when
+     * the index is out of bounds. The ruleset list lives in MMKV and can shrink between
+     * the UI capturing a position and acting on it (concurrent edit windows, double
+     * taps); a stale index used to throw IndexOutOfBoundsException in
+     * [getRoutingRuleset]/[removeRoutingRuleset] and could remove the wrong rule.
+     */
+    internal fun resolveRulesetIndex(index: Int, size: Int): Int? {
+        return index.takeIf { index >= 0 && index < size }
     }
 
     /**
@@ -371,11 +376,25 @@ object SettingsManager {
     fun getSocksPort(): Int {
         val port =
             if (IsDynamicSocksPort()) {
-                runtimeSocksPort ?: refreshRuntimeSocksPort()
+                runtimeOrNewSocksPort()
             } else {
                 Utils.parseInt(MmkvManager.decodeSettingsString(AppConfig.PREF_SOCKS_PORT), AppConfig.PORT_SOCKS.toInt())
             }
         return port ?: AppConfig.PORT_SOCKS.toInt()
+    }
+
+    /**
+     * Returns the runtime SOCKS port, generating one only when none exists yet. The
+     * whole check-and-generate is synchronized: concurrent first callers (config build,
+     * root proxy, tproxy) each used to re-enter [refreshRuntimeSocksPort] through the
+     * unsynchronized null-check and could receive two DIFFERENT random ports — the
+     * core then listened on one while the data plane forwarded to the other.
+     */
+    @Synchronized
+    private fun runtimeOrNewSocksPort(): Int {
+        return runtimeSocksPort
+            ?: refreshRuntimeSocksPort()
+            ?: AppConfig.PORT_SOCKS.toInt()
     }
 
     @Synchronized
