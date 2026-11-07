@@ -60,7 +60,6 @@ class DialerNativeService : IDialerService {
         private const val CONTROL_SOCKET_OPENING = 1
         private const val CONTROL_LOOP_DELAY_MS = 1000L
         private const val UNARY_BODY_WAIT_TIMEOUT_MS = 15_000L
-        private val TOKEN_REGEX = Regex("""/websocket\?token=([^"'\s]+)""")
         private val METHODS_WITHOUT_BODY = setOf("GET", "HEAD")
         private val HEADERS_BLACKLIST = hashSetOf(
             // AI suggest:
@@ -115,6 +114,10 @@ class DialerNativeService : IDialerService {
     @Volatile
     private var controlUrl: String? = null
     private var loopJob: Job? = null
+
+    // Read from OkHttp event threads (WS/unary/streaming handlers) while start/stop
+    // reassign it on the service thread — needs a happens-before edge like the fields above.
+    @Volatile
     private var client: OkHttpClient? = null
 
     @Suppress("UNUSED_PARAMETER")
@@ -135,7 +138,13 @@ class DialerNativeService : IDialerService {
         client = nativeClient
         running.set(true)
         loopJob = scope.launch {
-            val resolvedControlUrl = resolveControlWsUrl(dialerAddr, nativeClient)
+            // This launch has no CoroutineExceptionHandler: an uncaught throw here would
+            // crash the whole app at VPN start. resolveControlWsUrl is throw-free by design
+            // (DialerUriFactory guards every URI build), and this belt keeps future edits
+            // from reintroducing a crash path (A9).
+            val resolvedControlUrl = runCatching { resolveControlWsUrl(dialerAddr, nativeClient) }
+                .onFailure { debug("BrowserDialer: failed to resolve control url", it) }
+                .getOrNull()
             if (resolvedControlUrl == null) {
                 debug(
                     "BrowserDialer: failed to resolve control url from dialer endpoint: $dialerAddr"
@@ -221,51 +230,15 @@ class DialerNativeService : IDialerService {
     }
 
     private fun resolveControlWsUrl(rawAddr: String, probeClient: OkHttpClient): String? {
-        val uri = parseDialerUri(rawAddr) ?: return null
-        val probeUrl = buildDialerProbeUrl(rawAddr) ?: return null
+        val probeUrl = DialerUriFactory.buildDialerProbeUrl(rawAddr) ?: return null
         val request = Request.Builder().url(probeUrl).get().build()
         val token = runCatching {
             probeClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
-                extractControlToken(response.body.string())
+                DialerUriFactory.extractControlToken(response.body.string())
             }
         }.getOrNull() ?: return null
-        val host = uri.host ?: return null
-        return URI(
-            "ws",
-            uri.userInfo,
-            host,
-            uri.port,
-            "/websocket",
-            "token=$token",
-            null
-        ).toString()
-    }
-
-    private fun buildDialerProbeUrl(rawAddr: String): String? {
-        val normalized = rawAddr.trim()
-        if (normalized.isEmpty()) return null
-
-        val uri = parseDialerUri(normalized) ?: return null
-        val host = uri.host ?: return null
-        val probeScheme = when (uri.scheme?.lowercase()) {
-            "https", "wss" -> "https"
-            else -> "http"
-        }
-        return URI(probeScheme, uri.userInfo, host, uri.port, "/", null, null).toString()
-    }
-
-    private fun parseDialerUri(rawAddr: String): URI? {
-        val normalized = rawAddr.trim()
-        if (normalized.isEmpty()) return null
-        return runCatching {
-            if (normalized.contains("://")) URI(normalized) else URI("http://$normalized")
-        }.getOrNull()
-    }
-
-    private fun extractControlToken(html: String): String? {
-        val match = TOKEN_REGEX.find(html) ?: return null
-        return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+        return DialerUriFactory.buildControlWsUrl(rawAddr, token)
     }
 
     private inner class ControlSocketListener(
@@ -771,5 +744,70 @@ class DialerNativeService : IDialerService {
                 }
             }
         }
+    }
+}
+
+/**
+ * Pure URL-building helpers for the browser-dialer control channel.
+ *
+ * Every java.net.URI construction here is guarded: the probe URL and the control token are
+ * derived from a REMOTE server's response (an HTML page scanned for /websocket?token=...),
+ * and the multi-argument URI constructors validate their components WITHOUT encoding — a
+ * token containing characters that are illegal in a URI query (| { } ^ ` < > \ [ ] and
+ * friends; all admitted by the token regex [^"'\s]+) throws URISyntaxException. That throw
+ * used to escape into the control-loop scope.launch, which has no CoroutineExceptionHandler,
+ * so a single hostile/broken dialer endpoint crashed the whole app at VPN start (A9).
+ * All builders fail closed to null instead: the dialer stops (logged), the app lives.
+ */
+internal object DialerUriFactory {
+    private val TOKEN_REGEX = Regex("""/websocket\?token=([^"'\s]+)""")
+
+    /** Parses the raw dialer address, defaulting to http:// when no scheme is present. */
+    fun parseDialerUri(rawAddr: String): URI? {
+        val normalized = rawAddr.trim()
+        if (normalized.isEmpty()) return null
+        return runCatching {
+            if (normalized.contains("://")) URI(normalized) else URI("http://$normalized")
+        }.getOrNull()
+    }
+
+    /** Builds the http(s) probe URL whose HTML carries the control-socket token. */
+    fun buildDialerProbeUrl(rawAddr: String): String? {
+        val normalized = rawAddr.trim()
+        if (normalized.isEmpty()) return null
+
+        val uri = parseDialerUri(normalized) ?: return null
+        val host = uri.host ?: return null
+        val probeScheme = when (uri.scheme?.lowercase()) {
+            "https", "wss" -> "https"
+            else -> "http"
+        }
+        return runCatching {
+            URI(probeScheme, uri.userInfo, host, uri.port, "/", null, null).toString()
+        }.getOrNull()
+    }
+
+    /** Extracts the control-socket token from the dialer endpoint's HTML. */
+    fun extractControlToken(html: String): String? {
+        val match = TOKEN_REGEX.find(html) ?: return null
+        return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+    }
+
+    /** Builds the ws:// control URL; null when the token cannot form a valid URI. */
+    fun buildControlWsUrl(rawAddr: String, token: String): String? {
+        if (token.isBlank()) return null
+        val uri = parseDialerUri(rawAddr) ?: return null
+        val host = uri.host ?: return null
+        return runCatching {
+            URI(
+                "ws",
+                uri.userInfo,
+                host,
+                uri.port,
+                "/websocket",
+                "token=$token",
+                null
+            ).toString()
+        }.getOrNull()
     }
 }

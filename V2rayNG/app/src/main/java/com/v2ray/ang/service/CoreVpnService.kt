@@ -30,6 +30,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 @SuppressLint("VpnServicePolicy")
 class CoreVpnService : VpnService(), ServiceControl {
     private lateinit var mInterface: ParcelFileDescriptor
+
+    // Written on the main thread (establish/stop), read from tun2socks threads through
+    // isRunningProvider — needs a happens-before edge or the forwarding loop can act on a
+    // stale value (A12).
+    @Volatile
     private var isRunning = false
     private var tun2SocksService: Tun2SocksControl? = null
     private val isStartingLock = AtomicBoolean(false)

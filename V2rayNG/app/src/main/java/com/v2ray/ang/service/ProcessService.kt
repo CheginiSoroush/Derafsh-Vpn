@@ -21,17 +21,25 @@ class ProcessService {
         try {
             val proBuilder = ProcessBuilder(cmd)
             proBuilder.redirectErrorStream(true)
-            process = proBuilder
+            val started = proBuilder
                 .directory(context.filesDir)
                 .start()
+            process = started
 
             CoroutineScope(Dispatchers.IO).launch {
                 Thread.sleep(50L)
                 LogUtil.i(AppConfig.TAG, "runProcess check")
-                process?.waitFor()
-                LogUtil.i(AppConfig.TAG, "runProcess exited")
+                // Wait on the EXACT process this call started (A10): reading the field after
+                // the sleep can observe a replacement from a newer runProcess call, leaving
+                // this call's process unreaped (zombie) and double-waiting the new one.
+                try {
+                    started.waitFor()
+                    LogUtil.i(AppConfig.TAG, "runProcess exited")
+                } catch (e: Exception) {
+                    LogUtil.e(AppConfig.TAG, "runProcess wait failed", e)
+                }
             }
-            LogUtil.i(AppConfig.TAG, process.toString())
+            LogUtil.i(AppConfig.TAG, started.toString())
 
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, e.toString(), e)

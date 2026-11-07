@@ -41,6 +41,14 @@ class CoreTestService : Service() {
     private val settledDone = AtomicInteger(0)
     private val settledTotal = AtomicInteger(0)
 
+    // Per-worker start id (A11): stopSelf(startId) only stops the service when startId is the
+    // MOST RECENT delivered start command. A batch finishing on a worker thread checks
+    // activeWorkers.isEmpty() and then stops — a newer batch registered on the main thread in
+    // that window used to be destroyed by the plain stopSelf() (onDestroy cancelled it and told
+    // the UI "cancel"). With the owning start id, the stop is a no-op whenever a newer test
+    // start has been delivered, and exact when none has.
+    private val workerStartIds = ConcurrentHashMap<RealPingWorkerService, Int>()
+
     // Progress fan-out throttle: each completion would otherwise cost a cross-process MMKV
     // write + a notification update + an IPC message to the UI. On multi-thousand-config
     // pools that churn steals real CPU from the test threads; 400 ms still moves the bar
@@ -93,6 +101,7 @@ class CoreTestService : Service() {
         if (hadActiveWorkers) MaintenanceStatus.abandon()
         workerProgress.clear()
         lastProgressEmit.clear()
+        workerStartIds.clear()
         NotificationHelper.stopForeground(this)
         super.onDestroy()
     }
@@ -158,6 +167,7 @@ class CoreTestService : Service() {
                 settledTotal.set(0)
             }
             activeWorkers[worker] = requestId
+            workerStartIds[worker] = startId
             workerProgress[worker] = 0 to guidsList.size
             MaintenanceStatus.publishTestProgress(0, guidsList.size)
             worker.start()
@@ -219,6 +229,7 @@ class CoreTestService : Service() {
             }
 
             is RealPingEvent.Finish -> {
+                val ownStartId = workerStartIds.remove(worker)
                 // Settle this batch into the session sums before dropping the worker entry.
                 workerProgress.remove(worker)?.let { (done, total) ->
                     if (total > 0) {
@@ -245,7 +256,9 @@ class CoreTestService : Service() {
                 if (activeWorkers.isEmpty()) {
                     MaintenanceStatus.finish()
                     NotificationHelper.stopForeground(this)
-                    stopSelf()
+                    // Conditional stop with THIS batch's start id (A11): a test registered in
+                    // the check-then-stop window survives; otherwise stop exactly as before.
+                    if (ownStartId != null) stopSelf(ownStartId) else stopSelf()
                 }
             }
         }
@@ -273,7 +286,9 @@ class CoreTestService : Service() {
             MaintenanceStatus.abandon()
         }
         NotificationHelper.stopForeground(this)
-        stopSelf()
+        // Same startId discipline as the finish path (A11): a newer test start delivered after
+        // this cancel command must survive the cancel.
+        stopSelf(startId)
     }
 
     private fun cancelWorkers() {
@@ -283,6 +298,7 @@ class CoreTestService : Service() {
                 // Cancelled workers never emit Finish, so drop their progress entry here.
                 workerProgress.remove(worker)
                 lastProgressEmit.remove(worker)
+                workerStartIds.remove(worker)
                 worker.cancel()
                 MessageHelper.sendMsg2UI(this, AppConfig.MSG_MEASURE_CONFIG_CANCEL, "", requestId)
             }
