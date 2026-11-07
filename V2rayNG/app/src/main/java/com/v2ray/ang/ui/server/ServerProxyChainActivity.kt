@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.EConfigType
-import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.extension.moveItem
 import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastSuccess
@@ -73,9 +72,12 @@ class ServerProxyChainActivity : BaseComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Comma-containing remarks cannot be chain members: proxyChainProfiles is a
+        // comma-joined encoding, so such a remark would shatter on the next
+        // split(",") (see findInvalidProxyChainMembers). Never offer them.
         allRemarks = SettingsManager.getProfileRemarks(
             excludeConfigTypes = setOf(EConfigType.CUSTOM, EConfigType.POLICYGROUP, EConfigType.PROXYCHAIN)
-        )
+        ).filter { remark -> remark.indexOf(',') < 0 }
         val config = MmkvManager.decodeServerConfig(editGuid)
         initialRemarks = config?.remarks ?: ""
         initialMembers = config?.proxyChainProfiles?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() } ?: listOf("", "")
@@ -117,9 +119,8 @@ class ServerProxyChainActivity : BaseComponentActivity() {
             return false
         }
 
-        val invalidMembers = chainMembers.filter { member ->
-            val profile = SettingsManager.getServerViaRemarks(member)
-            profile == null || profile.configType.isComplexType()
+        val invalidMembers = findInvalidProxyChainMembers(chainMembers) { member ->
+            SettingsManager.getServerViaRemarks(member)?.configType
         }
 
         if (invalidMembers.isNotEmpty()) {
