@@ -1225,11 +1225,19 @@ class MainViewModel(
         rows.moveItem(fromPosition, toPosition)
         val guids = servers.map { it.guid }
         mutableServerGroupState(groupId).value = ServerGroupUiState(servers, rows)
+        if (keywordFilter.isNotBlank()) {
+            // The visible rows are a filtered SUBSET of the group; persisting a subset
+            // order would rewrite the whole group's index from it. Display-only move.
+            return
+        }
         // A drag emits several moves; serialize writes so an older order cannot overwrite a newer one.
         val previousPersistenceJob = serverOrderPersistenceJobs[groupId]
         serverOrderPersistenceJobs[groupId] = viewModelScope.launch(ioDispatcher) {
             previousPersistenceJob?.join()
-            dataSource.encodeServerList(guids, groupId)
+            // Atomic read-modify-write against the CURRENT index under the profile index
+            // lock: configs committed by a concurrent refresh after the drag snapshot
+            // survive the persist (A13, via the cycle-3 updateServerListAtomic helper).
+            dataSource.reorderServerList(groupId, guids)
             cacheMutex.withLock { groupDataCache[groupId] = servers }
         }
     }

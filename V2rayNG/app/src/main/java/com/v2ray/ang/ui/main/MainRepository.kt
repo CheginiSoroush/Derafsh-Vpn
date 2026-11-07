@@ -21,6 +21,7 @@ import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.AppLocaleManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
+import com.v2ray.ang.handler.ServerOrdering
 import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.helper.MessageHelper
 import com.v2ray.ang.util.LogUtil
@@ -181,8 +182,11 @@ class MainRepository(
     override fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo? =
         MmkvManager.decodeServerAffiliationInfo(guid)
 
-    override fun encodeServerList(guids: List<String>, groupId: String) =
-        MmkvManager.encodeServerList(ArrayList(guids), groupId)
+    override fun reorderServerList(groupId: String, uiOrder: List<String>) {
+        MmkvManager.updateServerListAtomic(groupId) { current ->
+            ServerOrdering.applyUiOrder(current, uiOrder).toMutableList()
+        }
+    }
 
     override fun removeServer(guid: String) = MmkvManager.removeServer(guid)
 

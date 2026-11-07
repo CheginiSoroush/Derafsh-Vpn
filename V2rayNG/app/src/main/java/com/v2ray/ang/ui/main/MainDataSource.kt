@@ -42,7 +42,12 @@ interface MainDataSource : Closeable {
     fun decodeServerConfig(guid: String): ProfileItem?
     fun decodeAffiliationInfo(guid: String): ServerAffiliationInfo?
 
-    fun encodeServerList(guids: List<String>, groupId: String)
+    /**
+     * Persists a UI drag order for a group atomically: the merge runs against the
+     * CURRENT storage index under the profile index lock, so configs committed after
+     * the UI snapshot was taken survive (never a full-replace with a stale snapshot).
+     */
+    fun reorderServerList(groupId: String, uiOrder: List<String>)
 
     fun removeServer(guid: String)
     fun removeAllServer(): Int
