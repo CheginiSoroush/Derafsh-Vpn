@@ -130,6 +130,9 @@ class MainActivity : HelperBaseComponentActivity() {
         AdsManager.init(this)
         checkAppIntegrity()
         mainViewModel.onAction(MainAction.Initialize)
+        // v1.2.56 (user report): the built-in source pool must refresh when the app
+        // opens — the 4h background cadence alone left users on stale configs.
+        mainViewModel.refreshBuiltInSourceOnOpen()
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
 

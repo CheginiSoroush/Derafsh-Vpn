@@ -237,6 +237,12 @@ object AppConfig {
     // to the worker-served free pool on first launch of v1.2.53+.
     const val PREF_DERAFSH_FREE_SUB_MOVED = "pref_derafsh_free_sub_moved"
 
+    // v1.2.56: last attempted timestamp of the on-open silent refresh of the built-in
+    // source subscription. Deliberately separate from the subscription's lastUpdated
+    // (which the 4h WorkManager task bumps even on failure) so a failed background run
+    // can never suppress an on-open retry.
+    const val PREF_LAST_OPEN_SUB_REFRESH = "pref_last_open_sub_refresh"
+
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
     const val PREF_DERAFSH_ACTIVE_SOURCE = "pref_derafsh_active_source"
 

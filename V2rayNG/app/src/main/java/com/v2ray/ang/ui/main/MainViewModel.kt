@@ -25,6 +25,7 @@ import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.StaleProfileTracker
 import com.v2ray.ang.handler.SubscriptionInfoParser
+import com.v2ray.ang.handler.SubscriptionUpdater
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CancellationException
@@ -860,6 +861,47 @@ class MainViewModel(
                 } catch (e: Exception) {
                     LogUtil.e(AppConfig.TAG, "Subscription update failed", e)
                     toastError(R.string.toast_failure)
+                }
+            }
+        }
+    }
+
+    /**
+     * Derafsh (v1.2.56): silently refresh the built-in source subscription when the app
+     * opens. The 4-hour WorkManager cadence alone left the pool stale between runs —
+     * badly so on Iranian OEM battery savers that defer background work — so users
+     * opened the app to the same dead configs every time (user report: «ساب یک اصلا
+     * آپدیت نمیشه وقتی برنامه رو باز می‌کنم»). This runs the exact per-subscription
+     * importer the manual refresh uses (chunked, av-declared since v1.2.55) for the
+     * built-in group only, throttled to one attempt per
+     * [AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES] through its own MMKV timestamp so a
+     * failed background run can never suppress an on-open retry. Silent by design: no
+     * toasts — the group list simply refreshes in place when the pool returns configs.
+     */
+    fun refreshBuiltInSourceOnOpen() {
+        val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
+        val item = dataSource.getSubscriptionItem(subId) ?: return
+        if (!item.enabled || item.url.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val throttleMillis = AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES * 60_000L
+        if (now - MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, 0L) < throttleMillis) return
+        MmkvManager.encodeSettings(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, now)
+        viewModelScope.launch {
+            withContext(ioDispatcher) {
+                try {
+                    val result = dataSource.updateConfigViaSub(SubscriptionCache(subId, item))
+                    if (result.successCount > 0) {
+                        // Reset the 4h periodic timer the same way a manual refresh does.
+                        SubscriptionUpdater.updateLastUpdatedAndReschedule(app, subId)
+                        if (result.configCount > 0) {
+                            setupGroupTab(forceRefresh = true)
+                            refreshSelectedGuid()
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (e: Exception) {
+                    LogUtil.e(AppConfig.TAG, "On-open built-in source refresh failed", e)
                 }
             }
         }
