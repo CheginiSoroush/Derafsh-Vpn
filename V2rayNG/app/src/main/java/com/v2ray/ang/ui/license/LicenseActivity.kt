@@ -119,7 +119,9 @@ class LicenseActivity : BaseComponentActivity() {
     private fun activateAfterTunnel(code: String) {
         lifecycleScope.launch {
             ensureTunnelRunning()
-            viewModel.activate(code)
+            // v1.2.54: on a network failure the VPN bring-up runs once more before the
+            // single automatic retry (cold tunnels often miss the first window).
+            viewModel.activate(code) { ensureTunnelRunning() }
         }
     }
 
@@ -129,6 +131,12 @@ class LicenseActivity : BaseComponentActivity() {
      * regular service start flow and wait briefly for the start broadcast. NEVER blocks
      * activation: on any failure the API call proceeds anyway (imsoroush.top is reachable
      * without the tunnel on most networks).
+     *
+     * v1.2.54 (user feedback: "network error" on activate): a fresh install has no server
+     * selected, and the start flow refuses to run without one — on networks where the
+     * worker is only reachable through the tunnel that deadlocked activation into a
+     * guaranteed network error. When the selection is empty, the first profile of the
+     * library is auto-selected so the bootstrap can actually bring the tunnel up.
      */
     private suspend fun ensureTunnelRunning(): Boolean {
         val appContext = applicationContext
@@ -139,7 +147,10 @@ class LicenseActivity : BaseComponentActivity() {
             )
             MessageHelper.sendMsg2Service(appContext, AppConfig.MSG_REGISTER_CLIENT, "")
             if (listener.awaitState(1_500L) == true) return true
-            if (MmkvManager.getSelectServer().isNullOrEmpty()) return false
+            if (MmkvManager.getSelectServer().isNullOrEmpty()) {
+                val first = MmkvManager.decodeAllServerList().firstOrNull() ?: return false
+                MmkvManager.setSelectServer(first)
+            }
             listener.reset()
             LauncherManager.startService(this)
             return listener.awaitState(15_000L) == true

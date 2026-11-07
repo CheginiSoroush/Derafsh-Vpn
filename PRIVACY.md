@@ -59,11 +59,11 @@
 
 ### ۷. تغییرات این سند
 
-اگر این سیاست تغییر کند، نسخه جدید در همین آدرس (ریپوی گیت‌هاب پروژه) منتشر و شماره نسخه اپلیکیشن به‌روزرسانی می‌شود. در صورت تغییرات مهم، هنگام باز شدن برنامه تأیید دوبارهٔ شما گرفته می‌شود (صفحهٔ «حریم خصوصی و شرایط» در اولین اجرا).
+اگر این سیاست تغییر کند، نسخه جدید در همین آدرس منتشر و شماره نسخه اپلیکیشن به‌روزرسانی می‌شود. در صورت تغییرات مهم، هنگام باز شدن برنامه تأیید دوبارهٔ شما گرفته می‌شود (صفحهٔ «حریم خصوصی و شرایط» در اولین اجرا).
 
 ### ۸. تماس
 
-هر پرسشی درباره حریم خصوصی دارید، از طریق [Issues مخزن پروژه](https://github.com/CheginiSoroush/Derafsh-Vpn/issues) بپرسید.
+هر پرسشی درباره حریم خصوصی دارید، از طریق بات تلگرام [@PDerafshVpnbot](https://t.me/PDerafshVpnbot) بپرسید.
 
 ---
 
@@ -122,8 +122,8 @@ Derafsh is not directed at children under 13 and we do not knowingly collect the
 
 ### 7. Changes to this policy
 
-If this policy changes, the new version is published at this address (the project's GitHub repository) and the app version is updated. For material changes, we ask for your consent again the next time you open the app (the "Privacy & terms" step of first-run onboarding).
+If this policy changes, the new version is published at this address and the app version is updated. For material changes, we ask for your consent again the next time you open the app (the "Privacy & terms" step of first-run onboarding).
 
 ### 8. Contact
 
-For any privacy question, please open an issue at the [project repository](https://github.com/CheginiSoroush/Derafsh-Vpn/issues).
+For any privacy question, please contact the Telegram bot [@PDerafshVpnbot](https://t.me/PDerafshVpnbot).

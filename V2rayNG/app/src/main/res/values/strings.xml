@@ -485,7 +485,7 @@
     <string name="license_error_revoked">This code has been revoked</string>
     <string name="license_error_rate_limited">Too many attempts — please try again later</string>
     <string name="license_error_server">License server error — please try again later</string>
-    <string name="license_error_network">Network error — check your connection</string>
+    <string name="license_error_network">Couldn\'t reach the server. Connect the VPN first, then try again.</string>
     <string name="license_error_update_required">This version is disabled — update from the bot</string>
 
     <!-- Derafsh force update (v1.2.53): the server pinned a minimum supported version and
@@ -694,12 +694,6 @@
     <string name="onboarding_5_body">Derafsh does not collect your browsing data. Ads shown inside the app are served by third-party networks under their own policies.</string>
     <string name="onboarding_consent_checkbox">I have read and accept the Privacy Policy and Terms of Use</string>
     <string name="onboarding_read_policy">Read the Privacy Policy</string>
-    <string name="onboarding_6_title">Meet the developer</string>
-    <string name="onboarding_6_body">Derafsh is built and maintained by Soroush. Follow the project on GitHub for updates, to report issues, or to explore the source code.</string>
-    <string name="onboarding_open_bot">Open the Telegram bot</string>
-    <string name="onboarding_back_to_consent">Back to consent</string>
-    <string name="about_developer_name">Soroush</string>
-    <string name="about_developer_handle">\@PDerafshVpnbot — Support &amp; updates</string>
 
     <string name="derafsh_sources_title">Derafsh sources</string>
     <string name="derafsh_source_name">Derafsh %d</string>

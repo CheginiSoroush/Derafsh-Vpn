@@ -33,12 +33,27 @@ class LicenseViewModel(application: Application) : BaseViewModel(application) {
     private val _licenseState = MutableStateFlow(LicenseManager.current(application))
     val licenseState: StateFlow<LicenseManager.LicenseState> = _licenseState.asStateFlow()
 
-    /** Activates [code]; success refreshes the state card, failure toasts the mapped message. */
-    fun activate(code: String) {
+    /**
+     * Activates [code]; success refreshes the state card, failure toasts the mapped message.
+     *
+     * v1.2.54: one automatic retry on a network failure — [bootstrapTunnel] (supplied by
+     * the activity) re-runs the VPN bring-up in between, because a cold tunnel on Iranian
+     * networks often misses the first window and the retry then succeeds.
+     */
+    fun activate(code: String, bootstrapTunnel: (suspend () -> Unit)? = null) {
         if (code.isBlank()) return
         launchLoading {
             try {
-                LicenseManager.activate(getApplication(), code)
+                var result = LicenseManager.activate(getApplication(), code)
+                if (result.isFailure && bootstrapTunnel != null) {
+                    val errorKey = (result.exceptionOrNull() as? LicenseManager.LicenseException)?.errorKey
+                    if (errorKey == LicenseManager.ERR_NETWORK) {
+                        LogUtil.i(AppConfig.TAG, "Activate: network failure — retrying after tunnel re-bootstrap")
+                        bootstrapTunnel()
+                        result = LicenseManager.activate(getApplication(), code)
+                    }
+                }
+                result
                     .onSuccess { state ->
                         _licenseState.value = state
                         toastSuccess(R.string.license_activated)

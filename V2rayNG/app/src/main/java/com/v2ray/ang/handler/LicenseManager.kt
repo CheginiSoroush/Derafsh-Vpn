@@ -69,9 +69,12 @@ object LicenseManager {
     /** Carries a machine-readable error key from [activate] to the UI. */
     class LicenseException(val errorKey: String) : Exception(errorKey)
 
+    // v1.2.54: relaxed timeouts — on Iranian networks the tunnel handshake plus the
+    // TLS setup to the Cloudflare edge routinely eats the old 8s budget on the first
+    // attempt, which surfaced as spurious "network error" toasts during activation.
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(8, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .build()
 
     /** Canonical code charset (base32 RFC 4648 without padding) and length after normalization. */
