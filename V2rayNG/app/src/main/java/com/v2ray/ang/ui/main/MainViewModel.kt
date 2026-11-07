@@ -908,6 +908,11 @@ class MainViewModel(
                             setupGroupTab(forceRefresh = true)
                             refreshSelectedGuid()
                         }
+                        // v1.2.58: say when the pool came from the bundled snapshot so a
+                        // possibly stale list is never mistaken for a live refresh.
+                        if (AngConfigManager.lastImportUsedBundledBackup) {
+                            toast(R.string.toast_bundled_pool_loaded)
+                        }
                     } else {
                         LogUtil.w(AppConfig.TAG, "On-open built-in source refresh did not succeed")
                         toastError(R.string.toast_builtin_refresh_failed)

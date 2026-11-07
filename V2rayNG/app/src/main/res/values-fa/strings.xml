@@ -109,6 +109,7 @@
     <string name="toast_success">موفقیت‌آمیز</string>
     <string name="toast_failure">شکست!</string>
     <string name="toast_builtin_refresh_failed">به‌روزرسانی فهرست سرورها ناموفق بود — اینترنت را بررسی کنید و دوباره وارد برنامه شوید</string>
+    <string name="toast_bundled_pool_loaded">سرور لیست کانفیگ‌ها در دسترس نبود — لیست پشتیبان داخلی بارگذاری شد. به محض برقراری ارتباط، خودکار به‌روز می‌شود.</string>
     <string name="toast_none_data">داده‌ای یافت نشد</string>
     <string name="toast_incorrect_protocol">پروتکل نادرست</string>
     <string name="toast_decoding_failed">رمزگشایی انجام نشد</string>

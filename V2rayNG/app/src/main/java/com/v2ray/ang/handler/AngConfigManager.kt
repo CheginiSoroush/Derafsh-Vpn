@@ -37,6 +37,17 @@ object AngConfigManager {
         val rawConfig: String? = null,
     )
 
+    /**
+     * v1.2.58: true when the most recent [updateConfigViaSub] call served the bundled
+     * asset snapshot ([AppConfig.DERAFSH_POOL_BACKUP_ASSET]) instead of the live network
+     * payload — imsoroush.top unreachable (Cloudflare SNI filtering on some Iranian ISPs).
+     * Read by the UI right after an import to tell a bundled-bootstrap pool apart from a
+     * fresh network refresh; every import run resets it.
+     */
+    @Volatile
+    var lastImportUsedBundledBackup: Boolean = false
+        private set
+
     // Parser mapping for different config types (lazy initialized)
     private val configFmtParsers: Map<String, (String) -> ProfileItem?> by lazy {
         mapOf(
@@ -572,6 +583,19 @@ object AngConfigManager {
     }
 
     /**
+     * Reads the bundled free-pool snapshot from the APK assets.
+     *
+     * @return The snapshot text, or null when the asset is missing or unreadable.
+     */
+    private fun readBundledPoolBackup(): String? = try {
+        AngApplication.application.assets.open(AppConfig.DERAFSH_POOL_BACKUP_ASSET)
+            .bufferedReader().use { reader -> reader.readText() }
+    } catch (e: Exception) {
+        LogUtil.e(AppConfig.TAG, "Failed to read bundled pool backup", e)
+        null
+    }
+
+    /**
      * Chunked subscription import: fetches the subscription ONCE and redistributes the
      * parsed configs into groups of at most [AppConfig.DERAFSH_POOL_CHUNK_SIZE] — the
      * primary subscription keeps the first chunk (its remarks are unchanged), every
@@ -611,7 +635,25 @@ object AngConfigManager {
             return SubscriptionUpdateResult(failureCount = 1)
         }
 
-        val (configText, usageInfo) = fetchSubscriptionContent(it, url)
+        val (fetchedText, usageInfo) = fetchSubscriptionContent(it, url)
+        // v1.2.58: imsoroush.top is Cloudflare-fronted and some Iranian ISPs SNI-filter it
+        // outright — the live fetch then fails on every run of the on-open refresh, the
+        // 4-hourly task and manual pulls alike, stranding installs (worst of all fresh
+        // ones) on an empty server list with no remedy (user report: «حداقل اینو لوکال
+        // بذار»). When the failed URL is exactly the built-in free pool, serve the
+        // snapshot bundled in the APK instead: the whole parse/chunk/retire/commit
+        // pipeline below runs identically on it, the pool works immediately, and the
+        // next reachable fetch overrides it. The exact-URL guard keeps premium pools
+        // (/v1/sub/<code>) and third-party sources out of the fallback.
+        var configText = fetchedText
+        var usedBundledBackup = false
+        if (configText.isEmpty() && it.subscription.url == AppConfig.DERAFSH_SUB_URL) {
+            readBundledPoolBackup()?.let { bundled ->
+                configText = bundled
+                usedBundledBackup = true
+            }
+        }
+        lastImportUsedBundledBackup = usedBundledBackup
         if (configText.isEmpty()) {
             return SubscriptionUpdateResult(failureCount = 1)
         }

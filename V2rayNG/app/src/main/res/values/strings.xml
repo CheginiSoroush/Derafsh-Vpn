@@ -109,6 +109,7 @@
     <string name="toast_success">Success</string>
     <string name="toast_failure">Failure</string>
     <string name="toast_builtin_refresh_failed">Couldn\'t refresh the server list — check your connection and reopen the app</string>
+    <string name="toast_bundled_pool_loaded">The pool server couldn\'t be reached — the built-in backup list was loaded. It refreshes automatically once the server is reachable.</string>
     <string name="toast_none_data">No data available</string>
     <string name="toast_incorrect_protocol">Incorrect protocol</string>
     <string name="toast_decoding_failed">Decoding failed</string>

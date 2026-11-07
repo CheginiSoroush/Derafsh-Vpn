@@ -232,6 +232,16 @@ object AppConfig {
      */
     const val DERAFSH_SUB_URL = "$LICENSE_API_BASE/v1/free/sub"
     const val DERAFSH_SUB_URL_LEGACY = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
+
+    /**
+     * v1.2.58: APK-asset snapshot of the worker free pool (the [DERAFSH_SUB_URL] payload
+     * at release time). imsoroush.top is Cloudflare-fronted and some Iranian ISPs
+     * SNI-filter it outright — the live fetch then fails and a fresh install sits on an
+     * empty list with no remedy (user report: «حداقل اینو لوکال بذار»). The chunked
+     * importer serves this snapshot as a last resort; the network refresh overrides it
+     * as soon as the server is reachable again.
+     */
+    const val DERAFSH_POOL_BACKUP_ASSET = "derafsh_pool_backup.txt"
     const val PREF_DEFAULT_SUB_SEEDED = "pref_default_sub_seeded"
     // One-time migration flag: stored installs seeded with [DERAFSH_SUB_URL_LEGACY] move
     // to the worker-served free pool on first launch of v1.2.53+.
