@@ -108,6 +108,7 @@
     <string name="server_lab_kcp_tti">mKCP TTI (optional, default 50 ms)</string>
     <string name="toast_success">Success</string>
     <string name="toast_failure">Failure</string>
+    <string name="toast_builtin_refresh_failed">Couldn\'t refresh the server list — check your connection and reopen the app</string>
     <string name="toast_none_data">No data available</string>
     <string name="toast_incorrect_protocol">Incorrect protocol</string>
     <string name="toast_decoding_failed">Decoding failed</string>

@@ -165,6 +165,11 @@ class MainActivity : HelperBaseComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        // v1.2.57: refresh the built-in pool on foreground returns too, not only on a cold
+        // onCreate — users keep the app in recents for days and onCreate never re-runs.
+        // The success-only throttle inside refreshBuiltInSourceOnOpen keeps this cheap and
+        // lets a previously failed attempt heal on the very next entry.
+        mainViewModel.refreshBuiltInSourceOnOpen()
     }
 
     /**

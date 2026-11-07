@@ -866,17 +866,25 @@ class MainViewModel(
         }
     }
 
+    /** In-flight guard: onCreate + onStart fire back-to-back on cold start — fetch once. */
+    private var openRefreshJob: Job? = null
+
     /**
-     * Derafsh (v1.2.56): silently refresh the built-in source subscription when the app
-     * opens. The 4-hour WorkManager cadence alone left the pool stale between runs —
-     * badly so on Iranian OEM battery savers that defer background work — so users
-     * opened the app to the same dead configs every time (user report: «ساب یک اصلا
-     * آپدیت نمیشه وقتی برنامه رو باز می‌کنم»). This runs the exact per-subscription
-     * importer the manual refresh uses (chunked, av-declared since v1.2.55) for the
-     * built-in group only, throttled to one attempt per
-     * [AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES] through its own MMKV timestamp so a
-     * failed background run can never suppress an on-open retry. Silent by design: no
-     * toasts — the group list simply refreshes in place when the pool returns configs.
+     * Derafsh (v1.2.56, hardened in v1.2.57): silently refresh the built-in source
+     * subscription when the app opens or returns to the foreground. The 4-hour
+     * WorkManager cadence alone left the pool stale between runs — badly so on Iranian
+     * OEM battery savers that defer background work — so users opened the app to the
+     * same dead configs every time (user report: «ساب یک اصلا آپدیت نمیشه وقتی برنامه
+     * رو باز می‌کنم»). This runs the exact per-subscription importer the manual refresh
+     * uses (chunked, av-declared since v1.2.55) for the built-in group only.
+     *
+     * v1.2.57 fixes two real-world failure loops:
+     *  - the 15-minute throttle timestamp is stamped ONLY on success. v1.2.56 stamped it
+     *    before the fetch, so a single failed attempt (first open while offline, network
+     *    not yet up after install) suppressed every retry for a quarter of an hour and
+     *    the user kept staring at an empty server list;
+     *  - failures are no longer fully silent: a toast says the refresh did not happen
+     *    instead of leaving an unexplained "No data available".
      */
     fun refreshBuiltInSourceOnOpen() {
         val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
@@ -885,23 +893,30 @@ class MainViewModel(
         val now = System.currentTimeMillis()
         val throttleMillis = AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES * 60_000L
         if (now - MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, 0L) < throttleMillis) return
-        MmkvManager.encodeSettings(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, now)
-        viewModelScope.launch {
+        if (openRefreshJob?.isActive == true) return
+        openRefreshJob = viewModelScope.launch {
             withContext(ioDispatcher) {
                 try {
                     val result = dataSource.updateConfigViaSub(SubscriptionCache(subId, item))
                     if (result.successCount > 0) {
+                        // Success-only throttle (v1.2.57): a failed attempt must never
+                        // suppress the next open's retry.
+                        MmkvManager.encodeSettings(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, now)
                         // Reset the 4h periodic timer the same way a manual refresh does.
                         SubscriptionUpdater.updateLastUpdatedAndReschedule(app, subId)
                         if (result.configCount > 0) {
                             setupGroupTab(forceRefresh = true)
                             refreshSelectedGuid()
                         }
+                    } else {
+                        LogUtil.w(AppConfig.TAG, "On-open built-in source refresh did not succeed")
+                        toastError(R.string.toast_builtin_refresh_failed)
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (e: Exception) {
                     LogUtil.e(AppConfig.TAG, "On-open built-in source refresh failed", e)
+                    toastError(R.string.toast_builtin_refresh_failed)
                 }
             }
         }
