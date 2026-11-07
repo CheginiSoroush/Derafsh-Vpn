@@ -220,28 +220,23 @@ object AngConfigManager {
     /**
      * Parses a batch of subscriptions.
      *
+     * Each line is imported in isolation via [SubscriptionBatch.countImports]: one
+     * malformed URL (e.g. scheme-less input that passes validation but fails URI
+     * parsing) is logged and skipped instead of aborting every remaining line of the
+     * batch.
+     *
      * @param servers The servers string.
      * @return The number of subscriptions parsed.
      */
     private fun parseBatchSubscription(servers: String?): Int {
-        try {
-            if (servers == null) {
-                return 0
-            }
-
-            var count = 0
-            servers.lines()
-                .distinct()
-                .forEach { str ->
-                    if (Utils.isValidSubUrl(str)) {
-                        count += importUrlAsSubscription(str)
-                    }
-                }
-            return count
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Failed to parse batch subscription", e)
-        }
-        return 0
+        return SubscriptionBatch.countImports(
+            servers = servers,
+            isValidSubUrl = { Utils.isValidSubUrl(it) },
+            importOne = ::importUrlAsSubscription,
+            onError = { _, e ->
+                LogUtil.e(AppConfig.TAG, "Failed to import subscription URL", e)
+            },
+        )
     }
 
     /**
@@ -925,22 +920,22 @@ object AngConfigManager {
     /**
      * Sorts servers by test results for a subscription.
      *
+     * The read-modify-write of the group index is atomic ([MmkvManager.updateServerListAtomic]):
+     * a snapshot taken outside the index lock could be republished after a concurrent
+     * refresh added configs, dropping them from the index while their payloads remained.
+     *
      * @param subId The subscription ID.
      */
     fun sortByTestResultsForSub(subId: String) {
-        val serverList = MmkvManager.decodeServerList(subId)
-        if (serverList.isEmpty()) return
-
-        val sorted = serverList
-            .map { guid ->
-                val delay =
+        MmkvManager.updateServerListAtomic(subId) { serverList ->
+            if (serverList.isEmpty()) {
+                serverList
+            } else {
+                ServerOrdering.byTestResult(serverList) { guid ->
                     MmkvManager.decodeServerAffiliationInfo(guid)?.testDelayMillis ?: 0L
-                guid to if (delay <= 0L) Long.MAX_VALUE else delay
+                }.toMutableList()
             }
-            .sortedBy { it.second }
-            .map { it.first }
-            .toMutableList()
-        MmkvManager.encodeServerList(sorted, subId)
+        }
     }
 
     /**

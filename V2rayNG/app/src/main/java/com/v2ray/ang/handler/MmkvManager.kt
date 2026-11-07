@@ -234,6 +234,29 @@ object MmkvManager {
         }
     }
 
+    /**
+     * Atomically reads a group's server index, applies [transform] and republishes it —
+     * the whole read-modify-write runs under [withProfileIndexLock], so a concurrent
+     * publisher (subscription refresh, pool import) cannot be overwritten by a stale
+     * snapshot taken outside the lock.
+     *
+     * Best-effort by design: a failed write only loses this reorder, so — unlike the
+     * removal/commit paths — it returns the write result instead of throwing
+     * [ProfileStorageException], matching [encodeServerList]'s fire-and-forget contract.
+     *
+     * @param subscriptionId The subscription ID.
+     * @param transform Pure function from the current index to the new one.
+     * @return Whether the transformed index was persisted.
+     */
+    fun updateServerListAtomic(
+        subscriptionId: String,
+        transform: (MutableList<String>) -> MutableList<String>,
+    ): Boolean {
+        return withProfileIndexLock {
+            persistServerList(transform(decodeServerList(subscriptionId)), subscriptionId)
+        }
+    }
+
 
     /**
      * Decodes the server list for a given subscription.
