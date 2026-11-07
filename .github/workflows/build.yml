@@ -122,6 +122,15 @@ jobs:
           echo "DERAFSH_KEY_PASSWORD=$KEY_PASSWORD"
         } >> "$GITHUB_ENV"
 
+    # FINDING-A1 fix: the pipeline previously only ran assembleRelease, so the unit
+    # tests were never executed in CI. `--continue` keeps going after a failing test
+    # class so one CI run reports every broken suite instead of just the first.
+    - name: Run unit tests
+      run: |
+        cd ${{ github.workspace }}/V2rayNG
+        echo "sdk.dir=${ANDROID_HOME}" > local.properties
+        ./gradlew testReleaseUnitTest --continue
+
     - name: Build APK
       run: |
         cd ${{ github.workspace }}/V2rayNG
