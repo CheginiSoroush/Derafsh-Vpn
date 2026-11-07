@@ -438,22 +438,31 @@ object MmkvManager {
             return
         }
 
-        // Get config to determine which subscription to update
-        val config = decodeServerConfig(guid)
-        val subId = getSubscriptionId(config?.subscriptionId)
+        // The whole index read-modify-write plus payload removal must be atomic with
+        // respect to the other group-index mutators (saveServerProfiles, the pool
+        // refresh, removeAllServer) — on the JVM they run on other threads, and in
+        // MULTI_PROCESS_MODE from the :tasks process, so plain decode/encode races.
+        withProfileIndexLock {
+            // Get config to determine which subscription to update
+            val config = decodeServerConfig(guid)
+            val subId = getSubscriptionId(config?.subscriptionId)
 
-        // Remove from appropriate server list
-        val serverList = decodeServerList(subId)
-        serverList.remove(guid)
-        encodeServerList(serverList, subId)
+            // Remove from appropriate server list
+            val serverList = decodeServerList(subId)
+            val updatedList = ProfileRemoval.updatedIndex(serverList, listOf(guid))
+            if (updatedList.size != serverList.size) {
+                requireStorageWrite(
+                    persistServerList(updatedList.toMutableList(), subId),
+                    "Failed to update profile index",
+                )
+            }
 
-        // Clean up storage
-        if (getSelectServer() == guid) {
-            mainStorage.remove(KEY_SELECTED_SERVER)
+            // Clean up storage
+            if (ProfileRemoval.selectionInvalidated(getSelectServer(), listOf(guid))) {
+                mainStorage.remove(KEY_SELECTED_SERVER)
+            }
+            removeProfilePayloads(listOf(guid))
         }
-        profileFullStorage.remove(guid)
-        serverAffStorage.remove(guid)
-        serverRawStorage.remove(guid)
     }
 
     /**
@@ -463,20 +472,22 @@ object MmkvManager {
      */
     fun removeServerViaSubid(subscriptionId: String?) {
         val subId = getSubscriptionId(subscriptionId)
-        val serverList = decodeServerList(subId)
+        // Same atomicity requirement as [removeServer]: the group's whole index is
+        // cleared, which must not interleave with concurrent index publishers.
+        withProfileIndexLock {
+            val serverList = decodeServerList(subId)
 
-        // Remove all servers in the list
-        serverList.forEach { guid ->
-            if (getSelectServer() == guid) {
+            // Remove all servers in the list
+            if (ProfileRemoval.selectionInvalidated(getSelectServer(), serverList)) {
                 mainStorage.remove(KEY_SELECTED_SERVER)
             }
-            profileFullStorage.remove(guid)
-            serverAffStorage.remove(guid)
-            serverRawStorage.remove(guid)
-        }
+            removeProfilePayloads(serverList)
 
-        serverList.clear()
-        encodeServerList(serverList, subId)
+            requireStorageWrite(
+                persistServerList(mutableListOf(), subId),
+                "Failed to clear profile index",
+            )
+        }
     }
 
     /**
@@ -488,19 +499,22 @@ object MmkvManager {
     fun removeServers(guids: List<String>, subscriptionId: String) {
         if (guids.isEmpty()) return
         val subId = getSubscriptionId(subscriptionId)
-        val serverList = decodeServerList(subId)
-        if (serverList.removeAll(guids)) {
-            encodeServerList(serverList, subId)
-        }
+        // Atomic index + payload removal, same reason as [removeServer]; also keeps the
+        // one encodeServerList-style write atomic instead of decoding outside the lock.
+        withProfileIndexLock {
+            val serverList = decodeServerList(subId)
+            val updatedList = ProfileRemoval.updatedIndex(serverList, guids)
+            if (updatedList.size != serverList.size) {
+                requireStorageWrite(
+                    persistServerList(updatedList.toMutableList(), subId),
+                    "Failed to update profile index",
+                )
+            }
 
-        val selectedServer = getSelectServer()
-        guids.forEach { guid ->
-            if (selectedServer == guid) {
+            if (ProfileRemoval.selectionInvalidated(getSelectServer(), guids)) {
                 mainStorage.remove(KEY_SELECTED_SERVER)
             }
-            profileFullStorage.remove(guid)
-            serverAffStorage.remove(guid)
-            serverRawStorage.remove(guid)
+            removeProfilePayloads(guids)
         }
     }
 
@@ -632,15 +646,24 @@ object MmkvManager {
      * @return The number of server configurations removed.
      */
     fun removeAllServer(): Int {
-        val count = profileFullStorage.allKeys()?.count() ?: 0
-        profileFullStorage.clearAll()
-        serverAffStorage.clearAll()
-        serverRawStorage.clearAll()
+        return withProfileIndexLock {
+            val count = profileFullStorage.allKeys()?.count() ?: 0
+            profileFullStorage.clearAll()
+            serverAffStorage.clearAll()
+            serverRawStorage.clearAll()
 
-        decodeSubscriptions().forEach { sub ->
-            encodeServerList(mutableListOf(), sub.guid)
+            decodeSubscriptions().forEach { sub ->
+                requireStorageWrite(
+                    persistServerList(mutableListOf(), sub.guid),
+                    "Failed to clear profile index",
+                )
+            }
+            // Every payload is gone, so a surviving selection pointer would dangle:
+            // the next connect would resolve getSelectServer() to a null config and
+            // fail until the user re-selects. Clear it like every other removal path.
+            mainStorage.remove(KEY_SELECTED_SERVER)
+            count
         }
-        return count
     }
 
     /**
