@@ -93,8 +93,11 @@ class SubEditActivity : BaseComponentActivity() {
             return false
         }
 
-        MmkvManager.encodeSubscription(editSubId, subItem)
-        SubscriptionUpdater.syncOne(subId = editSubId)
+        // For a new subscription editSubId is blank and the real guid is minted
+        // inside encodeSubscription — schedule the auto-update task for THAT id,
+        // or the periodic task is silently skipped until the next app start.
+        val subId = MmkvManager.encodeSubscription(editSubId, subItem)
+        SubscriptionUpdater.syncOne(subId = subId)
         SettingsChangeManager.makeSetupGroupTab()
         toastSuccess(R.string.toast_success)
         finish()

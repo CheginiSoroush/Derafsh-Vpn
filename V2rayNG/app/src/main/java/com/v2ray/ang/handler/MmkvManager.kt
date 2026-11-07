@@ -845,10 +845,14 @@ object MmkvManager {
     /**
      * Encodes the subscription.
      *
-     * @param guid The subscription GUID.
+     * @param guid The subscription GUID. When blank (a new subscription), a fresh
+     * UUID is generated and used as the storage key.
      * @param subItem The subscription item.
+     * @return The resolved key the item was stored under — callers that need the
+     * identity of a newly created subscription must use this instead of their
+     * (possibly blank) input.
      */
-    fun encodeSubscription(guid: String, subItem: SubscriptionItem) {
+    fun encodeSubscription(guid: String, subItem: SubscriptionItem): String {
         val key = guid.ifBlank { Utils.getUuid() }
         subStorage.encode(key, JsonUtil.toJson(subItem))
 
@@ -857,6 +861,7 @@ object MmkvManager {
             subsList.add(key)
             encodeSubsList(subsList)
         }
+        return key
     }
 
     /**
