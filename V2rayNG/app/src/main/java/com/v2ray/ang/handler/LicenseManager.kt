@@ -265,6 +265,24 @@ object LicenseManager {
         return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}&${AppConfig.LICENSE_APP_VERSION_PARAM}=${BuildConfig.VERSION_CODE}"
     }
 
+    /**
+     * v1.2.55 (user report: pools went empty after the v1.2.54 release): the worker's
+     * force-update gate rejects every request that carries no version declaration with
+     * 426 UPDATE_REQUIRED — header or `av=` query param. License API calls and the
+     * premium sub URL declare it, but the generic subscription pipeline (free pool
+     * included) never did, so once a minimum was first pinned server-side every
+     * worker-served pool fetch 426'd and the subscription silently went empty. This
+     * appends `av=<versionCode>` to license-worker URLs; anything else passes through
+     * untouched, and a URL that already declares `av=` is left alone.
+     */
+    fun decorateWorkerSubUrl(url: String): String {
+        val base = AppConfig.LICENSE_API_BASE.trimEnd('/')
+        if (!url.startsWith(base)) return url
+        if (url.contains("${AppConfig.LICENSE_APP_VERSION_PARAM}=")) return url
+        val separator = if (url.contains('?')) '&' else '?'
+        return "$url$separator${AppConfig.LICENSE_APP_VERSION_PARAM}=${BuildConfig.VERSION_CODE}"
+    }
+
     /** Wipes the stored license; the Device ID cache is intentionally kept. */
     fun clearLicense() {
         MmkvManager.encodeSettings(AppConfig.PREF_LICENSE_CODE, null as String?)

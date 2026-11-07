@@ -84,11 +84,16 @@ class LicenseViewModel(application: Application) : BaseViewModel(application) {
 
     companion object {
 
-        private const val MAX_CODE_LENGTH = 24
+        // v1.2.55 (user report): the bot issues 4-group codes — DRF- + 20-char base32
+        // body + 3 separators = 27 chars. The old cap of 24 silently cut the last group
+        // ("…-G3SZQ" → "…-G3"), so the server received a malformed code and activation
+        // always failed while the box LOOKED full. 27 fits every issued code.
+        private const val MAX_CODE_LENGTH = 27
 
         /**
          * Shapes raw user input into a code-form string: upper-cased, only A-Z / 0-9 /
-         * dashes kept, capped at [MAX_CODE_LENGTH] (23 = DRF prefix + 20-char body).
+         * dashes kept, capped at [MAX_CODE_LENGTH] (DRF prefix + 20-char body in either
+         * 2-group or 4-group dash layout).
          */
         fun filterCode(raw: String): String =
             raw.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' || it == '-' }.take(MAX_CODE_LENGTH)
