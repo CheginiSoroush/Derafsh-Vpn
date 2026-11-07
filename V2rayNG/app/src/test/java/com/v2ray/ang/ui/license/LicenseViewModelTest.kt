@@ -2,8 +2,8 @@ package com.v2ray.ang.ui.license
 
 import com.v2ray.ang.R
 import com.v2ray.ang.handler.LicenseManager
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 /**
  * JVM tests for the activation screen's pure helpers: the license-api error-key →
