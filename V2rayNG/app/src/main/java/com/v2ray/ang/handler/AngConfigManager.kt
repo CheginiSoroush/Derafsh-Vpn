@@ -3,6 +3,7 @@ package com.v2ray.ang.handler
 import android.content.Context
 import android.graphics.Bitmap
 import android.text.TextUtils
+import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.core.CoreConfigManager
 import com.v2ray.ang.dto.SubscriptionUpdateResult
