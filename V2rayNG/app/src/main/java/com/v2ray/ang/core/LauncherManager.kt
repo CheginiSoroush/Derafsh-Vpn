@@ -9,6 +9,7 @@ import com.v2ray.ang.R
 import com.v2ray.ang.extension.isComplexType
 import com.v2ray.ang.extension.toast
 import com.v2ray.ang.extension.toastError
+import com.v2ray.ang.handler.ForceUpdateManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.helper.MessageHelper
@@ -22,6 +23,13 @@ import com.v2ray.ang.util.Utils
 object LauncherManager {
 
     fun startServiceFromToggle(context: Context): Boolean {
+        // Force-update gate (v1.2.53): an outdated build is dead — no service start from
+        // any entry point (quick tile, shortcut, widget). The main screen additionally
+        // shows the non-dismissable update blocker.
+        if (ForceUpdateManager.required()) {
+            context.toast(R.string.toast_update_required)
+            return false
+        }
         if (MmkvManager.getSelectServer().isNullOrEmpty()) {
             context.toast(R.string.app_tile_first_use)
             return false
@@ -38,6 +46,13 @@ object LauncherManager {
 
     fun startService(context: Context, guid: String? = null) {
         LogUtil.i(AppConfig.TAG, "LauncherManager: startService from ${context::class.java.simpleName}")
+
+        // Force-update gate (v1.2.53): refuse to start the tunnel from any caller while
+        // the server-mandated minimum version is newer than this build.
+        if (ForceUpdateManager.required()) {
+            context.toast(R.string.toast_update_required)
+            return
+        }
 
         if (guid != null) {
             MmkvManager.setSelectServer(guid)

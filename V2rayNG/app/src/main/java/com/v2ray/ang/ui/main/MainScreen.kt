@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -59,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -82,13 +84,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import android.provider.Settings
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
+import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.handler.DerafshSourceManager
+import com.v2ray.ang.handler.ForceUpdateManager
 import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.ui.compose.BannerAd
@@ -96,6 +101,7 @@ import com.v2ray.ang.ui.license.LicenseViewModel
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -146,6 +152,36 @@ fun MainScreen(
         if (DerafshSourceManager.isPremiumSourceActive() && !licenseState.active) {
             mainViewModel.onPremiumLicenseLost()
         }
+    }
+
+    // Force-update gate (v1.2.53): when the server-mandated minimum supported version is
+    // newer than this build, the entire screen is replaced by a non-dismissable update
+    // blocker and the running tunnel is stopped — an outdated build is dead until it is
+    // updated (start paths refuse too, see LauncherManager).
+    var forceUpdateRequired by remember { mutableStateOf(ForceUpdateManager.required()) }
+    val gateScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        ForceUpdateManager.refresh()
+        forceUpdateRequired = ForceUpdateManager.required()
+        if (forceUpdateRequired) {
+            LauncherManager.stopService(appContext)
+        }
+    }
+    if (forceUpdateRequired) {
+        DerafshForceUpdateScreen(
+            onGetUpdate = {
+                if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
+                    Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
+                }
+            },
+            onRetry = {
+                gateScope.launch {
+                    ForceUpdateManager.refresh(force = true)
+                    forceUpdateRequired = ForceUpdateManager.required()
+                }
+            },
+        )
+        return
     }
 
     // Respect the system "remove animations" accessibility setting: no ambient loops and
@@ -1184,6 +1220,73 @@ private fun SessionTimeUpDialog(
             }
         },
     )
+}
+
+/**
+ * Force-update blocker (v1.2.53): the whole main screen while the build is below the
+ * server-mandated minimum. Non-dismissable — the only ways out are updating (bot) or
+ * the server lifting the pin. The button funnels to the Telegram bot, where the new
+ * APK is announced and delivered.
+ */
+@Composable
+private fun DerafshForceUpdateScreen(
+    onGetUpdate: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_derafsh_emblem),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(72.dp),
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = stringResource(R.string.update_required_title),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.update_required_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(modifier = Modifier.height(28.dp))
+        Button(
+            onClick = onGetUpdate,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_telegram_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.update_required_get_bot), fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        TextButton(onClick = onRetry) {
+            Text(
+                text = stringResource(R.string.update_required_retry),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable

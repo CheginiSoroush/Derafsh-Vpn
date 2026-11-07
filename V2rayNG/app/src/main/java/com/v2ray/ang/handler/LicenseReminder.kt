@@ -65,6 +65,11 @@ object LicenseReminder {
         override suspend fun doWork(): Result {
             val context = applicationContext
             try {
+                // Force-update config re-check (v1.2.53): keeps the cached minimum fresh so
+                // the start-path gates and the main-screen blocker act on current data even
+                // if the app process stays alive for days. Failure keeps the cached value.
+                ForceUpdateManager.refresh()
+
                 // Nothing stored (never activated / cleared): make sure no stale reminder survives.
                 val storedCode = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE)
                 if (storedCode.isNullOrBlank()) {

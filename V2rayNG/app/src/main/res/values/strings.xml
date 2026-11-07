@@ -486,6 +486,15 @@
     <string name="license_error_rate_limited">Too many attempts — please try again later</string>
     <string name="license_error_server">License server error — please try again later</string>
     <string name="license_error_network">Network error — check your connection</string>
+    <string name="license_error_update_required">This version is disabled — update from the bot</string>
+
+    <!-- Derafsh force update (v1.2.53): the server pinned a minimum supported version and
+         this build is older — the main screen is replaced by this blocker. -->
+    <string name="update_required_title">Update required</string>
+    <string name="update_required_body">This version of Derafsh is no longer supported and has been turned off. Please get the latest version — it only takes a minute.</string>
+    <string name="update_required_get_bot">Get the new version from the bot</string>
+    <string name="update_required_retry">Try again</string>
+    <string name="toast_update_required">Please update Derafsh to continue</string>
     <string name="license_premium_soon">You are premium — the premium feeds arrive in the next update. Thank you!</string>
     <string name="derafsh_sources_premium_label">Derafsh Premium 🔒</string>
     <string name="derafsh_source_locked">Premium source</string>

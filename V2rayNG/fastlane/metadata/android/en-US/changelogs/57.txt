@@ -1,0 +1,1 @@
+Old builds are now retired automatically: when a new Derafsh release ships, outdated installs stop working and are asked to update from the Telegram bot (the blocker screen has a one-tap "get the new version" button). The free config pool is now served through our own server (faster and more reliable from Iran), and every license request announces its app version.

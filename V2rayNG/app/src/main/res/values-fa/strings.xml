@@ -486,6 +486,15 @@
     <string name="license_error_rate_limited">تلاش‌های زیاد — کمی بعد دوباره امتحان کنید</string>
     <string name="license_error_server">خطای سرور لایسنس — کمی بعد دوباره امتحان کنید</string>
     <string name="license_error_network">خطای شبکه — اتصال اینترنت را بررسی کنید</string>
+    <string name="license_error_update_required">این نسخه از کار افتاده — از بات به‌روزرسانی کنید</string>
+
+    <!-- درفش: قفل نسخه قدیمی (۱.۲.۵۳) — وقتی سرور حداقل نسخه را تعیین کرده و این نسخه قدیمی است،
+         صفحه اصلی با این صفحه جایگزین می‌شود. -->
+    <string name="update_required_title">به‌روزرسانی لازم است</string>
+    <string name="update_required_body">این نسخه از درفش دیگر پشتیبانی نمی‌شود و از کار افتاده است. لطفاً نسخه جدید را بگیرید — فقط یک دقیقه طول می‌کشد.</string>
+    <string name="update_required_get_bot">دریافت نسخه جدید از بات</string>
+    <string name="update_required_retry">تلاش دوباره</string>
+    <string name="toast_update_required">برای ادامه، لطفاً درفش را به‌روزرسانی کنید</string>
     <string name="license_premium_soon">شما پرمیوم هستید — فیدهای پرمیوم در به‌روزرسانی بعدی اضافه می‌شود. سپاسگزاریم!</string>
     <string name="derafsh_sources_premium_label">درفش پرمیوم 🔒</string>
     <string name="derafsh_source_locked">منبع پرمیوم</string>

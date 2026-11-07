@@ -95,6 +95,7 @@ class LicenseViewModel(application: Application) : BaseViewModel(application) {
             LicenseManager.ERR_DEVICE_MISMATCH -> R.string.license_error_device_mismatch
             LicenseManager.ERR_REVOKED -> R.string.license_error_revoked
             LicenseManager.ERR_RATE_LIMITED -> R.string.license_error_rate_limited
+            LicenseManager.ERR_UPDATE_REQUIRED -> R.string.license_error_update_required
             LicenseManager.ERR_NETWORK -> R.string.license_error_network
             else -> R.string.license_error_server
         }

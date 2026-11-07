@@ -3,6 +3,7 @@ package com.v2ray.ang.handler
 import android.content.Context
 import android.provider.Settings
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -50,6 +51,9 @@ object LicenseManager {
     const val ERR_REVOKED = "REVOKED"
     const val ERR_RATE_LIMITED = "RATE_LIMITED"
     const val ERR_SERVER_ERROR = "SERVER_ERROR"
+
+    /** The worker refused this outdated/legacy build (force-update gate, v1.2.53). */
+    const val ERR_UPDATE_REQUIRED = "UPDATE_REQUIRED"
 
     /** Client-side only (never produced by the server): the API is unreachable. */
     const val ERR_NETWORK = "NETWORK"
@@ -121,6 +125,7 @@ object LicenseManager {
             val request = Request.Builder()
                 .url("${AppConfig.LICENSE_API_BASE.trimEnd('/')}/v1/activate")
                 .header("User-Agent", "Derafsh-VPN")
+                .header(AppConfig.LICENSE_APP_VERSION_HEADER, BuildConfig.VERSION_CODE.toString())
                 .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
                 .build()
 
@@ -169,6 +174,7 @@ object LicenseManager {
             val request = Request.Builder()
                 .url("${AppConfig.LICENSE_API_BASE.trimEnd('/')}/v1/status?device_id=${getDeviceIdCanonical(context)}")
                 .header("User-Agent", "Derafsh-VPN")
+                .header(AppConfig.LICENSE_APP_VERSION_HEADER, BuildConfig.VERSION_CODE.toString())
                 .get()
                 .build()
 
@@ -176,6 +182,12 @@ object LicenseManager {
                 val serverTimeMs = response.headers.getDate("Date")?.time ?: 0L
                 val json = JSONObject(response.body?.string().orEmpty())
                 if (!response.isSuccessful || !json.optBoolean("ok")) {
+                    // 426 UPDATE_REQUIRED: the worker force-update gate refused this
+                    // build; the UI surfaces the dedicated message instead of a generic
+                    // server error, and the cached state (grace) is kept untouched.
+                    if (response.code == 426) {
+                        return@use cached.copy(lastError = ERR_UPDATE_REQUIRED)
+                    }
                     return@use cached.copy(lastError = ERR_SERVER_ERROR)
                 }
                 if (json.optBoolean("active")) {
@@ -247,7 +259,7 @@ object LicenseManager {
     fun premiumSubUrl(context: Context): String? {
         val code = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE) ?: return null
         val base = AppConfig.LICENSE_API_BASE.trimEnd('/')
-        return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}"
+        return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}&${AppConfig.LICENSE_APP_VERSION_PARAM}=${BuildConfig.VERSION_CODE}"
     }
 
     /** Wipes the stored license; the Device ID cache is intentionally kept. */

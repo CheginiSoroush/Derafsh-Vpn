@@ -159,6 +159,19 @@ object AppConfig {
     // also performs the design §7.3 background re-validation of the stored license).
     const val LICENSE_REMINDER_TASK_NAME = "derafsh_license_reminder"
 
+    // Force-update kill switch (v1.2.53): the app caches the server-mandated minimum
+    // supported versionCode from <LICENSE_API_BASE>/v1/config on every startup and in
+    // the periodic :bg check. When the running build is older, the main screen is
+    // replaced by an update-required blocker and every service start path refuses to
+    // run — outdated installs are dead until they update. All license API calls also
+    // announce the running version (X-App-Version header / av= query parameter) so the
+    // worker rejects outdated or legacy clients with 426 UPDATE_REQUIRED.
+    const val PREF_FORCE_UPDATE_MIN = "pref_force_update_min"
+    const val PREF_FORCE_UPDATE_CHECKED_AT = "pref_force_update_checked_at"
+    const val FORCE_UPDATE_CHECK_INTERVAL_MS = 5L * 60 * 1000
+    const val LICENSE_APP_VERSION_HEADER = "X-App-Version"
+    const val LICENSE_APP_VERSION_PARAM = "av"
+
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
 
@@ -209,12 +222,20 @@ object AppConfig {
     const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"
 
     /**
-     * Default built-in source (primary of the built-in sources below). The pre-v1.2.37
-     * legacy sub URL (which pointed at the developer's GitHub) was removed in v1.2.52 —
-     * old installs simply keep their stored URL until they switch sources in the picker.
+     * Default built-in source (primary of the built-in sources below). v1.2.53 serves the
+     * free pool through the license worker (/v1/free/sub — version-gated, KV-cached proxy
+     * of the upstream feed): raw.githubusercontent is throttled on some Iranian ISPs, and
+     * the worker lets us retire the feed for outdated installs. The pre-v1.2.37 legacy sub
+     * URL (which pointed at the developer's GitHub) was removed in v1.2.52; the third-party
+     * default was replaced by the worker URL in v1.2.53 and kept here only for the one-time
+     * migration of stored installs.
      */
-    const val DERAFSH_SUB_URL = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
+    const val DERAFSH_SUB_URL = "$LICENSE_API_BASE/v1/free/sub"
+    const val DERAFSH_SUB_URL_LEGACY = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
     const val PREF_DEFAULT_SUB_SEEDED = "pref_default_sub_seeded"
+    // One-time migration flag: stored installs seeded with [DERAFSH_SUB_URL_LEGACY] move
+    // to the worker-served free pool on first launch of v1.2.53+.
+    const val PREF_DERAFSH_FREE_SUB_MOVED = "pref_derafsh_free_sub_moved"
 
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
     const val PREF_DERAFSH_ACTIVE_SOURCE = "pref_derafsh_active_source"
