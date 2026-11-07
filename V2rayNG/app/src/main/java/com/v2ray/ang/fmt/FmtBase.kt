@@ -37,12 +37,28 @@ open class FmtBase {
     /**
      * Extracts query parameters from a URI.
      *
+     * Untrusted share links routinely contain malformed query segments (a trailing
+     * '&', '&&', or bare flag params like "?security"). The legacy split+destructure
+     * threw IndexOutOfBoundsException on any segment without a '=', which aborted the
+     * parse of the WHOLE profile (the per-line catch in AngConfigManager dropped it).
+     * Segments without a '=' or with an empty key are now skipped; the value keeps
+     * everything after the FIRST '=' so unencoded '=' inside values is preserved.
+     * Well-formed queries parse exactly as before (pinned by FmtBaseTest).
+     *
      * @param uri the URI to extract query parameters from
      * @return a map of query parameters
      */
     fun getQueryParam(uri: URI): Map<String, String> {
         return uri.rawQuery.split("&")
-            .associate { it.split("=").let { (k, v) -> k to Utils.decodeURIComponent(v) } }
+            .mapNotNull { pair ->
+                val idx = pair.indexOf('=')
+                if (idx <= 0) {
+                    null
+                } else {
+                    pair.substring(0, idx) to Utils.decodeURIComponent(pair.substring(idx + 1))
+                }
+            }
+            .toMap()
     }
 
     /**
