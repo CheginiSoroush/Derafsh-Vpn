@@ -352,12 +352,19 @@ class MainActivity : HelperBaseComponentActivity() {
     private fun importConfigLocal() {
         launchFileChooser { uri ->
             if (uri == null) return@launchFileChooser
-            try {
-                contentResolver.openInputStream(uri)?.bufferedReader()?.use { reader ->
-                    mainViewModel.onAction(MainAction.ImportBatchConfig(reader.readText()))
+            // A SAF document provider can block for seconds (cloud-backed files:
+            // Drive/OneDrive/nextcloud), so the read must never run on the main
+            // thread — the ActivityResult callback always does. A14 (audit cycle 7).
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val text = contentResolver.openInputStream(uri)?.bufferedReader()
+                        ?.use { it.readText() } ?: return@launch
+                    withContext(Dispatchers.Main) {
+                        mainViewModel.onAction(MainAction.ImportBatchConfig(text))
+                    }
+                } catch (e: Exception) {
+                    LogUtil.e(AppConfig.TAG, "Failed to read content from URI", e)
                 }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to read content from URI", e)
             }
         }
     }
