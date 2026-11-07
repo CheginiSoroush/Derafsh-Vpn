@@ -35,7 +35,11 @@ internal fun findInvalidProxyChainMembers(
         .map { it.trim() }
         .filter { it.isNotEmpty() }
         .filter { member ->
-            member.indexOf(',') >= 0 ||
-                resolveConfigType(member)?.isComplexType() != true
+            if (member.indexOf(',') >= 0) {
+                true
+            } else {
+                val type = resolveConfigType(member)
+                type == null || type.isComplexType()
+            }
         }
         .toList()
