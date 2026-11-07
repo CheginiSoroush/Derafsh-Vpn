@@ -53,6 +53,7 @@ import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -142,9 +143,14 @@ class BackupActivity : HelperBaseComponentActivity() {
 
     private fun handleExportLocal(cachePath: String, targetUri: Uri) {
         try {
-            contentResolver.openOutputStream(targetUri)?.use { output ->
+            // A null stream means the provider cannot serve the target; copying
+            // nothing must NOT be reported as a successful backup export (the
+            // cache copy below would be deleted and the user left with no file).
+            val output = contentResolver.openOutputStream(targetUri)
+                ?: throw IOException("Content provider returned no output stream")
+            output.use { out ->
                 File(cachePath).inputStream().use { input ->
-                    input.copyTo(output)
+                    input.copyTo(out)
                 }
             }
             File(cachePath).delete()
