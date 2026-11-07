@@ -123,13 +123,16 @@ jobs:
         } >> "$GITHUB_ENV"
 
     # FINDING-A1 fix: the pipeline previously only ran assembleRelease, so the unit
-    # tests were never executed in CI. `--continue` keeps going after a failing test
-    # class so one CI run reports every broken suite instead of just the first.
+    # tests were never executed in CI. The project has fdroid/playstore flavors, so
+    # the variant tasks are test<Flavor>ReleaseUnitTest (the aggregate
+    # testReleaseUnitTest does not exist with flavors — verified by CI run 42388348466).
+    # `--continue` keeps going after a failing test class so one run reports every
+    # broken suite instead of just the first.
     - name: Run unit tests
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
-        ./gradlew testReleaseUnitTest --continue
+        ./gradlew testFdroidReleaseUnitTest testPlaystoreReleaseUnitTest --continue
 
     - name: Build APK
       run: |
