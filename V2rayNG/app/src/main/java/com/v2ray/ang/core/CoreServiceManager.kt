@@ -331,6 +331,12 @@ object CoreServiceManager {
      * The config is rebuilt on purpose, outbound server domains are resolved while building it and
      * an address resolved on a network that is gone can be unusable on the new one.
      *
+     * A failed reload tears the whole service down through the service's own stop path
+     * (same policy as a failed initial start in every run mode): the core is already
+     * stopped at that point while the data plane (tun interface / proxy / root rules) is
+     * still installed, which would blackhole all traffic behind a "connected" notification
+     * until the user disconnects manually.
+     *
      * @return True if the core is running again.
      */
     private fun reloadCore(): Boolean {
@@ -353,7 +359,12 @@ object CoreServiceManager {
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: Failed to reload core: $message", e)
+            // Notify first (failure reason), then tear down: the stop path emits
+            // MSG_STATE_STOP_SUCCESS right after, so the UI settles at "disconnected".
+            // CoreVpnService.stopAllService is capture-guarded for background-thread stops
+            // and idempotent, so a concurrent user stop stays safe.
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
+            serviceControl?.get()?.stopService()
             false
         } finally {
             isReloading = false
