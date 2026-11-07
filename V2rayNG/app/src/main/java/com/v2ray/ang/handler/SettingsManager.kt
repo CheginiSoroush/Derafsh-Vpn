@@ -31,6 +31,7 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 import kotlin.random.Random
 
 object SettingsManager {
@@ -221,8 +222,29 @@ object SettingsManager {
             }
         }
 
-        rulesetNew.addAll(rulesetList)
+        rulesetNew.addAll(normalizeImportedRulesetIds(rulesetNew, rulesetList))
         MmkvManager.encodeRoutingRulesets(rulesetNew)
+    }
+
+    /**
+     * Ensures imported rulesets can join the kept list without identity collisions.
+     * Import content arrives from untrusted clipboard/QR JSON and the routing UI keys
+     * its LazyColumn items by [RulesetItem.id] (duplicate keys crash recomposition),
+     * so any imported id that is blank or already used — by a kept item or by an
+     * earlier imported item — is replaced with a fresh UUID. Ruleset ids are
+     * UI-internal; core routing never consumes them.
+     */
+    internal fun normalizeImportedRulesetIds(kept: List<RulesetItem>, imported: List<RulesetItem>): List<RulesetItem> {
+        val seenIds = kept.mapTo(mutableSetOf()) { it.id }
+        return imported.map { item ->
+            if (item.id.isBlank() || !seenIds.add(item.id)) {
+                val fresh = item.copy(id = UUID.randomUUID().toString())
+                seenIds.add(fresh.id)
+                fresh
+            } else {
+                item
+            }
+        }
     }
 
     /**
