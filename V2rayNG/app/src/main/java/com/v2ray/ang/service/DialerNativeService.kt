@@ -141,7 +141,9 @@ class DialerNativeService : IDialerService {
             // This launch has no CoroutineExceptionHandler: an uncaught throw here would
             // crash the whole app at VPN start. resolveControlWsUrl is throw-free by design
             // (DialerUriFactory guards every URI build), and this belt keeps future edits
-            // from reintroducing a crash path (A9).
+            // from reintroducing a crash path. NOTE: the original A9 crash theory was
+            // REFUTED empirically — java.net.URI's multi-arg constructors quote illegal
+            // characters instead of throwing — so this is defense-in-depth, not a crash fix.
             val resolvedControlUrl = runCatching { resolveControlWsUrl(dialerAddr, nativeClient) }
                 .onFailure { debug("BrowserDialer: failed to resolve control url", it) }
                 .getOrNull()
@@ -750,14 +752,16 @@ class DialerNativeService : IDialerService {
 /**
  * Pure URL-building helpers for the browser-dialer control channel.
  *
- * Every java.net.URI construction here is guarded: the probe URL and the control token are
- * derived from a REMOTE server's response (an HTML page scanned for /websocket?token=...),
- * and the multi-argument URI constructors validate their components WITHOUT encoding — a
- * token containing characters that are illegal in a URI query (| { } ^ ` < > \ [ ] and
- * friends; all admitted by the token regex [^"'\s]+) throws URISyntaxException. That throw
- * used to escape into the control-loop scope.launch, which has no CoroutineExceptionHandler,
- * so a single hostile/broken dialer endpoint crashed the whole app at VPN start (A9).
- * All builders fail closed to null instead: the dialer stops (logged), the app lives.
+ * Empirical finding (A9 refutation, verified on JDK 21): java.net.URI's multi-argument
+ * constructors QUOTE characters that are illegal for a component (e.g. token=| becomes
+ * token=%7C) instead of throwing URISyntaxException — only structural problems throw.
+ * So the original inline URI(...) construction was already crash-free for remote token
+ * characters, and the "remote token crashes the app" theory was wrong.
+ *
+ * The extraction stays anyway: the single-arg URI(...) parse paths DO throw (they were
+ * already guarded), every builder here now fails closed to null on any structural
+ * surprise, the pipeline is pure and unit-tested, and no caller can ever propagate a
+ * URISyntaxException into the handler-less control-loop coroutine.
  */
 internal object DialerUriFactory {
     private val TOKEN_REGEX = Regex("""/websocket\?token=([^"'\s]+)""")

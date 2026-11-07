@@ -5,9 +5,12 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 /**
- * Pinning DialerUriFactory (A9): every builder must fail CLOSED (null) instead of throwing.
- * Before the factory existed, URI(...) built from a REMOTE server's control token threw
- * URISyntaxException inside a handler-less coroutine and crashed the app at VPN start.
+ * Pinning DialerUriFactory. EMPIRICAL BASELINE (verified on JDK 21, recorded in audit
+ * STATE as A9-REFUTED): java.net.URI's multi-argument constructors QUOTE illegal
+ * component characters (token=| -> token=%7C) instead of throwing — the old inline code
+ * was already crash-free for remote token characters. These tests pin the exact quoting
+ * (so a JDK/refactor change stays visible), the fail-closed nulls for structural
+ * problems, and the never-throw guarantee.
  */
 class DialerUriFactoryTest {
 
@@ -49,8 +52,8 @@ class DialerUriFactoryTest {
     // ---- buildDialerProbeUrl ----
 
     @Test
-    fun `buildDialerProbeUrl maps secure schemes to https`() {
-        assertEquals("https://example.com/", DialerUriFactory.buildDialerProbeUrl("wss://example.com:8443"))
+    fun `buildDialerProbeUrl maps secure schemes to https and keeps the port`() {
+        assertEquals("https://example.com:8443/", DialerUriFactory.buildDialerProbeUrl("wss://example.com:8443"))
         assertEquals("https://example.com/", DialerUriFactory.buildDialerProbeUrl("https://example.com/sub/page"))
     }
 
@@ -97,14 +100,39 @@ class DialerUriFactoryTest {
     }
 
     @Test
-    fun `buildControlWsUrl with an illegal token character returns null instead of crashing (A9)`() {
-        // The token regex admits | ` ^ { } < > etc.; the old inline URI(...) construction
-        // threw URISyntaxException on these and the handler-less launch crashed the app.
-        val illegalTokens = listOf("a|b", "a`b", "a^b", "a{b}", "a<b>", "a\\b", "a[b]")
-
-        illegalTokens.forEach { token ->
-            assertNull(DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", token), "token: $token")
-        }
+    fun `buildControlWsUrl percent-encodes characters that are illegal in a URI query (A9 refutation)`() {
+        // The token regex admits | ` ^ { } < > etc.; the JDK multi-arg URI constructor
+        // quotes them into %XX form instead of throwing, so the URL is valid and the
+        // control channel keeps working with the encoded token.
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%7Cb",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a|b"),
+        )
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%60b",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a`b"),
+        )
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%5Eb",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a^b"),
+        )
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%7Bb%7D",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a{b}"),
+        )
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%3Cb%3E",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a<b>"),
+        )
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a%5Cb",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a\\b"),
+        )
+        // RFC 2732: brackets stay literal in a query (JDK behavior, empirically verified)
+        assertEquals(
+            "ws://1.2.3.4:8080/websocket?token=a[b]",
+            DialerUriFactory.buildControlWsUrl("1.2.3.4:8080", "a[b]"),
+        )
     }
 
     @Test
