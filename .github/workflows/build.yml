@@ -123,16 +123,27 @@ jobs:
         } >> "$GITHUB_ENV"
 
     # FINDING-A1 fix: the pipeline previously only ran assembleRelease, so the unit
-    # tests were never executed in CI. The project has fdroid/playstore flavors, so
-    # the variant tasks are test<Flavor>ReleaseUnitTest (the aggregate
-    # testReleaseUnitTest does not exist with flavors — verified by CI run 42388348466).
+    # tests were never executed in CI. Hardcoded task names failed twice (CI runs
+    # 42388348466 and 42388766029: neither testReleaseUnitTest nor
+    # testFdroidReleaseUnitTest exists — AGP 9 with the legacy variant API disabled
+    # does not create the classic per-variant unit-test tasks), so the step now
+    # DISCOVERS the actual *UnitTest tasks from :app:tasks --all and runs them.
     # `--continue` keeps going after a failing test class so one run reports every
     # broken suite instead of just the first.
     - name: Run unit tests
       run: |
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
-        ./gradlew testFdroidReleaseUnitTest testPlaystoreReleaseUnitTest --continue
+        TASKS=$(./gradlew :app:tasks --all --console=plain 2>/dev/null | grep -oE 'test[A-Za-z]*UnitTest' | sort -u || true)
+        echo "Discovered unit-test tasks: ${TASKS:-NONE}"
+        if [ -z "$TASKS" ]; then
+          ./gradlew :app:tasks --all --console=plain > tasks-all.txt 2>&1 || true
+          grep -iE 'test' tasks-all.txt | head -60 || true
+          echo "::error::No *UnitTest task discovered — full task inventory dumped to tasks-all.txt in the workspace"
+          exit 1
+        fi
+        # shellcheck disable=SC2086
+        ./gradlew $TASKS --continue
 
     - name: Build APK
       run: |
