@@ -28,7 +28,6 @@ object Utils {
 
     private val IPV4_REGEX =
         Regex("^([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\\.([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\\.([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\\.([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])$")
-    private val IPV6_REGEX = Regex("^((?:[0-9A-Fa-f]{1,4}))?((?::[0-9A-Fa-f]{1,4}))*::((?:[0-9A-Fa-f]{1,4}))?((?::[0-9A-Fa-f]{1,4}))*|((?:[0-9A-Fa-f]{1,4}))((?::[0-9A-Fa-f]{1,4})){7}$")
 
     /**
      * Parse a string to an integer with a default value.
@@ -206,7 +205,14 @@ object Utils {
     /**
      * Check if a string is a valid IPv6 address.
      *
-     * @param value The string to check.
+     * Segment-based validation (replaces the old alternation regex that wrongly
+     * accepted malformed forms like "1:::2" and "1:2:3:4:5:6:7::8"): at most one
+     * "::" compression marker, 8 groups in the full form, at most 7 explicit groups
+     * in the compressed form ("::" stands in for at least one group), and every
+     * group 1-4 hex digits. IPv4-embedded tails ("::ffff:1.2.3.4") are not part of
+     * this check — isIpAddress() strips those before reaching here.
+     *
+     * @param value The string to check (bracketed form "[::1]" is unwrapped first).
      * @return True if the string is a valid IPv6 address, false otherwise.
      */
     private fun isIpv6Address(value: String): Boolean {
@@ -216,7 +222,33 @@ object Utils {
             if (closingBracket <= 1) return false
             addr = addr.substring(1, closingBracket)
         }
-        return IPV6_REGEX.matches(addr)
+        if (addr.isEmpty()) return false
+
+        // At most one "::" compression marker is allowed.
+        val sections = addr.split("::")
+        if (sections.size > 2) return false
+
+        // A trailing single ":" means an empty final group ("1::2:"); rejected explicitly
+        // so the check does not depend on how split() treats a trailing empty piece.
+        if (addr.endsWith(":") && !addr.endsWith("::")) return false
+
+        val hasCompression = sections.size == 2
+        val leftGroups = if (sections[0].isEmpty()) emptyList() else sections[0].split(":")
+        val rightGroups = if (!hasCompression || sections[1].isEmpty()) {
+            emptyList()
+        } else {
+            sections[1].split(":")
+        }
+
+        val groupCount = leftGroups.size + rightGroups.size
+        if (if (hasCompression) groupCount > 7 else groupCount != 8) return false
+
+        return (leftGroups + rightGroups).all { isValidIpv6Group(it) }
+    }
+
+    private fun isValidIpv6Group(group: String): Boolean {
+        if (group.isEmpty() || group.length > 4) return false
+        return group.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
     }
 
     /**

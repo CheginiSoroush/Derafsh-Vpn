@@ -70,23 +70,23 @@ object ZipUtil {
                 return false
             }
 
-            val zos = ZipOutputStream(FileOutputStream(outputZipFilePath))
-
-            filesToCompress.forEach { file ->
-                val ze = ZipEntry(File(file).name)
-                zos.putNextEntry(ze)
-                val inputStream = FileInputStream(file)
-                while (true) {
-                    val len = inputStream.read(buffer)
-                    if (len <= 0) break
-                    zos.write(buffer, 0, len)
+            // use{} guarantees the archive and every per-file stream are closed on both
+            // the success and the error path (previously an exception mid-write leaked
+            // the open descriptors until GC finalized them).
+            ZipOutputStream(FileOutputStream(outputZipFilePath)).use { zos ->
+                filesToCompress.forEach { file ->
+                    val ze = ZipEntry(File(file).name)
+                    zos.putNextEntry(ze)
+                    FileInputStream(file).use { inputStream ->
+                        while (true) {
+                            val len = inputStream.read(buffer)
+                            if (len <= 0) break
+                            zos.write(buffer, 0, len)
+                        }
+                    }
                 }
-
-                inputStream.close()
+                zos.closeEntry()
             }
-
-            zos.closeEntry()
-            zos.close()
         } catch (e: Exception) {
             LogUtil.e(AppConfig.TAG, "Failed to zip folder", e)
             return false
