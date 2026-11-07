@@ -136,7 +136,9 @@ object RootProxyManager {
         val perAppEnabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_PER_APP_PROXY)
         val bypassApps = MmkvManager.decodeSettingsBool(AppConfig.PREF_BYPASS_APPS)
         val selectedUids = if (perAppEnabled) {
-            val pkgs = MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET)?.toList().orEmpty()
+            val pkgs = iptablesRepresentablePackages(
+                MmkvManager.decodeSettingsStringSet(AppConfig.PREF_PER_APP_PROXY_SET)?.toList().orEmpty()
+            )
             if (pkgs.isNotEmpty()) PackageUidResolver.packageNamesToUids(context, pkgs) else emptyList()
         } else {
             emptyList()
@@ -147,8 +149,12 @@ object RootProxyManager {
             appendLine("BIN='${bin.absolutePath}'")
             // Protect the core (this app process) from the Android low-memory killer.
             // system_server keeps recomputing oom_score_adj for app processes, so a single
-            // write would be reverted — re-pin it from a small root loop instead.
-            appendLine("nohup sh -c 'while true; do echo ${AppConfig.ROOT_OOM_SCORE} > /proc/$corePid/oom_score_adj 2>/dev/null; sleep 5; done' >/dev/null 2>&1 &")
+            // write would be reverted — re-pin it from a small root loop instead. The loop
+            // verifies the pid still IS this app (cmdline identity) before pinning: after
+            // the app dies the pid can be reused, and blindly pinning its new owner to
+            // -1000 would make an unrelated process unkillable by the LMK; the check also
+            // bounds the root loop's lifetime instead of leaking it until reboot (A16).
+            appendLine(buildOomGuardCommand(corePid, context.packageName))
             appendLine("echo \$! > '$oomGuardPid'")
             // tun device node
             appendLine("if [ ! -e /dev/net/tun ]; then mkdir -p /dev/net; mknod /dev/net/tun c 10 200; chmod 666 /dev/net/tun; fi")
@@ -556,6 +562,36 @@ object RootProxyManager {
             appendLine("echo 0 > /proc/$corePid/oom_score_adj 2>/dev/null || true")
         }
     }
+
+    /**
+     * Package tokens that have an iptables representation. The "__unknown_app__"
+     * (unidentified) pseudo-entry from the per-app picker has none: iptables rejects
+     * the literal "--uid-owner -1" (libxt_owner's owner_parse_range validates the value
+     * with xtables_strtoui(.., 0, UINT32_MAX - 1), so "-1" fails the parse and the
+     * command exits non-zero), and the marking rules run under `set -e` — one rejected
+     * rule aborted the whole setup script, so root mode never started while that
+     * pseudo-app was selected (A16). VPN mode effectively skips the token too
+     * (VpnService addAllowed/addDisallowed throws NameNotFoundException → caught →
+     * skipped), so skipping it here mirrors shipped behavior. Xray's process-routing
+     * path keeps its own "-1" mapping (a never-matching uid there is harmless, and
+     * dropping it could widen a rule whose only process entry it was — O1 class).
+     */
+    internal fun iptablesRepresentablePackages(packages: Collection<String>): List<String> =
+        packages.filter { it != AppConfig.UNIDENTIFIED_PACKAGE }
+
+    /**
+     * The root-side oom re-pin loop. Bounds its own lifetime to the core process's
+     * IDENTITY, not just its pid: /proc/<pid>/cmdline must still match the app's
+     * package name. While the app lives the check always passes (identical pinning
+     * behavior); after the app dies the loop exits instead of leaking until reboot,
+     * and a reused pid is never blindly pinned to -1000 (A16). The payload must stay
+     * single-quote-free so the outer sh -c quoting holds.
+     */
+    internal fun buildOomGuardCommand(corePid: Int, appPackage: String): String =
+        "nohup sh -c 'while true; do tr \"\\0\" \"\\n\" < /proc/$corePid/cmdline 2>/dev/null | " +
+            "grep -qs \"^$appPackage\$\" || break; " +
+            "echo ${AppConfig.ROOT_OOM_SCORE} > /proc/$corePid/oom_score_adj 2>/dev/null; " +
+            "sleep 5; done' >/dev/null 2>&1 &"
 }
 
 internal fun String.toSingleQuotedYamlScalar(): String = "'${replace("'", "''")}'"
