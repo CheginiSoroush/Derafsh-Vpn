@@ -46,6 +46,14 @@ class LicenseViewModelTest {
     @Test
     fun `code input is capped at the maximum length`() {
         val long = "A".repeat(100)
-        assertEquals(24, LicenseViewModel.filterCode(long).length)
+        assertEquals(27, LicenseViewModel.filterCode(long).length)
+    }
+
+    @Test
+    fun `a full 27-char 4-group code survives the filter untouched`() {
+        // DRF prefix + 20-char body + 3 separators = 27 chars (MAX_CODE_LENGTH);
+        // the old cap of 24 silently cut the last group.
+        val fullCode = "DRF-ABCDE-FGHIJ-KLMNO-PQRST"
+        assertEquals(fullCode, LicenseViewModel.filterCode(fullCode.lowercase()))
     }
 }
