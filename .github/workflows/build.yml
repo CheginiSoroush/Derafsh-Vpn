@@ -204,12 +204,15 @@ jobs:
         if-no-files-found: warn
 
   # Publishes a GitHub Release only when explicitly requested via a manual
-  # workflow_dispatch run with a release_tag input. Push builds stay
-  # artifact-only so the Releases page only carries curated, signed builds.
+  # workflow_dispatch run WITH a release_tag input. Push builds AND build-only
+  # dispatches stay artifact-only so the Releases page only carries curated,
+  # signed builds. (FINDING-A4: the old condition only checked the event type,
+  # so a build-only audit dispatch published v1.2.58-build.133 as the newest
+  # release — deleted afterwards; the tag gate makes that impossible.)
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && needs.build.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != '' && needs.build.result == 'success'
 
     steps:
       - name: Download APK artifacts
