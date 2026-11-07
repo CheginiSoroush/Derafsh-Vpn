@@ -131,7 +131,7 @@ class CoreTestService : Service() {
             AppConfig.MSG_MEASURE_CONFIG_START -> handleMeasureStart(
                 message, startId, intent.getStringExtra(MessageHelper.EXTRA_REQUEST_ID).orEmpty()
             )
-            AppConfig.MSG_MEASURE_CONFIG_CANCEL -> handleMeasureCancel()
+            AppConfig.MSG_MEASURE_CONFIG_CANCEL -> handleMeasureCancel(startId)
             else -> {
                 NotificationHelper.stopForeground(this); stopSelf(startId)
             }
@@ -277,7 +277,7 @@ class CoreTestService : Service() {
         MaintenanceStatus.publishTestProgress(done, total)
     }
 
-    private fun handleMeasureCancel() {
+    private fun handleMeasureCancel(startId: Int) {
         LogUtil.i(AppConfig.TAG, "CoreTestService received cancel message, cancelling ${activeWorkers.size} active workers")
         cancelWorkers()
         // A cancelled test ends the announced session quietly (no "all done" fanfare).
