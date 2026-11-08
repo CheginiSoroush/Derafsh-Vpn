@@ -79,6 +79,12 @@ class UrlSchemeActivity : BaseComponentActivity() {
                 decodedUrl += "#${fragment}"
             }
             LogUtil.i(AppConfig.TAG, decodedUrl)
+            // O8: this import runs in lifecycleScope while onCreate finishes the
+            // activity immediately below — on a slow parse the success/failure toast
+            // (withContext(Main)) is cancelled with the scope and never shows. The
+            // import itself still completes, so acknowledge it immediately, BEFORE
+            // finish(), with this toast; success/failure stays best-effort as today.
+            toast(R.string.toast_importing)
             lifecycleScope.launch(Dispatchers.IO) {
                 // append=true: the default group is the auto-refreshed built-in pool's
                 // home — replacing its index (append=false) would wipe the whole pool
