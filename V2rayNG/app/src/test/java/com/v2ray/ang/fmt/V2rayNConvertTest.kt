@@ -238,7 +238,7 @@ class V2rayNConvertTest {
         // Real v2rayN exports (always with indexId) key byte-for-byte as before.
         assertEquals(setOf("dup", "u"), idMap.keys)
         assertEquals(2, idMap.size)
-        assertEquals("first", idMap["dup"]?.remarks)
+        assertEquals("first", idMap["dup"]?.Remarks)
     }
 
     @Test
