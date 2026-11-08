@@ -50,7 +50,6 @@ object MmkvManager {
     private const val KEY_ANG_CONFIGS = "ANG_CONFIGS"
     private const val KEY_SUB_SERVER_PREFIX = "SUB_SERVERS_"
     private const val KEY_SUB_IDS = "SUB_IDS"
-    private const val KEY_WEBDAV_CONFIG = "WEBDAV_CONFIG"
 
     /** Guid set (JSON array) written by the last successful built-in-pool refresh. The
      *  pool's group index is shared with user content (manual imports, policy groups),
@@ -82,6 +81,43 @@ object MmkvManager {
     private val subStorage by lazy { MMKV.mmkvWithID(ID_SUB, MMKV.MULTI_PROCESS_MODE) }
     private val assetStorage by lazy { MMKV.mmkvWithID(ID_ASSET, MMKV.MULTI_PROCESS_MODE) }
     private val settingsStorage by lazy { MMKV.mmkvWithID(ID_SETTING, MMKV.MULTI_PROCESS_MODE) }
+
+    /** Holds every [SENSITIVE_KEYS] entry; excluded from OS backup/transfer by
+     *  res/xml/backup_rules.xml + data_extraction_rules.xml (O10). First touch also
+     *  migrates any pre-hardening copies out of MAIN/SETTING and wipes them there. */
+    private val sensitiveStorage by lazy {
+        val storage = MMKV.mmkvWithID(ID_SENSITIVE, MMKV.MULTI_PROCESS_MODE)
+        migrateSecretsInto(storage)
+        storage
+    }
+
+    /** One-time, idempotent, multi-process safe: every process that touches a routed
+     *  key first re-checks the old hosting files, copies anything still there into
+     *  [storage], then deletes the old entry. Encoding the same value twice is a
+     *  no-op, so two racing processes converge on the same final state. The Long vs
+     *  String typing decision flows through [sensitiveMigrationKindFor] (the pure
+     *  seam pinned by SensitiveKeysTest); the WebDAV record is always a JSON string. */
+    private fun migrateSecretsInto(storage: MMKV) {
+        if (mainStorage.containsKey(KEY_WEBDAV_CONFIG)) {
+            mainStorage.decodeString(KEY_WEBDAV_CONFIG)?.let { storage.encode(KEY_WEBDAV_CONFIG, it) }
+            mainStorage.remove(KEY_WEBDAV_CONFIG)
+        }
+        for (key in SENSITIVE_SETTINGS_KEYS) {
+            if (!settingsStorage.containsKey(key)) continue
+            if (sensitiveMigrationKindFor(key) == SensitiveMigrationKind.LONG) {
+                storage.encode(key, settingsStorage.decodeLong(key, 0L))
+            } else {
+                settingsStorage.decodeString(key)?.let { storage.encode(key, it) }
+            }
+            settingsStorage.remove(key)
+        }
+    }
+
+    /** Routing for the generic settings accessors: sensitive keys go to the
+     *  backup-excluded instance, everything else to the shared SETTING file. */
+    private fun settingsStorageFor(key: String): MMKV {
+        return if (key in SENSITIVE_SETTINGS_KEYS) sensitiveStorage else settingsStorage
+    }
 
     /** Dedicated cross-process mutex instance — holds no data, only its file lock is used. */
     private val subscriptionUpdateLockStorage by lazy { MMKV.mmkvWithID(ID_SUB_UPDATE_LOCK, MMKV.MULTI_PROCESS_MODE) }
@@ -989,7 +1025,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: String?): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1000,7 +1036,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: Int): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1011,7 +1047,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: Long): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1022,7 +1058,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: Float): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1033,7 +1069,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: Boolean): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1044,7 +1080,7 @@ object MmkvManager {
      * @return Whether the encoding was successful.
      */
     fun encodeSettings(key: String, value: MutableSet<String>): Boolean {
-        return settingsStorage.encode(key, value)
+        return settingsStorageFor(key).encode(key, value)
     }
 
     /**
@@ -1054,7 +1090,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsString(key: String): String? {
-        return settingsStorage.decodeString(key)
+        return settingsStorageFor(key).decodeString(key)
     }
 
     /**
@@ -1065,7 +1101,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsString(key: String, defaultValue: String?): String? {
-        return settingsStorage.decodeString(key, defaultValue)
+        return settingsStorageFor(key).decodeString(key, defaultValue)
     }
 
     /**
@@ -1076,7 +1112,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsInt(key: String, defaultValue: Int): Int {
-        return settingsStorage.decodeInt(key, defaultValue)
+        return settingsStorageFor(key).decodeInt(key, defaultValue)
     }
 
     /**
@@ -1087,7 +1123,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsLong(key: String, defaultValue: Long): Long {
-        return settingsStorage.decodeLong(key, defaultValue)
+        return settingsStorageFor(key).decodeLong(key, defaultValue)
     }
 
     /**
@@ -1098,7 +1134,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsFloat(key: String, defaultValue: Float): Float {
-        return settingsStorage.decodeFloat(key, defaultValue)
+        return settingsStorageFor(key).decodeFloat(key, defaultValue)
     }
 
     /**
@@ -1108,7 +1144,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsBool(key: String): Boolean {
-        return settingsStorage.decodeBool(key, false)
+        return settingsStorageFor(key).decodeBool(key, false)
     }
 
     /**
@@ -1119,7 +1155,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsBool(key: String, defaultValue: Boolean): Boolean {
-        return settingsStorage.decodeBool(key, defaultValue)
+        return settingsStorageFor(key).decodeBool(key, defaultValue)
     }
 
     /**
@@ -1129,7 +1165,7 @@ object MmkvManager {
      * @return The settings value.
      */
     fun decodeSettingsStringSet(key: String): MutableSet<String>? {
-        return settingsStorage.decodeStringSet(key)
+        return settingsStorageFor(key).decodeStringSet(key)
     }
 
 
@@ -1159,14 +1195,14 @@ object MmkvManager {
      * Encodes the WebDAV config as JSON into storage.
      */
     fun encodeWebDavConfig(config: WebDavConfig): Boolean {
-        return mainStorage.encode(KEY_WEBDAV_CONFIG, JsonUtil.toJson(config))
+        return sensitiveStorage.encode(KEY_WEBDAV_CONFIG, JsonUtil.toJson(config))
     }
 
     /**
      * Decodes the WebDAV config from storage.
      */
     fun decodeWebDavConfig(): WebDavConfig? {
-        val json = mainStorage.decodeString(KEY_WEBDAV_CONFIG) ?: return null
+        val json = sensitiveStorage.decodeString(KEY_WEBDAV_CONFIG) ?: return null
         return JsonUtil.fromJsonSafe(json, WebDavConfig::class.java)
     }
 
