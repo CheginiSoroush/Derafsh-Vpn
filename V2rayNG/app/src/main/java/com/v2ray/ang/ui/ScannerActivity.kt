@@ -55,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.lifecycleScope
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
@@ -69,6 +70,9 @@ import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.QRCodeDecoder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -117,19 +121,28 @@ class ScannerActivity : HelperBaseComponentActivity() {
     private fun showFileChooser() {
         launchFileChooser("image/*") { uri ->
             if (uri == null) return@launchFileChooser
-            try {
-                val inputStream = contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-                val text = QRCodeDecoder.syncDecodeQRCode(bitmap)
-                if (text.isNullOrEmpty()) {
-                    toast(R.string.toast_decoding_failed)
-                } else {
-                    finished(text)
+            lifecycleScope.launch {
+                // A27: BitmapFactory.decodeStream + syncDecodeQRCode are blocking CPU
+                // work (the latter's own doc: "time-consuming and should be called in a
+                // background thread") and this SAF callback runs on Main — A14/A25
+                // pattern. Decode off-Main, report toasts on Main.
+                val decoded = withContext(Dispatchers.IO) {
+                    runCatching {
+                        contentResolver.openInputStream(uri)?.use { stream ->
+                            QRCodeDecoder.syncDecodeQRCode(BitmapFactory.decodeStream(stream))
+                        }
+                    }
                 }
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Failed to decode QR code from file", e)
-                toast(R.string.toast_decoding_failed)
+
+                val text = decoded.getOrNull()
+                when {
+                    decoded.isFailure -> {
+                        LogUtil.e(AppConfig.TAG, "Failed to decode QR code from file", decoded.exceptionOrNull())
+                        toast(R.string.toast_decoding_failed)
+                    }
+                    text.isNullOrEmpty() -> toast(R.string.toast_decoding_failed)
+                    else -> finished(text)
+                }
             }
         }
     }
