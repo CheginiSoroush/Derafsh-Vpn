@@ -157,6 +157,15 @@ def main() -> int:
 
     cleaned, per_source = collect_configs()
 
+    # A32: اگر همه منابع در دسترس نبودند (قطعی شبکه / فیلترینگ raw.githubusercontent)
+    # نباید خروجی خالی جای ساب‌های منتشرشده را بگیرد — با شکست صریح خارج شو؛
+    # گام publish در sub-factory.yml اجرا نمی‌شود و ساب‌های قبلی سر جایشان می‌مانند.
+    # (همان گارد run_premium؛ قبل از پاکسازی فایل‌های قدیمی.)
+    if not cleaned:
+        print("FAIL no configs collected from any source — refusing to wipe existing subs",
+              file=sys.stderr)
+        return 1
+
     os.makedirs(OUT_DIR, exist_ok=True)
 
     # ── تقسیم به ساب‌های حداکثر MAX_PER_SUB تایی ────────────────────────

@@ -99,7 +99,15 @@ jobs:
       - name: Verify latest release APK signature
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EXPECTED_CERT_SHA256: FF8635B8E04424DC5DF5CC1F53D946B799E0FABDB084B80ACE836E448B00C889
+          # A33 (cycle 25): the old value (FF8635B8…) matched NOTHING verifiable and
+          # would have false-alarmed on the very first scheduled run — the shipped
+          # v1.2.58 cert is 2642E7F0…F531, verified by THREE independent sources:
+          # (1) fresh download of the release's universal APK + tools/verify_sig.py,
+          # (2) the app's own production pin AppConfig.RELEASE_CERT_SHA256,
+          # (3) the cycle-1 audit verification. apksigner's --print-certs SHA-256
+          # digest is the same quantity verify_sig.py hashes (cert DER), so the
+          # comparison below is apples-to-apples.
+          EXPECTED_CERT_SHA256: 2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531
         run: |
           set -euo pipefail
           API="https://api.github.com/repos/${{ github.repository }}"

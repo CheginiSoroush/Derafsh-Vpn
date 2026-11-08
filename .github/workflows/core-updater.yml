@@ -3,8 +3,10 @@ name: Core Auto-Update
 # Keeps the Xray core (libv2ray.aar) always fresh:
 # daily check of 2dust/AndroidLibXrayLite releases → if newer than the pinned
 # submodule commit, bump the submodule pointer + app version, commit & push —
-# which triggers the "Build Derafsh APK" workflow and publishes a new release
-# that the in-app auto-updater delivers to users automatically.
+# which triggers the "Build Derafsh APK" workflow as an ARTIFACT-ONLY build
+# (post-A4, push builds never publish releases). To ship the new core to users,
+# dispatch build.yml manually WITH a release_tag — the in-app auto-updater
+# delivers released builds.
 
 on:
   schedule:

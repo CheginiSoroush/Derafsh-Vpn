@@ -12,13 +12,16 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.appversion.outputs.version }}
+    # Least privilege: the build job only reads the repo and uploads artifacts
+    # (cache/artifact services use their own runtime token, not GITHUB_TOKEN).
+    # Only the release job below needs contents: write. (P4 cycle-25 hardening.)
 
     steps:
     - name: Checkout code
@@ -213,6 +216,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.release_tag != '' && needs.build.result == 'success'
+    permissions:
+      contents: write
 
     steps:
       - name: Download APK artifacts
@@ -222,11 +227,18 @@ jobs:
 
       - name: Determine release tag
         id: tag
+        env:
+          # A4's gate guarantees inputs.release_tag is non-empty inside this job;
+          # passing user input through an ENV VAR (not inline "${{ }}") removes
+          # the shell-injection surface from the dispatch form. (P4 cycle-25.)
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BUILD_VERSION: ${{ needs.build.outputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
         run: |
-          if [ -n "${{ inputs.release_tag }}" ]; then
-            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          if [ -n "$RELEASE_TAG" ]; then
+            echo "tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
           else
-            echo "tag=v${{ needs.build.outputs.version }}-build.${{ github.run_number }}" >> $GITHUB_OUTPUT
+            echo "tag=v${BUILD_VERSION}-build.${RUN_NUMBER}" >> $GITHUB_OUTPUT
           fi
 
       - name: Upload APKs to GitHub Release
