@@ -141,6 +141,8 @@ jobs:
         echo "Discovered unit-test tasks: ${TASKS:-NONE}"
         if [ -z "$TASKS" ]; then
           ./gradlew :app:tasks --all --console=plain > tasks-all.txt 2>&1 || true
+          echo "=== gradle failure tail (tasks-all.txt) ==="
+          tail -40 tasks-all.txt || true
           grep -iE 'test' tasks-all.txt | head -60 || true
           echo "::error::No *UnitTest task discovered — full task inventory dumped to tasks-all.txt in the workspace"
           exit 1
