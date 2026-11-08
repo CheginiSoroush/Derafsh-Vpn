@@ -3,6 +3,7 @@ package com.v2ray.ang.ui.perappproxy
 import android.app.Application
 import android.content.Context
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.AppInfo
 import com.v2ray.ang.dto.UrlContentRequest
 import com.v2ray.ang.handler.MmkvManager
@@ -107,6 +108,9 @@ class PerAppProxyViewModel(application: Application) : BaseViewModel(application
                 throw e
             } catch (e: Exception) {
                 LogUtil.e(AppConfig.ANG_PACKAGE, "Error loading apps", e)
+                // O6: a silent failure here left a permanently empty app list until
+                // screen re-entry — surface it.
+                toastError(R.string.toast_load_apps_failed)
             } finally {
                 isAppListLoading = false
             }
@@ -199,6 +203,10 @@ class PerAppProxyViewModel(application: Application) : BaseViewModel(application
             )
             if (success) {
                 enablePerAppProxyAndRestart()
+            } else {
+                // O6: auto-select failure (fetch AND asset fallback both failed, or
+                // apply threw) used to close the menu silently — surface it.
+                toastError(R.string.toast_apply_proxy_apps_failed)
             }
         }
     }
@@ -215,6 +223,10 @@ class PerAppProxyViewModel(application: Application) : BaseViewModel(application
             )
             if (success) {
                 enablePerAppProxyAndRestart()
+            } else {
+                // O6: clipboard import failure used to close the menu silently —
+                // surface it.
+                toastError(R.string.toast_apply_proxy_apps_failed)
             }
         }
     }

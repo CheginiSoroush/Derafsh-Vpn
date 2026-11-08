@@ -127,6 +127,8 @@
     <string name="toast_action_not_allowed">این عمل ممنوع است</string>
     <string name="toast_chain_reference_warning">این پروفایل عضو زنجیره(های) پروکسی زیر است: %1$s — آن هاپ‌ها هنگام اتصال کنار گذاشته می‌شوند</string>
     <string name="toast_importing">در حال وارد کردن…</string>
+    <string name="toast_load_apps_failed">بارگذاری فهرست برنامه‌ها ناموفق بود</string>
+    <string name="toast_apply_proxy_apps_failed">اعمال فهرست برنامه‌های پروکسی ناموفق بود</string>
     <string name="server_obfs_password">رمز عبور obfs</string>
     <string name="server_lab_port_hop">پرش پورت (پورت سرور را بازنویسی می‌کند)</string>
     <string name="server_lab_port_hop_interval">فاصله پورت پرش (ثانیه)</string>

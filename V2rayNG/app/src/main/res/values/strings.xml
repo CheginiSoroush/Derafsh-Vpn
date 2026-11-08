@@ -127,6 +127,8 @@
     <string name="toast_action_not_allowed">Action not allowed</string>
     <string name="toast_chain_reference_warning">This profile is a member of proxy chain(s): %1$s — the matching hop(s) will be dropped when connecting</string>
     <string name="toast_importing">Importing…</string>
+    <string name="toast_load_apps_failed">Failed to load the app list</string>
+    <string name="toast_apply_proxy_apps_failed">Failed to apply the proxy app list</string>
     <string name="server_obfs_password">Obfs password</string>
     <string name="server_lab_port_hop">Port hopping (overrides the port)</string>
     <string name="server_lab_port_hop_interval">Port hopping interval (seconds)</string>
