@@ -7,11 +7,12 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * Pins the per-item isolation of the V2rayN share conversion (A30): one unmapped
- * item — the share-format when() has no branch for 8 (TUIC, commented out) or 9
- * (the Hysteria2 numbering real v2rayN exports use) — must be skipped with an
- * [onError] report, never abort the whole batch (which previously dropped every
- * plain-URI profile parsed next to it).
+ * Pins the per-item isolation of the V2rayN share conversion (A30, numbering fixed
+ * by O9): one unmapped item — the share-format when() has no branch for 7 (Wireguard)
+ * or 8 (TUIC, commented out) — must be skipped with an [onError] report, never abort
+ * the whole batch (which previously dropped every plain-URI profile parsed next to
+ * it). Hysteria2 uses the real v2rayN numbering 9 and IS mapped (O9 replaced the
+ * wrong 7 -> HYSTERIA2 branch).
  */
 class V2rayNConvertTest {
 
@@ -54,18 +55,18 @@ class V2rayNConvertTest {
     @Test
     fun `one unsupported config type is isolated and the rest of the batch survives`() {
         val good = shareItem(indexId = "good", configType = 1, remarks = "vmess-node")
+        val wireguard = shareItem(indexId = "wg", configType = 7, remarks = "wg-node")
         val tuic = shareItem(indexId = "tuic", configType = 8, remarks = "tuic-node")
-        val hy2 = shareItem(indexId = "hy2", configType = 9, remarks = "hy2-node")
         val failures = mutableListOf<Pair<V2rayNShareItem, Exception>>()
 
         val result = V2rayNFmt.convertShareItems(
-            idMapOf(good, tuic, hy2),
+            idMapOf(good, wireguard, tuic),
             subId = "sub",
             onError = { item, e -> failures.add(item to e) },
         )
 
         assertEquals(listOf("vmess-node"), result.map { it.remarks })
-        assertEquals(listOf("tuic", "hy2"), failures.map { it.first.IndexId })
+        assertEquals(listOf("wg", "tuic"), failures.map { it.first.IndexId })
         assertTrue(failures.all { it.second is IllegalStateException })
     }
 
@@ -86,8 +87,8 @@ class V2rayNConvertTest {
 
         val result = V2rayNFmt.convertShareItems(
             idMapOf(
-                shareItem(indexId = "x", configType = 8),
-                shareItem(indexId = "y", configType = 9),
+                shareItem(indexId = "x", configType = 7),
+                shareItem(indexId = "y", configType = 8),
             ),
             subId = "sub",
             onError = { item, _ -> failures.add(item) },
@@ -132,9 +133,9 @@ class V2rayNConvertTest {
 
     @Test
     fun `hysteria2 share forces the hysteria network`() {
-        // Current share-format contract: ConfigType 7 resolves to HYSTERIA2
-        // (the format-contract question for 7/9 is logged as OBSERVATION-O9).
-        val item = shareItem(indexId = "h", configType = 7, network = null)
+        // Real v2rayN exports number Hysteria2 as 9 (O9: the old 7 -> HYSTERIA2 branch
+        // mis-imported Wireguard nodes and dropped real Hysteria2 ones).
+        val item = shareItem(indexId = "h", configType = 9, network = null)
 
         val profile = V2rayNFmt.convertShareItem(item, subId = "sub", idMap = idMapOf(item))
 

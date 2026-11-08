@@ -22,7 +22,9 @@ object V2rayNFmt : FmtBase() {
 
     /**
      * Converts every share item in isolation: one unsupported entry — e.g. a real
-     * v2rayN export carrying a Wireguard (7) or TUIC (8) node this client cannot map —
+     * v2rayN export carrying a Wireguard (7) or TUIC (8) node this client cannot map
+     * (the share numbering mirrors v2rayN's EConfigType: Hysteria2 is 9 and IS mapped;
+     * 7/8 have no branch and error) —
      * is reported to [onError] and skipped, instead of throwing through the caller and
      * aborting the WHOLE batch (including every plain-URI profile already parsed next
      * to it). Same one-bad-item failure class [AngConfigManager.parseBatchProfiles]

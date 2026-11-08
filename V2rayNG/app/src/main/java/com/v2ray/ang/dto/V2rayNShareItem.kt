@@ -84,8 +84,9 @@ data class V2rayNShareItem(
             4 -> EConfigType.SOCKS
             5 -> EConfigType.VLESS
             6 -> EConfigType.TROJAN
-            7 -> EConfigType.HYSTERIA2
+            // 7 -> EConfigType.WIREGUARD (unsupported — falls to else, skipped per item)
             // 8 -> EConfigType.TUIC
+            9 -> EConfigType.HYSTERIA2
             10 -> EConfigType.HTTP
             101 -> EConfigType.POLICYGROUP
             102 -> EConfigType.PROXYCHAIN
