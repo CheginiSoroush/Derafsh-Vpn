@@ -1260,10 +1260,28 @@ object CoreConfigManager {
             rule.process?.let { processList ->
                 if (processList.isNotEmpty()) {
                     val uids = PackageUidResolver.packageNamesToUids(context, processList)
+                    if (uids.isEmpty()) {
+                        // O1: UID resolution failed — the rule widens to all traffic.
+                        // Fail-open kept (upstream parity, zero reports); warn so
+                        // field diagnosis of the unwanted widening is possible.
+                        LogUtil.w(
+                            AppConfig.TAG,
+                            "UID resolution failed, rule '${rule.outboundTag}' process attribute dropped (widens to all traffic): $processList"
+                        )
+                    }
                     rule.process = uids.ifEmpty { null }
                 }
             }
         } else {
+            if (!rule.process.isNullOrEmpty()) {
+                // O1: process routing unavailable — the rule widens to all traffic.
+                // Fail-open kept (upstream parity); warn so field diagnosis is
+                // possible (only when a process list was actually dropped).
+                LogUtil.w(
+                    AppConfig.TAG,
+                    "process routing unavailable, rule '${rule.outboundTag}' process attribute dropped (widens to all traffic): ${rule.process}"
+                )
+            }
             rule.process = null
         }
 
