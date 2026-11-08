@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.v2ray.ang.R
 import com.v2ray.ang.enums.NotificationChannelType
 import com.v2ray.ang.handler.AppLocaleManager
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Unified notification helper for different notification channels.
@@ -23,8 +24,13 @@ import com.v2ray.ang.handler.AppLocaleManager
 object NotificationHelper {
 
     // Cached instances for performance
+    @Volatile
     private var cachedNotificationManager: NotificationManager? = null
-    private val builderCache = mutableMapOf<Int, NotificationCompat.Builder>()
+
+    // A29: hit in parallel by the real-ping worker pool (32-64 threads fire Progress
+    // events that end in updateNotification) — a plain LinkedHashMap corrupted under
+    // concurrent getOrPut. ConcurrentHashMap makes per-key getOrPut atomic.
+    private val builderCache = ConcurrentHashMap<Int, NotificationCompat.Builder>()
 
     /**
      * Notify with a regular notification (non-foreground).
@@ -127,10 +133,11 @@ object NotificationHelper {
     // ====== Private helper methods ======
 
     private fun getNotificationManager(context: Context): NotificationManager {
-        if (cachedNotificationManager == null) {
-            cachedNotificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        }
-        return cachedNotificationManager!!
+        // @Volatile + idempotent lookup: worst case two threads fetch twice.
+        cachedNotificationManager?.let { return it }
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        cachedNotificationManager = manager
+        return manager
     }
 
     private fun ensureChannelCreated(channelType: NotificationChannelType, context: Context) =
