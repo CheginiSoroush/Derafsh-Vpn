@@ -12,7 +12,11 @@ import org.junit.jupiter.api.Test
  * or 8 (TUIC, commented out) — must be skipped with an [onError] report, never abort
  * the whole batch (which previously dropped every plain-URI profile parsed next to
  * it). Hysteria2 uses the real v2rayN numbering 9 and IS mapped (O9 replaced the
- * wrong 7 -> HYSTERIA2 branch).
+ * wrong 7 -> HYSTERIA2 branch). Also pins the O3 keying contract of
+ * [V2rayNFmt.buildIdMap]: blank-IndexId records synthesize unique reserved keys
+ * instead of collapsing onto "" (which silently dropped all but the first), while
+ * real v2rayN indexIds key byte-for-byte as before (first occurrence wins on true
+ * duplicates).
  */
 class V2rayNConvertTest {
 
@@ -202,5 +206,57 @@ class V2rayNConvertTest {
         }
 
         assertTrue(error?.message?.contains("8") == true)
+    }
+
+    // ---- O3: blank-IndexId records must not collapse onto the "" key ----
+
+    @Test
+    fun `blank-index records all survive instead of collapsing to first`() {
+        val a = shareItem(indexId = null, configType = 1, remarks = "blank-a")
+        val b = shareItem(indexId = "", configType = 1, remarks = "blank-b")
+        val c = shareItem(indexId = "   ", configType = 1, remarks = "blank-c")
+
+        val idMap = V2rayNFmt.buildIdMap(listOf(a, b, c))
+
+        // Old code: all three keyed "" — putIfAbsent kept only blank-a.
+        assertEquals(3, idMap.size)
+        assertTrue(idMap.keys.all { it.startsWith(V2rayNFmt.BLANK_ID_PREFIX) })
+        assertEquals(
+            listOf("blank-a", "blank-b", "blank-c"),
+            V2rayNFmt.convertShareItems(idMap, subId = "sub").map { it.remarks },
+        )
+    }
+
+    @Test
+    fun `real duplicate index ids still keep first occurrence`() {
+        val first = shareItem(indexId = "dup", configType = 1, remarks = "first")
+        val second = shareItem(indexId = "dup", configType = 1, remarks = "second")
+        val unique = shareItem(indexId = "u", configType = 1, remarks = "unique")
+
+        val idMap = V2rayNFmt.buildIdMap(listOf(first, second, unique))
+
+        // Real v2rayN exports (always with indexId) key byte-for-byte as before.
+        assertEquals(setOf("dup", "u"), idMap.keys)
+        assertEquals(2, idMap.size)
+        assertEquals("first", idMap["dup"]?.remarks)
+    }
+
+    @Test
+    fun `synthesized blank keys stay unique when interleaved with real ids`() {
+        val items = listOf(
+            shareItem(indexId = "real-1", configType = 1, remarks = "r1"),
+            shareItem(indexId = null, configType = 1, remarks = "b1"),
+            shareItem(indexId = "real-2", configType = 1, remarks = "r2"),
+            shareItem(indexId = "", configType = 1, remarks = "b2"),
+            shareItem(indexId = null, configType = 1, remarks = "b3"),
+        )
+
+        val idMap = V2rayNFmt.buildIdMap(items)
+
+        assertEquals(5, idMap.size)
+        assertEquals(
+            listOf("r1", "b1", "r2", "b2", "b3"),
+            V2rayNFmt.convertShareItems(idMap, subId = "sub").map { it.remarks },
+        )
     }
 }

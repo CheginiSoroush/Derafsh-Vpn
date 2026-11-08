@@ -9,15 +9,46 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 
 object V2rayNFmt : FmtBase() {
+
+    /** Reserved namespace for synthesized keys of blank-IndexId records (O3).
+     *  A real v2rayN indexId is a GUID and can never start with this. */
+    internal const val BLANK_ID_PREFIX = "blank#"
+
     fun parse(list: List<String>, subId: String): List<ProfileItem> {
-        val idMap = mutableMapOf<String, V2rayNShareItem>()
-        list.mapNotNull(::parseShareItem).forEach { item ->
-            idMap.putIfAbsent(item.IndexId.orEmpty(), item)
-        }
+        val idMap = buildIdMap(list.mapNotNull(::parseShareItem))
 
         return convertShareItems(idMap, subId) { item, e ->
             LogUtil.e(AppConfig.TAG, "Failed to convert V2rayN share item (ConfigType=${item.ConfigType})", e)
         }
+    }
+
+    /**
+     * O3: keys the parsed share items for conversion. A real (non-blank) IndexId —
+     * what every real v2rayN export carries — is used VERBATIM with
+     * first-occurrence-wins on true duplicates, byte-for-byte identical to the old
+     * keying. A null/blank IndexId (the field is nullable only for parser
+     * robustness) used to collapse all such records onto the "" key, where
+     * putIfAbsent silently dropped all but the first from the import; each one now
+     * gets a synthesized key in the reserved [BLANK_ID_PREFIX] namespace, numbered
+     * past any key already present, so no record is ever silently dropped.
+     * Insertion (input) order is preserved.
+     */
+    internal fun buildIdMap(items: List<V2rayNShareItem>): Map<String, V2rayNShareItem> {
+        val idMap = mutableMapOf<String, V2rayNShareItem>()
+        var blankSeq = 0
+        items.forEach { item ->
+            val id = item.IndexId
+            val key = if (id.isNullOrBlank()) {
+                do {
+                    ++blankSeq
+                } while (idMap.containsKey("$BLANK_ID_PREFIX$blankSeq"))
+                "$BLANK_ID_PREFIX$blankSeq"
+            } else {
+                id
+            }
+            idMap.putIfAbsent(key, item)
+        }
+        return idMap
     }
 
     /**
@@ -30,7 +61,8 @@ object V2rayNFmt : FmtBase() {
      * to it). Same one-bad-item failure class [AngConfigManager.parseBatchProfiles]
      * guards against for the URI branch via [com.v2ray.ang.handler.SubscriptionBatch].
      *
-     * @param idMap Parsed share items keyed by their IndexId (first occurrence wins).
+     * @param idMap Parsed share items keyed by real IndexId (first occurrence wins);
+     *        blank-IndexId records ride synthesized unique keys — see [buildIdMap].
      * @param subId Subscription id stamped on "self" policy-group items.
      * @param onError Invoked with the failing item and its exception.
      * @return The converted profiles, in idMap insertion order, minus failed items.
