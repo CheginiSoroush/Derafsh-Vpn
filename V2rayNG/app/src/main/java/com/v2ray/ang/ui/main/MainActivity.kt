@@ -9,7 +9,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.v2ray.ang.AngApplication
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
@@ -151,14 +153,21 @@ class MainActivity : HelperBaseComponentActivity() {
         // Monetization: the interstitial fires once per successful connection — never on
         // boot/auto-start (those sessions are already running at first observation), and
         // the frequency cap inside AdsManager keeps repeats polite.
+        // O2: the uiState collector runs under repeatOnLifecycle(RESUMED), so
+        // AdsManager.showInterstitial is never attempted while the activity is
+        // backgrounded (e.g. a QS-tile tunnel start while the app sits in recents):
+        // the collection pauses below RESUMED and reseeds from the current state on
+        // each re-entry, so a background-started session never triggers the ad.
         lifecycleScope.launch {
-            var wasRunning = mainViewModel.uiState.value.isRunning
-            mainViewModel.uiState.collect { state ->
-                val running = state.isRunning
-                if (running && !wasRunning) {
-                    AdsManager.showInterstitial(this@MainActivity) { }
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                var wasRunning = mainViewModel.uiState.value.isRunning
+                mainViewModel.uiState.collect { state ->
+                    val running = state.isRunning
+                    if (running && !wasRunning) {
+                        AdsManager.showInterstitial(this@MainActivity) { }
+                    }
+                    wasRunning = running
                 }
-                wasRunning = running
             }
         }
     }
