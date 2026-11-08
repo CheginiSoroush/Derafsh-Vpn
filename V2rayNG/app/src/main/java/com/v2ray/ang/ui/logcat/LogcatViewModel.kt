@@ -43,7 +43,13 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
                 // stay off the Main thread (A24 — same root cause as A14).
                 val allText = withContext(Dispatchers.IO) {
                     val process = Runtime.getRuntime().exec(lst.toTypedArray())
-                    process.inputStream.bufferedReader().use { it.readLines() }
+                    try {
+                        process.inputStream.bufferedReader().use { it.readLines() }
+                    } finally {
+                        // O7: destroy the exec'd logcat so its stderr/stdin FDs don't
+                        // linger until GC finalizes the Process.
+                        process.destroy()
+                    }
                 }.reversed()
 
                 // Buffer mutations stay Main-confined; clearLogcat hops back to Main too.
@@ -69,7 +75,11 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
                 lst.add("logcat")
                 lst.add("-c")
                 val process = Runtime.getRuntime().exec(lst.toTypedArray())
-                process.waitFor()
+                try {
+                    process.waitFor()
+                } finally {
+                    process.destroy() // O7 — same FD hygiene as the load path.
+                }
             }
 
             // Hop back to Main so the buffer mutations serialize with loadLogcat's
