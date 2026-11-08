@@ -39,6 +39,7 @@ import com.v2ray.ang.extension.toastSuccess
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.CertificateFingerprintManager
 import com.v2ray.ang.handler.MmkvManager
+import com.v2ray.ang.handler.getChainNamesReferencing
 import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.DeleteConfirmDialog
@@ -48,6 +49,7 @@ import com.v2ray.ang.ui.compose.NavigationBarsSpacer
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.verticalScrollbar
 import com.v2ray.ang.util.JsonUtil
+import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -428,6 +430,7 @@ abstract class BaseServerActivity : BaseComponentActivity() {
         if (config.subscriptionId.isEmpty() && !subscriptionId.isNullOrEmpty()) {
             config.subscriptionId = subscriptionId.orEmpty()
         }
+        warnChainReferencesOnRename(initialConfig.remarks, config.remarks)
         val savedGuid = MmkvManager.encodeServerConfig(editGuid, config)
         toastSuccess(R.string.toast_success)
         ProfileEditorResult.run {
@@ -497,11 +500,42 @@ abstract class BaseServerActivity : BaseComponentActivity() {
         }
     }
 
+    /**
+     * O4 cheap guard: chain members are stored by remark, so a rename dangles
+     * every chain holding the old remark. NON-blocking: the save proceeds; the
+     * user is warned which chains are affected and the same list is logged for
+     * field diagnosis.
+     */
+    private fun warnChainReferencesOnRename(oldRemarks: String, newRemarks: String) {
+        if (oldRemarks.isBlank() || oldRemarks == newRemarks) return
+        warnChainReferences(oldRemarks)
+    }
+
+    /**
+     * O4 cheap guard, delete side: resolve the victim's remark and scan the
+     * chains BEFORE removal lands. NON-blocking: the delete proceeds after the
+     * warning toast + log.
+     */
+    private fun warnChainReferencesOnDelete(guid: String) {
+        val remarks = MmkvManager.decodeServerConfig(guid)?.remarks.orEmpty()
+        if (remarks.isBlank()) return
+        warnChainReferences(remarks)
+    }
+
+    private fun warnChainReferences(remarks: String) {
+        val chains = getChainNamesReferencing(remarks)
+        if (chains.isEmpty()) return
+        val joined = chains.joinToString(", ")
+        toast(getString(R.string.toast_chain_reference_warning, joined), long = true)
+        LogUtil.w(message = "Profile '$remarks' is referenced by proxy chain(s): $joined — the matching hop(s) will be dropped at connect time")
+    }
+
     private fun deleteServer(guid: String) {
         if (guid.isEmpty() || guid == MmkvManager.getSelectServer()) {
             toast(R.string.toast_action_not_allowed)
             return
         }
+        warnChainReferencesOnDelete(guid)
         MmkvManager.removeServer(guid)
         ProfileEditorResult.run {
             finishDeleted(guid)

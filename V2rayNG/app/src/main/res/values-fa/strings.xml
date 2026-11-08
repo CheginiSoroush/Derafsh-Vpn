@@ -125,6 +125,7 @@
     <string name="toast_malformed_json">قالب پیکربندی نامعتبر است.</string>
     <string name="server_lab_request_host6">هاست (SNI) (اختیاری)</string>
     <string name="toast_action_not_allowed">این عمل ممنوع است</string>
+    <string name="toast_chain_reference_warning">این پروفایل عضو زنجیره(های) پروکسی زیر است: %1$s — آن هاپ‌ها هنگام اتصال کنار گذاشته می‌شوند</string>
     <string name="server_obfs_password">رمز عبور obfs</string>
     <string name="server_lab_port_hop">پرش پورت (پورت سرور را بازنویسی می‌کند)</string>
     <string name="server_lab_port_hop_interval">فاصله پورت پرش (ثانیه)</string>

@@ -26,6 +26,7 @@ import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.StaleProfileTracker
 import com.v2ray.ang.handler.SubscriptionInfoParser
 import com.v2ray.ang.handler.SubscriptionUpdater
+import com.v2ray.ang.handler.getChainNamesReferencing
 import com.v2ray.ang.ui.base.BaseViewModel
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.CancellationException
@@ -1211,7 +1212,18 @@ class MainViewModel(
             return
         }
         viewModelScope.launch(ioDispatcher) {
+            // O4 cheap guard: resolve the victim's remark and scan the chains
+            // BEFORE removal lands; warn NON-blockingly if a chain still holds
+            // it as a member (members are stored by remark, so the hop would
+            // silently drop at connect).
+            val remarks = MmkvManager.decodeServerConfig(guid)?.remarks.orEmpty()
+            val chains = getChainNamesReferencing(remarks)
             dataSource.removeServer(guid)
+            if (chains.isNotEmpty()) {
+                val joined = chains.joinToString(", ")
+                toast(getString(R.string.toast_chain_reference_warning, joined))
+                LogUtil.w(message = "Deleted profile '$remarks' is referenced by proxy chain(s): $joined — the matching hop(s) will be dropped at connect time")
+            }
             cacheMutex.withLock { groupDataCache.clear() }
             setupGroupTab(forceRefresh = true).join()
         }
