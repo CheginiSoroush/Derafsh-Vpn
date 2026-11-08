@@ -135,9 +135,10 @@ class ScannerActivity : HelperBaseComponentActivity() {
                 }
 
                 val text = decoded.getOrNull()
+                val decodeError = decoded.exceptionOrNull()
                 when {
-                    decoded.isFailure -> {
-                        LogUtil.e(AppConfig.TAG, "Failed to decode QR code from file", decoded.exceptionOrNull())
+                    decodeError != null -> {
+                        LogUtil.e(AppConfig.TAG, "Failed to decode QR code from file", decodeError)
                         toast(R.string.toast_decoding_failed)
                     }
                     text.isNullOrEmpty() -> toast(R.string.toast_decoding_failed)
