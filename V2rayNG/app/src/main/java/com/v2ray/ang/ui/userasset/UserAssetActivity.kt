@@ -139,36 +139,49 @@ class UserAssetActivity : HelperBaseComponentActivity() {
             }
 
             val assetId = Utils.getUuid()
-            runCatching {
-                val assetItem = AssetUrlItem(
-                    getCursorName(uri) ?: uri.toString(),
-                    "file"
-                )
+            lifecycleScope.launch {
+                // A25: the provider query and the full stream copy used to run on the
+                // Main thread inside this SAF callback (A14 pattern — cloud-backed
+                // providers block for seconds; geo files reach tens of MB).
+                val copied = withContext(Dispatchers.IO) {
+                    runCatching {
+                        val displayName = getCursorName(uri) ?: uri.toString()
+                        val assetItem = AssetUrlItem(displayName, "file")
 
-                val assetList = MmkvManager.decodeAssetUrls()
-                if (assetList.any { it.assetUrl.remarks == assetItem.remarks && it.guid != assetId }) {
-                    toast(R.string.msg_remark_is_duplicate)
-                } else {
-                    MmkvManager.encodeAsset(assetId, assetItem)
-                    copyFile(uri)
+                        val assetList = MmkvManager.decodeAssetUrls()
+                        if (assetList.any { it.assetUrl.remarks == assetItem.remarks && it.guid != assetId }) {
+                            null
+                        } else {
+                            MmkvManager.encodeAsset(assetId, assetItem)
+                            copyAssetFile(uri, displayName)
+                            displayName
+                        }
+                    }
                 }
-            }.onFailure {
-                toastError(R.string.toast_asset_copy_failed)
-                MmkvManager.removeAssetUrl(assetId)
+
+                when {
+                    copied.isFailure -> {
+                        toastError(R.string.toast_asset_copy_failed)
+                        MmkvManager.removeAssetUrl(assetId)
+                    }
+                    copied.getOrNull() == null -> toast(R.string.msg_remark_is_duplicate)
+                    else -> {
+                        toastSuccess(R.string.toast_success)
+                        refreshData()
+                    }
+                }
             }
         }
     }
 
-    private fun copyFile(uri: Uri): String {
-        val targetFile = File(extDir, getCursorName(uri) ?: uri.toString())
+    /** Blocking provider stream copy; must run off the Main thread (A25). */
+    private fun copyAssetFile(uri: Uri, displayName: String) {
+        val targetFile = File(extDir, displayName)
         contentResolver.openInputStream(uri).use { inputStream ->
             targetFile.outputStream().use { fileOut ->
                 inputStream?.copyTo(fileOut)
-                toastSuccess(R.string.toast_success)
-                refreshData()
             }
         }
-        return targetFile.path
     }
 
     private fun getCursorName(uri: Uri): String? = try {
