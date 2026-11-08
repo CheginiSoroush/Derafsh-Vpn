@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import java.io.IOException
 
 class LogcatViewModel(application: Application) : BaseViewModel(application) {
@@ -38,9 +39,14 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
                 lst.add("time")
                 lst.add("-s")
                 lst.add("GoLog,${AppConfig.ANG_PACKAGE},AndroidRuntime,System.err")
-                val process = Runtime.getRuntime().exec(lst.toTypedArray())
-                val allText = process.inputStream.bufferedReader().use { it.readLines() }.reversed()
+                // The dump can be tens of thousands of lines: spawn + full pipe read must
+                // stay off the Main thread (A24 — same root cause as A14).
+                val allText = withContext(Dispatchers.IO) {
+                    val process = Runtime.getRuntime().exec(lst.toTypedArray())
+                    process.inputStream.bufferedReader().use { it.readLines() }
+                }.reversed()
 
+                // Buffer mutations stay Main-confined; clearLogcat hops back to Main too.
                 logsetsAll.clear()
                 logsetsAll.addAll(allText)
                 applyFilter()
@@ -56,16 +62,22 @@ class LogcatViewModel(application: Application) : BaseViewModel(application) {
         toast(R.string.toast_success)
     }
 
-    fun clearLogcat() {
+    suspend fun clearLogcat() {
         try {
-            val lst = LinkedHashSet<String>()
-            lst.add("logcat")
-            lst.add("-c")
-            val process = Runtime.getRuntime().exec(lst.toTypedArray())
-            process.waitFor()
+            withContext(Dispatchers.IO) {
+                val lst = LinkedHashSet<String>()
+                lst.add("logcat")
+                lst.add("-c")
+                val process = Runtime.getRuntime().exec(lst.toTypedArray())
+                process.waitFor()
+            }
 
-            logsetsAll.clear()
-            _filteredLogs.value = emptyList()
+            // Hop back to Main so the buffer mutations serialize with loadLogcat's
+            // (both used to race across Main/IO threads — A24).
+            withContext(Dispatchers.Main) {
+                logsetsAll.clear()
+                _filteredLogs.value = emptyList()
+            }
         } catch (e: IOException) {
             LogUtil.e(AppConfig.TAG, "Failed to clear logcat", e)
         }

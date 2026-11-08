@@ -181,7 +181,7 @@ fun LogcatScreen(
                         )
                     }
                     IconButton(onClick = {
-                        scope.launch(Dispatchers.IO) { viewModel.clearLogcat() }
+                        scope.launch { viewModel.clearLogcat() }
                     }) {
                         Icon(
                             painterResource(R.drawable.ic_delete_24dp),
