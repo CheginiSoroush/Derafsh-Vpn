@@ -69,7 +69,7 @@ class ChainReferencesTest {
             chain("First", "Target,x"),
             chain("Second", "y"),
             chain("Third", "z,Target"),
-            chain("FirstAgain", "Target,x"), // same remark as First — dedup by name
+            chain("First", "Target,y"), // duplicate chain remark — dedup by name
         )
 
         assertEquals(listOf("First", "Third"), chainNamesReferencing("Target", chains))
