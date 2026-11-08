@@ -198,34 +198,43 @@ class BackupViewModel(application: Application) : BaseViewModel(application) {
         }
     }
 
-    private fun backupConfigurationToCache(cacheDir: File, appName: String): Pair<Boolean, String> {
-        val dateFormatted = SimpleDateFormat(
-            "yyyy-MM-dd-HH-mm-ss",
-            Locale.getDefault()
-        ).format(System.currentTimeMillis())
-        val folderName = "${appName}_$dateFormatted"
-        val backupDir = cacheDir.absolutePath + "/$folderName"
-        val outputZipFilePath = "${cacheDir.absolutePath}/$folderName.zip"
+    /**
+     * Snapshots every MMKV instance into a timestamped folder and zips it.
+     *
+     * O5: the snapshot + zip is heavy disk I/O (plaintext copy of the whole
+     * MMKV storage); run it on Dispatchers.IO so the launchLoading spinner on
+     * the main thread keeps animating. Mirrors the performRestore pattern;
+     * behavior otherwise identical.
+     */
+    private suspend fun backupConfigurationToCache(cacheDir: File, appName: String): Pair<Boolean, String> =
+        withContext(Dispatchers.IO) {
+            val dateFormatted = SimpleDateFormat(
+                "yyyy-MM-dd-HH-mm-ss",
+                Locale.getDefault()
+            ).format(System.currentTimeMillis())
+            val folderName = "${appName}_$dateFormatted"
+            val backupDir = cacheDir.absolutePath + "/$folderName"
+            val outputZipFilePath = "${cacheDir.absolutePath}/$folderName.zip"
 
-        val count = MMKV.backupAllToDirectory(backupDir)
-        if (count <= 0) {
-            return Pair(false, "")
-        }
+            val count = MMKV.backupAllToDirectory(backupDir)
+            if (count <= 0) {
+                return@withContext Pair(false, "")
+            }
 
-        val zipped = ZipUtil.zipFromFolder(backupDir, outputZipFilePath)
-        // The intermediate folder is a plaintext copy of the whole MMKV
-        // storage (credentials included); only the zip is consumed, so
-        // remove the folder and any partial zip artifact right away.
-        File(backupDir).deleteRecursively()
-        if (!zipped) {
-            File(outputZipFilePath).delete()
+            val zipped = ZipUtil.zipFromFolder(backupDir, outputZipFilePath)
+            // The intermediate folder is a plaintext copy of the whole MMKV
+            // storage (credentials included); only the zip is consumed, so
+            // remove the folder and any partial zip artifact right away.
+            File(backupDir).deleteRecursively()
+            if (!zipped) {
+                File(outputZipFilePath).delete()
+            }
+            if (zipped) {
+                Pair(true, outputZipFilePath)
+            } else {
+                Pair(false, "")
+            }
         }
-        return if (zipped) {
-            Pair(true, outputZipFilePath)
-        } else {
-            Pair(false, "")
-        }
-    }
 
     private suspend fun performRestore(cacheDir: File, zipFile: File): Boolean =
         withContext(Dispatchers.IO) {
