@@ -50,12 +50,16 @@ class UrlSchemeActivity : BaseComponentActivity() {
                     }
                 }
             }
-
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
         } catch (e: Exception) {
+            // A28: this activity handles EXTERNAL input (VIEW/SEND intents from other
+            // apps). Malformed input — e.g. a shared URL with an invalid %-escape —
+            // must not skip the redirect below, which used to leave the activity blank
+            // with no way forward. Report the failure, then always continue.
             LogUtil.e(AppConfig.TAG, "Error processing URL scheme", e)
+            toastError(R.string.toast_failure)
         }
+        startActivity(Intent(this, MainActivity::class.java))
+        finish()
     }
 
     @Composable
