@@ -32,7 +32,6 @@ import com.v2ray.ang.handler.SettingsManager
 import com.v2ray.ang.handler.SubscriptionInfoParser
 import com.v2ray.ang.ui.AboutActivity
 import com.v2ray.ang.ui.base.HelperBaseComponentActivity
-import com.v2ray.ang.ui.license.LicenseActivity
 import com.v2ray.ang.ui.onboarding.OnboardingActivity
 import com.v2ray.ang.ui.server.ProfileEditorResult
 import com.v2ray.ang.ui.server.ServerCustomConfigActivity
@@ -266,7 +265,9 @@ class MainActivity : HelperBaseComponentActivity() {
         val intent = when (destination) {
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.About -> Intent(this, AboutActivity::class.java)
-            MainDestination.License -> Intent(this, LicenseActivity::class.java)
+            // De-premium step 1: the LicenseActivity is gone; the enum entry survives only
+            // until step 3 removes the premium UI blocks that still navigate with it.
+            MainDestination.License -> Intent(this, SettingsActivity::class.java)
         }
         settingsActivityLauncher.launch(intent)
     }

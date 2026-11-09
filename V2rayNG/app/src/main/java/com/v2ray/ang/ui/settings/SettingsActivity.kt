@@ -52,7 +52,6 @@ import com.v2ray.ang.ui.compose.SettingsMenuItem
 import com.v2ray.ang.ui.compose.SettingsSwitchItem
 import com.v2ray.ang.ui.compose.ThemeManager
 import com.v2ray.ang.ui.compose.verticalScrollbar
-import com.v2ray.ang.ui.license.LicenseActivity
 import com.v2ray.ang.util.LogUtil
 import kotlinx.coroutines.launch
 
@@ -89,10 +88,7 @@ class SettingsActivity : BaseComponentActivity() {
         SettingsScreen(
             viewModel = viewModel,
             onBackClick = { finish() },
-            onSystemVpnSettingsClicked = ::openSystemVpnSettings,
-            onLicenseActivationClicked = {
-                startActivity(Intent(this, LicenseActivity::class.java))
-            }
+            onSystemVpnSettingsClicked = ::openSystemVpnSettings
         )
     }
 }
@@ -120,8 +116,7 @@ class SettingsActivity : BaseComponentActivity() {
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
-    onSystemVpnSettingsClicked: () -> Unit,
-    onLicenseActivationClicked: () -> Unit
+    onSystemVpnSettingsClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -237,11 +232,6 @@ fun SettingsScreen(
                         onClick = onSystemVpnSettingsClicked
                     )
                 }
-                SettingsMenuItem(
-                    title = stringResource(R.string.title_license_activation),
-                    subtitle = stringResource(R.string.license_settings_entry_summary),
-                    onClick = onLicenseActivationClicked
-                )
             }
 
             CollapsiblePreferenceGroupHeader(

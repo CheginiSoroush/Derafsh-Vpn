@@ -97,8 +97,10 @@ import com.v2ray.ang.handler.ForceUpdateManager
 import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.ui.compose.BannerAd
-import com.v2ray.ang.ui.license.LicenseViewModel
 import com.v2ray.ang.util.Utils
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -1177,7 +1179,7 @@ private fun DerafshRenewalBanner(
                 Text(
                     text = stringResource(
                         R.string.license_status_active_until,
-                        LicenseViewModel.formatExpiry(expiresAt)
+                        formatExpiry(expiresAt)
                     ),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -1356,6 +1358,12 @@ private fun SelectedServerCard(
         }
     }
 }
+
+/** Inlined from the removed LicenseViewModel (de-premium step 1); the premium status UI
+ *  that uses it is removed in step 3, after which this helper goes too. */
+private fun formatExpiry(epochMillis: Long): String =
+    Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
 
 private const val BUTTON_SIZE = 200
 private const val PROGRESS_SIZE = 64
