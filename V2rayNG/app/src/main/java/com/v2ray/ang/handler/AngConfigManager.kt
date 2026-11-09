@@ -621,9 +621,6 @@ object AngConfigManager {
             return SubscriptionUpdateResult(skipCount = 1)
         }
 
-        // v1.2.55: worker-served pools (free feed / premium pool) must declare the app
-        // version — the worker's force-update gate 426s any request without one, which
-        // emptied the built-in subscription once a minimum was first pinned server-side.
         val url = HttpUtil.toIdnUrl(it.subscription.url)
         if (!Utils.isValidUrl(url)) {
             return SubscriptionUpdateResult(failureCount = 1)
