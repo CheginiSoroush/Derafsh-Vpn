@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?><!--
   O10 remediation: platform cloud backup AND device-to-device transfer
   (API 31+, android:dataExtractionRules). Both transport channels must exclude
-  the dedicated sensitive MMKV instance (WebDAV credentials + license binding);
+  the dedicated sensitive MMKV instance (WebDAV credentials);
   everything else keeps backing up so device migration stays one tap. Paths are
   relative to the "file" domain root (filesDir); MmkvManager initializes MMKV in
   filesDir/mmkv, so the instance "derafsh_sensitive" lives at mmkv/derafsh_sensitive

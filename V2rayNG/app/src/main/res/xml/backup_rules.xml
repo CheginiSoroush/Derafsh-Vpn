@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?><!--
   O10 remediation: platform auto-backup (API 24-30, android:fullBackupContent).
   Everything in filesDir keeps backing up EXCEPT the dedicated sensitive MMKV
-  instance file (WebDAV credentials + license binding). Paths are relative to
+  instance file (WebDAV credentials). Paths are relative to
   the "file" domain root (filesDir); MmkvManager initializes MMKV in
   filesDir/mmkv, so the instance "derafsh_sensitive" lives at mmkv/derafsh_sensitive
   next to its CRC sidecar. The in-app manual backup (MMKV.backupAllToDirectory)

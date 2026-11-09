@@ -189,7 +189,6 @@
     <string name="summary_system_vpn_settings">Open Android VPN settings to configure Always-on VPN, if supported by this device.</string>
     <string name="toast_system_vpn_settings_unavailable">System VPN settings are unavailable.</string>
 
-
     <string name="subscription_updater_job_tips">The task will run in the background, and progress information will be displayed in the notification.</string>
     <string name="title_pref_auto_test_after_update_subscription">Auto test after updating subscription</string>
     <string name="summary_pref_auto_test_after_update_subscription">Automated testing takes a long time. If enabled, the task will run in the background; otherwise, it will run on the current page.</string>
@@ -240,7 +239,6 @@
 
     <string name="title_pref_vpn_mtu">VPN MTU (default 1500)</string>
 
-
     <string name="title_pref_domestic_dns">Direct DNS (optional)</string>
     <string name="summary_pref_domestic_dns" translatable="false">DNS</string>
 
@@ -276,7 +274,6 @@
 
     <string name="title_pref_confirm_remove">Delete config confirmation</string>
     <string name="summary_pref_confirm_remove">Whether deleting a config requires a second confirmation by the user</string>
-
 
     <string name="title_pref_append_http_proxy">Add HTTP proxy to VPN</string>
     <string name="summary_pref_append_http_proxy">Allow browsers and supported apps to use the HTTP proxy directly instead of the virtual network interface (Android 10+).</string>
@@ -431,13 +428,6 @@
     <string name="menu_test_all">Test servers</string>
     <string name="menu_about">About</string>
 
-    <!-- Derafsh session limit -->
-    <string name="session_time_up">Time is up!</string>
-    <string name="session_time_up_body">Your free hour is over. Premium means unlimited time plus every locked source.</string>
-    <string name="session_extend_ad">Watch ad +1 hour</string>
-    <string name="session_remaining">%1$s left</string>
-    <string name="session_premium_cta">💎 Premium = unlimited</string>
-
     <string name="import_subscription_success">Subscription imported successfully</string>
     <string name="import_subscription_failure">Import subscription failed</string>
     <string name="title_fragment_settings">Fragment Settings</string>
@@ -467,59 +457,6 @@
     <string name="update_now">Update now</string>
     <string name="update_check_pre_release">Check pre-release versions</string>
     <string name="update_checking_for_update">Checking for update…</string>
-
-    <string name="title_license_activation">Derafsh Premium</string>
-    <string name="license_settings_entry_summary">Subscribe or enter an activation code</string>
-    <string name="license_status_active_until">Premium active until %s</string>
-    <string name="license_status_grace">License server unreachable — premium stays active for now</string>
-    <string name="license_status_inactive">No active subscription</string>
-    <string name="license_device_id">Your Device ID</string>
-    <string name="license_device_id_hint">Send this ID to the Derafsh bot when buying a subscription</string>
-    <string name="license_copy">Copy device ID</string>
-    <string name="license_copied">Copied to clipboard</string>
-    <string name="license_code_label">Activation code</string>
-    <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
-    <string name="license_activate">Activate</string>
-    <string name="license_recheck">Check status again</string>
-    <string name="license_code_format_hint">Format: DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
-    <string name="license_get_code">How do I get a code?</string>
-    <string name="license_get_code_summary">Open the Derafsh Telegram bot to buy a subscription and receive your code</string>
-    <string name="license_activated">Premium activated 🎉</string>
-    <string name="license_status_admin">Admin master access — everything unlocked, no expiry.</string>
-    <string name="admin_mode_enabled">Admin master access enabled</string>
-    <string name="license_error_bad_request">Invalid code format</string>
-    <string name="license_error_invalid_code">This code is not valid</string>
-    <string name="license_error_expired_code">This code has expired</string>
-    <string name="license_error_device_mismatch">This code is bound to another device</string>
-    <string name="license_error_revoked">This code has been revoked</string>
-    <string name="license_error_rate_limited">Too many attempts — please try again later</string>
-    <string name="license_error_server">License server error — please try again later</string>
-    <string name="license_error_network">Couldn\'t reach the server. Connect the VPN first, then try again.</string>
-    <string name="license_error_update_required">This version is disabled — update from the bot</string>
-
-    <!-- Derafsh force update (v1.2.53): the server pinned a minimum supported version and
-         this build is older — the main screen is replaced by this blocker. -->
-    <string name="update_required_title">Update required</string>
-    <string name="update_required_body">This version of Derafsh is no longer supported and has been turned off. Please get the latest version — it only takes a minute.</string>
-    <string name="update_required_get_bot">Get the new version from the bot</string>
-    <string name="update_required_retry">Try again</string>
-    <string name="toast_update_required">Please update Derafsh to continue</string>
-    <string name="license_premium_soon">You are premium — the premium feeds arrive in the next update. Thank you!</string>
-    <string name="derafsh_sources_premium_label">Derafsh Premium 🔒</string>
-    <string name="derafsh_source_locked">Premium source</string>
-    <string name="derafsh_premium_source_name">Derafsh Premium</string>
-    <string name="derafsh_sources_premium_subtitle">Subscriber-only config feeds — tap to unlock</string>
-    <string name="derafsh_premium_gate_title">This section is premium</string>
-    <string name="derafsh_premium_gate_text">Premium config feeds are reserved for subscribers. Enter your activation code in Derafsh Premium, or get a code from the Derafsh Telegram bot.</string>
-    <string name="derafsh_premium_gate_get_code">Get a code from the bot</string>
-    <string name="license_renew">Renew</string>
-    <string name="premium_upsell_title">Premium: unlimited time</string>
-    <string name="premium_upsell_body">Free sources get 1 hour per session. Premium removes the limit and unlocks all the fast servers.</string>
-    <string name="premium_upsell_cta">Get Premium</string>
-    <string name="license_renew_banner_hint">Ending soon — renew to keep premium</string>
-    <string name="notification_channel_license_reminders">License reminders</string>
-    <string name="license_reminder_title">Derafsh Premium is ending soon</string>
-    <string name="license_reminder_content">Your premium subscription ends on %s — renew to keep premium.</string>
 
     <string name="title_policy_group_type">Policy group type</string>
     <string name="title_policy_group_subscription_id">From subscription group</string>
@@ -656,7 +593,6 @@
     <string name="sub_info_traffic" translatable="false">%1$s / %2$s</string>
     <string name="sub_info_unlimited">Unlimited</string>
 
-
     <!-- Integrity / anti-tamper warnings -->
     <string name="toast_integrity_modified">Unofficial build detected. Some features may be limited.</string>
     <string name="toast_integrity_root">Rooted device detected. Be careful with your security.</string>
@@ -706,6 +642,6 @@
 
     <string name="derafsh_sources_title">Derafsh sources</string>
     <string name="derafsh_source_name">Derafsh %d</string>
-    <string name="derafsh_sources_hint">Only the active source is updated. Tap one to switch and refresh its servers. Each source is split into groups of at most 200 configs, and configs that fail the speed test are removed automatically. Only Derafsh 1 is free — the other sources are premium 🔒.</string>
+    <string name="derafsh_sources_hint">Only the active source is updated. Tap one to switch and refresh its servers. Each source is split into groups of at most 200 configs, and configs that fail the speed test are removed automatically. All sources are free.</string>
     <string name="derafsh_unhealthy_removed">Removed %1$d unhealthy config(s) after the speed test</string>
 </resources>

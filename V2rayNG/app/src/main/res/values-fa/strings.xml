@@ -189,7 +189,6 @@
     <string name="summary_system_vpn_settings">تنظیمات VPN در Android را برای پیکربندی VPN همیشه‌روشن باز کنید، اگر دستگاه از آن پشتیبانی می‌کند.</string>
     <string name="toast_system_vpn_settings_unavailable">تنظیمات VPN سیستم در دسترس نیست.</string>
 
-
     <string name="subscription_updater_job_tips">این کار در پس‌زمینه اجرا می‌شود و پیشرفت آن در اعلان نمایش داده خواهد شد.</string>
     <string name="title_pref_auto_test_after_update_subscription">آزمایش خودکار پس از به‌روزرسانی اشتراک</string>
     <string name="summary_pref_auto_test_after_update_subscription">آزمایش خودکار زمان زیادی می‌برد. در صورت فعال بودن، این کار در پس‌زمینه اجرا می‌شود؛ در غیر این صورت در صفحهٔ فعلی اجرا خواهد شد.</string>
@@ -240,7 +239,6 @@
 
     <string name="title_pref_vpn_mtu">VPN MTU (پیش‌فرض 1500)</string>
 
-
     <string name="title_pref_domestic_dns">DNS مستقیم (اختیاری)</string>
     <string name="summary_pref_domestic_dns" translatable="false">DNS</string>
 
@@ -276,7 +274,6 @@
 
     <string name="title_pref_confirm_remove">تایید حذف کانفیگ</string>
     <string name="summary_pref_confirm_remove">آیا برای حذف کانفیگ نیاز به تایید دوم توسط کاربر است</string>
-
 
     <string name="title_pref_append_http_proxy">پروکسی HTTP را به VPN اضافه کنید</string>
     <string name="summary_pref_append_http_proxy">مرورگر و برنامه‌های پشتیبانی‌شده می‌توانند بدون عبور از رابط شبکهٔ مجازی، مستقیماً از پروکسی HTTP استفاده کنند (Android 10+).</string>
@@ -431,13 +428,6 @@
     <string name="menu_test_all">تست سرورها</string>
     <string name="menu_about">درباره</string>
 
-    <!-- Derafsh session limit -->
-    <string name="session_time_up">زمان تموم شد!</string>
-    <string name="session_time_up_body">ساعت رایگانت تموم شد. پرمیوم یعنی زمان بی‌نهایت + همه سرورهای قفل‌شده.</string>
-    <string name="session_extend_ad">تبلیغ ببین +۱ ساعت</string>
-    <string name="session_remaining">%1$s باقی مونده</string>
-    <string name="session_premium_cta">💎 پرمیوم = بی‌نهایت</string>
-
     <string name="import_subscription_success">اشتراک با موفقیت وارد شد</string>
     <string name="import_subscription_failure">وارد کردن اشتراک ناموفق بود</string>
     <string name="title_fragment_settings">تنظیمات قطعه‌بندی بسته‌ها (Fragment)</string>
@@ -467,59 +457,6 @@
     <string name="update_now">اکنون به روز رسانی کنید</string>
     <string name="update_check_pre_release">بررسی نسخه پیش از انتشار</string>
     <string name="update_checking_for_update">در حال بررسی برای به‌روزرسانی…</string>
-
-    <string name="title_license_activation">درفش پرمیوم</string>
-    <string name="license_settings_entry_summary">خرید اشتراک یا ورود کد فعال‌سازی</string>
-    <string name="license_status_active_until">اشتراک پرمیوم فعال تا %s</string>
-    <string name="license_status_grace">سرور لایسنس در دسترس نیست — اشتراک فعلاً فعال می‌ماند</string>
-    <string name="license_status_inactive">اشتراک فعالی ندارید</string>
-    <string name="license_device_id">شناسه دستگاه شما</string>
-    <string name="license_device_id_hint">هنگام خرید اشتراک، این شناسه را برای بات درفش بفرستید</string>
-    <string name="license_copy">کپی شناسه دستگاه</string>
-    <string name="license_copied">در حافظه کپی شد</string>
-    <string name="license_code_label">کد فعال‌سازی</string>
-    <string name="license_code_placeholder">DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
-    <string name="license_activate">فعال‌سازی</string>
-    <string name="license_recheck">بررسی مجدد وضعیت</string>
-    <string name="license_code_format_hint">فرمت: DRF-XXXXX-XXXXX-XXXXX-XXXXX</string>
-    <string name="license_get_code">چگونه کد بگیرم؟</string>
-    <string name="license_get_code_summary">بات تلگرام درفش را باز کنید، اشتراک بخرید و کد فعال‌سازی را دریافت کنید</string>
-    <string name="license_activated">پرمیوم فعال شد 🎉</string>
-    <string name="license_status_admin">دسترسی ادمین — همه چیز باز، بدون انقضا.</string>
-    <string name="admin_mode_enabled">دسترسی ادمین فعال شد</string>
-    <string name="license_error_bad_request">قالب کد درست نیست</string>
-    <string name="license_error_invalid_code">این کد معتبر نیست</string>
-    <string name="license_error_expired_code">این کد منقضی شده است</string>
-    <string name="license_error_device_mismatch">این کد به دستگاه دیگری متصل است</string>
-    <string name="license_error_revoked">این کد باطل شده است</string>
-    <string name="license_error_rate_limited">تلاش‌های زیاد — کمی بعد دوباره امتحان کنید</string>
-    <string name="license_error_server">خطای سرور لایسنس — کمی بعد دوباره امتحان کنید</string>
-    <string name="license_error_network">اتصال به سرور برقرار نشد. ابتدا فیلترشکن را وصل کنید و دوباره تلاش کنید.</string>
-    <string name="license_error_update_required">این نسخه از کار افتاده — از بات به‌روزرسانی کنید</string>
-
-    <!-- درفش: قفل نسخه قدیمی (۱.۲.۵۳) — وقتی سرور حداقل نسخه را تعیین کرده و این نسخه قدیمی است،
-         صفحه اصلی با این صفحه جایگزین می‌شود. -->
-    <string name="update_required_title">به‌روزرسانی لازم است</string>
-    <string name="update_required_body">این نسخه از درفش دیگر پشتیبانی نمی‌شود و از کار افتاده است. لطفاً نسخه جدید را بگیرید — فقط یک دقیقه طول می‌کشد.</string>
-    <string name="update_required_get_bot">دریافت نسخه جدید از بات</string>
-    <string name="update_required_retry">تلاش دوباره</string>
-    <string name="toast_update_required">برای ادامه، لطفاً درفش را به‌روزرسانی کنید</string>
-    <string name="license_premium_soon">شما پرمیوم هستید — فیدهای پرمیوم در به‌روزرسانی بعدی اضافه می‌شود. سپاسگزاریم!</string>
-    <string name="derafsh_sources_premium_label">درفش پرمیوم 🔒</string>
-    <string name="derafsh_source_locked">منبع پرمیوم</string>
-    <string name="derafsh_premium_source_name">درفش پرمیوم</string>
-    <string name="derafsh_sources_premium_subtitle">فیدهای کانفیگ مخصوص مشترکین — برای باز کردن بزنید</string>
-    <string name="derafsh_premium_gate_title">این بخش پرمیوم است</string>
-    <string name="derafsh_premium_gate_text">فیدهای کانفیگ پرمیوم مخصوص مشترکین است. کد فعال‌سازی خود را در «درفش پرمیوم» وارد کنید یا از بات تلگرام درفش کد بگیرید.</string>
-    <string name="derafsh_premium_gate_get_code">دریافت کد از بات</string>
-    <string name="license_renew">تمدید</string>
-    <string name="premium_upsell_title">پرمیوم: زمان بی‌نهایت</string>
-    <string name="premium_upsell_body">منابع رایگان هر بار ۱ ساعت زمان دارند. پرمیوم این محدودیت را برمی‌دارد و همه سرورهای سریع را باز می‌کند.</string>
-    <string name="premium_upsell_cta">دریافت پرمیوم</string>
-    <string name="license_renew_banner_hint">رو به پایان است — برای حفظ پرمیوم تمدید کنید</string>
-    <string name="notification_channel_license_reminders">یادآور اشتراک</string>
-    <string name="license_reminder_title">اشتراک درفش رو به پایان است</string>
-    <string name="license_reminder_content">اشتراک پرمیوم شما در تاریخ %s به پایان می‌رسد — برای حفظ پرمیوم تمدید کنید.</string>
 
     <string name="title_policy_group_type">نوع گروه خط مشی</string>
     <string name="title_policy_group_subscription_id">از گروه اشتراک</string>
@@ -655,7 +592,6 @@
     <string name="sub_info_open_page">باز کردن صفحه اطلاعات اشتراک</string>
     <string name="sub_info_unlimited">نامحدود</string>
 
-
     <!-- Integrity / anti-tamper warnings -->
     <string name="toast_integrity_modified">نسخه غیررسمی شناسایی شد. ممکن است برخی قابلیت‌ها محدود شوند.</string>
     <string name="toast_integrity_root">دستگاه روت‌شده شناسایی شد. مراقب امنیت خود باشید.</string>
@@ -705,6 +641,6 @@
 
     <string name="derafsh_sources_title">منابع درفش</string>
     <string name="derafsh_source_name">درفش %d</string>
-    <string name="derafsh_sources_hint">فقط منبع فعال به‌روزرسانی می‌شود؛ با انتخاب هر منبع، به آن سوییچ کرده و سرورهایش تازه می‌شوند. هر منبع به گروه‌های حداکثر ۲۰۰تایی تقسیم می‌شود و کانفیگ‌های ناسالم پس از هر تست به‌طور خودکار حذف می‌شوند. فقط درفش ۱ رایگانه — بقیه منابع پرمیوم هستند 🔒.</string>
+    <string name="derafsh_sources_hint">فقط منبع فعال به‌روزرسانی می‌شود؛ با انتخاب هر منبع، به آن سوییچ کرده و سرورهایش تازه می‌شوند. هر منبع به گروه‌های حداکثر ۲۰۰تایی تقسیم می‌شود و کانفیگ‌های ناسالم پس از هر تست به‌طور خودکار حذف می‌شوند. همهٔ منابع رایگان هستند.</string>
     <string name="derafsh_unhealthy_removed">%1$d کانفیگ ناسالم پس از تست سرعت حذف شد</string>
 </resources>
