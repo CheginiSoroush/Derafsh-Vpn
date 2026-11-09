@@ -887,13 +887,16 @@ class MainViewModel(
      *  - failures are no longer fully silent: a toast says the refresh did not happen
      *    instead of leaving an unexplained "No data available".
      */
-    fun refreshBuiltInSourceOnOpen() {
+    fun refreshBuiltInSourceOnOpen(force: Boolean = false) {
         val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
         val item = dataSource.getSubscriptionItem(subId) ?: return
         if (!item.enabled || item.url.isEmpty()) return
         val now = System.currentTimeMillis()
         val throttleMillis = AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES * 60_000L
-        if (now - MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, 0L) < throttleMillis) return
+        // force=true (v1.2.61 pool heal): a successful fetch that was served from the
+        // bundled snapshot still stamps the throttle below — the tunnel-connected refetch
+        // must ignore it, otherwise the heal would be silently suppressed for 15 minutes.
+        if (!force && now - MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, 0L) < throttleMillis) return
         if (openRefreshJob?.isActive == true) return
         openRefreshJob = viewModelScope.launch {
             withContext(ioDispatcher) {
@@ -911,8 +914,12 @@ class MainViewModel(
                         }
                         // v1.2.58: say when the pool came from the bundled snapshot so a
                         // possibly stale list is never mistaken for a live refresh.
+                        // v1.2.61: on the forced heal say the opposite — the live fetch
+                        // succeeded now that the tunnel is up.
                         if (AngConfigManager.lastImportUsedBundledBackup) {
                             toast(R.string.toast_bundled_pool_loaded)
+                        } else if (force) {
+                            toast(R.string.toast_pool_restored)
                         }
                     } else {
                         LogUtil.w(AppConfig.TAG, "On-open built-in source refresh did not succeed")

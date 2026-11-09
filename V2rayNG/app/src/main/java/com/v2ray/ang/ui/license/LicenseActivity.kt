@@ -105,6 +105,14 @@ class LicenseActivity : BaseComponentActivity() {
      * of that flow. If the user declines, activation still proceeds directly.
      */
     private fun activateClicked(code: String) {
+        // v1.2.61 admin master code: verified offline against the SHA-256 constant —
+        // no network is involved, so the tunnel bootstrap below would only stall the
+        // unlock for nothing. Route it straight to the ViewModel.
+        if (LicenseManager.isAdminCodeInput(code)) {
+            pendingCode = null
+            viewModel.activate(code)
+            return
+        }
         pendingCode = code
         if (SettingsManager.isVpnMode()) {
             val intent = VpnService.prepare(this)
@@ -287,7 +295,14 @@ private fun StatusCard(state: LicenseManager.LicenseState) {
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            if (state.active && state.expiresAt != null) {
+            if (state.isAdmin) {
+                // v1.2.61: admin master access — everything unlocked, no expiry to show.
+                Text(
+                    text = stringResource(R.string.license_status_admin),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else if (state.active && state.expiresAt != null) {
                 Text(
                     text = stringResource(R.string.license_status_active_until, LicenseViewModel.formatExpiry(state.expiresAt)),
                     style = MaterialTheme.typography.titleMedium,

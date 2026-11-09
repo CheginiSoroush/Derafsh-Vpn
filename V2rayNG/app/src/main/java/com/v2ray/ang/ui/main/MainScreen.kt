@@ -147,9 +147,13 @@ fun MainScreen(
 
     // Premium pool revert (task 9): if the built-in sub points at the locked premium
     // endpoint but the license is no longer unlocked (revoked, expired locally, device
-    // mismatch), fall back to the last free source right away.
+    // mismatch), fall back to the last free source right away. v1.2.61: admin master
+    // access is local-only — it never lapses, so the revert must not fire for it.
     LaunchedEffect(licenseState) {
-        if (DerafshSourceManager.isPremiumSourceActive() && !licenseState.active) {
+        if (DerafshSourceManager.isPremiumSourceActive() &&
+            !licenseState.active &&
+            !LicenseManager.isAdminMode()
+        ) {
             mainViewModel.onPremiumLicenseLost()
         }
     }
@@ -371,8 +375,8 @@ fun MainScreen(
 
         // v1.2.52 monetization: the premium pitch for free installs — premium means
         // unlimited time (no 60-minute session) plus every locked source. Opens the bot
-        // (or the activation screen) on tap.
-        if (!licenseState.active) {
+        // (or the activation screen) on tap. v1.2.61: hidden under admin master access.
+        if (!licenseState.active && !LicenseManager.isAdminMode()) {
             DerafshPremiumUpsellCard(
                 onAction = {
                     if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {

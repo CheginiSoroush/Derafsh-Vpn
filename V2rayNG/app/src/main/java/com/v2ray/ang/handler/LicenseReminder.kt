@@ -92,6 +92,13 @@ object LicenseReminder {
                     return Result.success()
                 }
 
+                // v1.2.61: admin master access never expires — there is nothing to renew,
+                // so the reminder stays silent even while a (optional) license is stored.
+                if (LicenseManager.isAdminMode()) {
+                    NotificationHelper.cancel(NotificationChannelType.LICENSE_REMINDER, context)
+                    return Result.success()
+                }
+
                 // Background re-validation (design §7.3): refresh whenever the last server
                 // confirmation is older than the 24h cadence, so the reminder (and the app)
                 // judge on the freshest state. Network failure keeps the cached state (grace).

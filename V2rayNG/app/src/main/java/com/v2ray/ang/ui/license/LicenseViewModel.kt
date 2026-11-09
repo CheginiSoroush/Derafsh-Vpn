@@ -56,7 +56,13 @@ class LicenseViewModel(application: Application) : BaseViewModel(application) {
                 result
                     .onSuccess { state ->
                         _licenseState.value = state
-                        toastSuccess(R.string.license_activated)
+                        // v1.2.61: the admin master code enables offline — say so instead
+                        // of the generic "license activated" (there is no license behind it).
+                        if (state.isAdmin) {
+                            toastSuccess(R.string.admin_mode_enabled)
+                        } else {
+                            toastSuccess(R.string.license_activated)
+                        }
                     }
                     .onFailure { failure ->
                         val errorKey = (failure as? LicenseManager.LicenseException)?.errorKey

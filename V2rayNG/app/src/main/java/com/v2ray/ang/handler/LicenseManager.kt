@@ -64,6 +64,8 @@ object LicenseManager {
         val expiresAt: Long?,
         val inGrace: Boolean,
         val lastError: String?,
+        /** v1.2.61: admin master access is on — full access without any license. */
+        val isAdmin: Boolean = false,
     )
 
     /** Carries a machine-readable error key from [activate] to the UI. */
@@ -120,6 +122,15 @@ object LicenseManager {
         if (!CODE_REGEX.matches(normalized)) {
             return@withContext Result.failure(LicenseException(ERR_BAD_REQUEST))
         }
+        // v1.2.61 admin master code: verified OFFLINE against the SHA-256 constant —
+        // no network call, no server round-trip, no device binding. Flips the admin
+        // flag on (persisted) and reports the admin state; the flag never expires and
+        // is not touched by clearLicense/refresh.
+        if (isAdminCode(normalized)) {
+            MmkvManager.encodeSettings(AppConfig.PREF_ADMIN_MODE, true)
+            LogUtil.i(AppConfig.TAG, "License activate: admin master access enabled")
+            return@withContext Result.success(current(context))
+        }
         val deviceIdCanonical = getDeviceIdCanonical(context)
         try {
             val payload = JSONObject()
@@ -173,6 +184,10 @@ object LicenseManager {
         val cached = current(context)
         val code = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE)
         if (code.isNullOrBlank()) return@withContext cached
+        // v1.2.61: admin master access is local-only — the server knows nothing about
+        // it, so a status round-trip can never take it away. With a real license also
+        // stored the normal refresh below still runs; losing it only clears the license
+        // prefs, never the admin flag.
         try {
             val request = Request.Builder()
                 .url("${AppConfig.LICENSE_API_BASE.trimEnd('/')}/v1/status?device_id=${getDeviceIdCanonical(context)}")
@@ -206,9 +221,10 @@ object LicenseManager {
                     clearLicense()
                     // Premium pool access dies with the license: if the built-in
                     // subscription points at the locked premium endpoint, revert it to
-                    // the last free source (task 9).
+                    // the last free source (task 9). v1.2.61: admin master access is
+                    // local-only — it survives the license clear.
                     DerafshSourceManager.onLicenseLost(context)
-                    LicenseState(active = false, expiresAt = null, inGrace = false, lastError = null)
+                    LicenseState(active = false, expiresAt = null, inGrace = false, lastError = null, isAdmin = isAdminMode())
                 }
             }
         } catch (e: JSONException) {
@@ -230,29 +246,61 @@ object LicenseManager {
      * A never-confirmed license (no successful activate yet) is never unlocked.
      */
     fun current(context: Context): LicenseState {
+        val admin = isAdminMode()
         val expiresAt = MmkvManager.decodeSettingsLong(AppConfig.PREF_LICENSE_EXPIRES, 0L)
-        if (expiresAt <= 0L) return LicenseState(false, null, false, null)
+        if (expiresAt <= 0L) return LicenseState(false, null, false, null, admin)
 
         val bound = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_DEVICE)
         if (bound.isNullOrBlank() || bound != getDeviceIdCanonical(context)) {
-            return LicenseState(false, expiresAt, false, ERR_DEVICE_MISMATCH)
+            return LicenseState(false, expiresAt, false, ERR_DEVICE_MISMATCH, admin)
         }
 
         val lastOk = MmkvManager.decodeSettingsLong(AppConfig.PREF_LICENSE_LAST_OK, 0L)
-        if (lastOk <= 0L) return LicenseState(false, expiresAt, false, null)
+        if (lastOk <= 0L) return LicenseState(false, expiresAt, false, null, admin)
 
         // Anti clock-shift reference time (see class doc).
         val now = maxOf(System.currentTimeMillis(), lastOk)
-        if (expiresAt <= now) return LicenseState(false, expiresAt, false, null)
+        if (expiresAt <= now) return LicenseState(false, expiresAt, false, null, admin)
 
         val staleMs = now - lastOk
         val unlocked = staleMs <= AppConfig.LICENSE_GRACE_MS
         val inGrace = unlocked && staleMs > AppConfig.LICENSE_REFRESH_INTERVAL_MS
-        return LicenseState(active = unlocked, expiresAt = expiresAt, inGrace = inGrace, lastError = null)
+        return LicenseState(active = unlocked, expiresAt = expiresAt, inGrace = inGrace, lastError = null, isAdmin = admin)
     }
 
-    /** Convenience gate for premium content (design §6). */
-    fun isPremiumUnlocked(context: Context): Boolean = current(context).active
+    /**
+     * Convenience gate for premium content (design §6). v1.2.61: admin master access
+     * unlocks everything locally with no expiry and no server dependency — this single
+     * choke point feeds every gate (source picker, session timer, upsell, reminders).
+     */
+    fun isPremiumUnlocked(context: Context): Boolean =
+        isAdminMode() || current(context).active
+
+    // ------------------------------------------------------------------ admin master access
+
+    /** Admin master mode flag (persisted; multiprocess MMKV — visible in :bg/:daemon too). */
+    fun isAdminMode(): Boolean =
+        MmkvManager.decodeSettingsBool(AppConfig.PREF_ADMIN_MODE, false)
+
+    /**
+     * Shape-check + hash-compare for the admin master code, BEFORE any network call.
+     * Public so the activation screen can skip the tunnel bootstrap for it (the check
+     * is offline). Comparison runs on the SHA-256 hex; the raw code never leaves the
+     * device and no plaintext is stored anywhere.
+     */
+    fun isAdminCodeInput(raw: String): Boolean = isAdminCode(normalizeCode(raw))
+
+    private fun isAdminCode(normalized: String): Boolean {
+        if (normalized.length != 20 || !CODE_REGEX.matches(normalized)) return false
+        return MessageDigest.isEqual(
+            sha256Hex(normalized).toByteArray(Charsets.US_ASCII),
+            AppConfig.ADMIN_CODE_SHA256.toByteArray(Charsets.US_ASCII),
+        )
+    }
+
+    private fun sha256Hex(s: String): String =
+        MessageDigest.getInstance("SHA-256").digest(s.toByteArray())
+            .joinToString(separator = "") { "%02X".format(it) }
 
     /**
      * Locked premium-pool subscription URL (task 9): embeds the stored license code and
@@ -260,9 +308,18 @@ object LicenseManager {
      * license API. Null when no license code is stored.
      */
     fun premiumSubUrl(context: Context): String? {
-        val code = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE) ?: return null
-        val base = AppConfig.LICENSE_API_BASE.trimEnd('/')
-        return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}&${AppConfig.LICENSE_APP_VERSION_PARAM}=${BuildConfig.VERSION_CODE}"
+        val code = MmkvManager.decodeSettingsString(AppConfig.PREF_LICENSE_CODE)
+        if (code != null) {
+            val base = AppConfig.LICENSE_API_BASE.trimEnd('/')
+            return "$base/v1/sub/$code?device=${getDeviceIdCanonical(context)}&${AppConfig.LICENSE_APP_VERSION_PARAM}=${BuildConfig.VERSION_CODE}"
+        }
+        // v1.2.61 admin master access: the premium row must never be a dead button even
+        // without a personal license. The locked /v1/sub endpoint is license-only
+        // server-side, so the premium row serves the live worker pool (same feed the
+        // free source uses — decorateWorkerSubUrl adds the av= declaration on fetch).
+        // Switch to a dedicated admin pool endpoint when one exists server-side.
+        if (isAdminMode()) return AppConfig.DERAFSH_SUB_URL
+        return null
     }
 
     /**

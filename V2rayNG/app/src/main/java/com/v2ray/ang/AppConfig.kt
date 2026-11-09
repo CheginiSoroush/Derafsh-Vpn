@@ -159,6 +159,17 @@ object AppConfig {
     // also performs the design §7.3 background re-validation of the stored license).
     const val LICENSE_REMINDER_TASK_NAME = "derafsh_license_reminder"
 
+    // Derafsh admin master access (v1.2.61): the owner's device unlocks every premium
+    // gate locally — all sources, unlimited session time, no upsell/reminder. Enabled by
+    // entering the master code on the activation screen; the check is a SHA-256 compare
+    // against the constant below and never touches the network. ONLY the hash ships in
+    // the repo/APK: the raw 20-char base32 code is 100 bits of entropy known to the owner
+    // alone, so the stored hash reveals nothing (preimage resistance). Admin mode is a
+    // separate MMKV flag — it never expires, needs no server confirmation and survives
+    // license clears.
+    const val PREF_ADMIN_MODE = "pref_derafsh_admin_mode"
+    const val ADMIN_CODE_SHA256 = "C7E86C27A76B1CF7253F922826D2AB42EA5F64F531324DDD59623794425D1EE8"
+
     // Force-update kill switch (v1.2.53): the app caches the server-mandated minimum
     // supported versionCode from <LICENSE_API_BASE>/v1/config on every startup and in
     // the periodic :bg check. When the running build is older, the main screen is

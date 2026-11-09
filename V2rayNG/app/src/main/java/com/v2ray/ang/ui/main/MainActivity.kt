@@ -63,6 +63,10 @@ class MainActivity : HelperBaseComponentActivity() {
         /** Derafsh brand moment: total time the splash stays on screen before the content shows. */
         private const val SPLASH_HOLD_MILLIS = 3000L
         private const val SPLASH_EXIT_MILLIS = 450L
+
+        /** v1.2.61 pool heal: settle delay after the tunnel starts before the forced
+         *  live refetch of the built-in source (lets routing actually carry traffic). */
+        private const val POOL_HEAL_DELAY_MS = 4_000L
     }
 
     /** Kept true until [SPLASH_HOLD_MILLIS] elapsed; read by the splash keep-on-screen condition. */
@@ -165,6 +169,18 @@ class MainActivity : HelperBaseComponentActivity() {
                     val running = state.isRunning
                     if (running && !wasRunning) {
                         AdsManager.showInterstitial(this@MainActivity) { }
+                        // v1.2.61 (pool-server toast): when the last on-open refresh fell
+                        // back to the bundled snapshot, the worker was unreachable — on
+                        // SNI-filtering ISPs it only becomes reachable THROUGH the tunnel
+                        // that just came up. Refetch once over it (forced: the bundled
+                        // "success" had stamped the success-only on-open throttle), after
+                        // a short settle delay so routing is actually in place.
+                        if (AngConfigManager.lastImportUsedBundledBackup) {
+                            lifecycleScope.launch {
+                                delay(POOL_HEAL_DELAY_MS)
+                                mainViewModel.refreshBuiltInSourceOnOpen(force = true)
+                            }
+                        }
                     }
                     wasRunning = running
                 }
