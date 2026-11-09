@@ -632,18 +632,18 @@ object AngConfigManager {
         }
 
         val (fetchedText, usageInfo) = fetchSubscriptionContent(it, url)
-        // v1.2.58: imsoroush.top is Cloudflare-fronted and some Iranian ISPs SNI-filter it
-        // outright — the live fetch then fails on every run of the on-open refresh, the
-        // 4-hourly task and manual pulls alike, stranding installs (worst of all fresh
-        // ones) on an empty server list with no remedy (user report: «حداقل اینو لوکال
-        // بذار»). When the failed URL is exactly the built-in free pool, serve the
-        // snapshot bundled in the APK instead: the whole parse/chunk/retire/commit
-        // pipeline below runs identically on it, the pool works immediately, and the
-        // next reachable fetch overrides it. The exact-URL guard keeps premium pools
-        // (/v1/sub/<code>) and third-party sources out of the fallback.
+        // v1.2.58: raw.githubusercontent is throttled and sometimes SNI-filtered outright
+        // on some Iranian ISPs — the live fetch then fails on every run of the on-open
+        // refresh, the 4-hourly task and manual pulls alike, stranding installs (worst of
+        // all fresh ones) on an empty server list with no remedy (user report: «حداقل
+        // اینو لوکال بذار»). When the failed URL is exactly the built-in default free
+        // pool, serve the snapshot bundled in the APK instead: the whole
+        // parse/chunk/retire/commit pipeline below runs identically on it, the pool works
+        // immediately, and the next reachable fetch overrides it. The exact-URL guard
+        // keeps every other (user-chosen or third-party) source out of the fallback.
         var configText = fetchedText
         var usedBundledBackup = false
-        if (configText.isEmpty() && it.subscription.url == AppConfig.DERAFSH_SUB_URL) {
+        if (configText.isEmpty() && it.subscription.url == AppConfig.DERAFSH_SUB_URL_LEGACY) {
             readBundledPoolBackup()?.let { bundled ->
                 configText = bundled
                 usedBundledBackup = true

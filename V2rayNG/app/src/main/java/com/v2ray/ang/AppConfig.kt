@@ -190,30 +190,25 @@ object AppConfig {
     const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"
 
     /**
-     * Default built-in source (primary of the built-in sources below). v1.2.53 serves the
-     * free pool through the license worker (/v1/free/sub — version-gated, KV-cached proxy
-     * of the upstream feed): raw.githubusercontent is throttled on some Iranian ISPs, and
-     * the worker lets us retire the feed for outdated installs. The pre-v1.2.37 legacy sub
-     * URL (which pointed at the developer's GitHub) was removed in v1.2.52; the third-party
-     * default was replaced by the worker URL in v1.2.53 and kept here only for the one-time
-     * migration of stored installs.
+     * Default built-in source: the 0xRadikal "top100" free feed on raw.githubusercontent
+     * (≈15 min upstream refresh). v1.2.53 briefly moved this to the Cloudflare worker
+     * (/v1/free/sub); de-premium v1.2.62 reverts the default to the direct feed — no
+     * worker, no license API. [DERAFSH_SUB_URL] survives only so stored installs still
+     * pointing at it are migrated back below (see SettingsManager).
      */
     const val DERAFSH_SUB_URL = "$LICENSE_API_BASE/v1/free/sub"
     const val DERAFSH_SUB_URL_LEGACY = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
 
     /**
-     * v1.2.58: APK-asset snapshot of the worker free pool (the [DERAFSH_SUB_URL] payload
-     * at release time). imsoroush.top is Cloudflare-fronted and some Iranian ISPs
-     * SNI-filter it outright — the live fetch then fails and a fresh install sits on an
-     * empty list with no remedy (user report: «حداقل اینو لوکال بذار»). The chunked
-     * importer serves this snapshot as a last resort; the network refresh overrides it
-     * as soon as the server is reachable again.
+     * v1.2.58: APK-asset snapshot of the built-in free pool (the default source payload
+     * at release time). raw.githubusercontent is throttled and sometimes SNI-filtered on
+     * some Iranian ISPs — the live fetch then fails and a fresh install sits on an empty
+     * list with no remedy (user report: «حداقل اینو لوکال بذار»). The chunked importer
+     * serves this snapshot as a last resort; the network refresh overrides it as soon as
+     * the server is reachable again.
      */
     const val DERAFSH_POOL_BACKUP_ASSET = "derafsh_pool_backup.txt"
     const val PREF_DEFAULT_SUB_SEEDED = "pref_default_sub_seeded"
-    // One-time migration flag: stored installs seeded with [DERAFSH_SUB_URL_LEGACY] move
-    // to the worker-served free pool on first launch of v1.2.53+.
-    const val PREF_DERAFSH_FREE_SUB_MOVED = "pref_derafsh_free_sub_moved"
 
     // v1.2.56: timestamp of the last SUCCESSFUL on-open silent refresh of the built-in
     // source subscription (v1.2.57: stamped only on success — stamping before the fetch
@@ -282,7 +277,7 @@ object AppConfig {
      * the pre-existing ones so persisted active-source indices stay stable across upgrades.
      */
     val DERAFSH_SOURCE_URLS: List<String> = listOf(
-        DERAFSH_SUB_URL, // 0xRadikal "top100" — health-checked top 100 (default pool)
+        DERAFSH_SUB_URL_LEGACY, // 0xRadikal "top100" — health-checked top 100 (default pool, direct GitHub-raw)
         "https://raw.githubusercontent.com/MhdiTaheri/V2rayCollector_Py/HEAD/sub/Mix/mix.txt",
         "https://raw.githubusercontent.com/ALIILAPRO/v2rayNG-Config/HEAD/server.txt",
         "https://raw.githubusercontent.com/MatinGhanbari/v2ray-configs/HEAD/subscriptions/v2ray/all_sub.txt",

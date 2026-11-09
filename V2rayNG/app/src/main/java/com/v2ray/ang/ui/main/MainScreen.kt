@@ -105,8 +105,8 @@ import kotlin.math.roundToInt
 
 /**
  * Derafsh one-tap connect screen. A big connect button with ambient animations (breathing glow
- * while idle, radar rings while connecting, rotating glow + session countdown ring while
- * connected), staggered entrance animations, and a premium upsell card for free installs.
+ * while idle, radar rings while connecting, rotating glow while connected) and staggered
+ * entrance animations.
  * All operations are dispatched through [MainAction]; navigation through [MainDestination].
  */
 @Composable
@@ -129,9 +129,7 @@ fun MainScreen(
 
     // Maintenance (":tasks" process) publishes the subscription refresh + speed-test
     // progress through the multi-process MMKV store; poll it with a cheap ticker while
-    // the screen is visible so both background jobs are announced live. The license
-    // state rides the same ticker (a pure MMKV read), so returning from the activation
-    // screen corrects the renewal banner within a second.
+    // the screen is visible so both background jobs are announced live.
     var maintenance by remember { mutableStateOf(MaintenanceStatus.read()) }
     LaunchedEffect(Unit) {
         while (isActive) {

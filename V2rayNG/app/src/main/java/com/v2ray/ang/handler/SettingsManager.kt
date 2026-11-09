@@ -66,18 +66,17 @@ object SettingsManager {
             LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription interval to 4h")
         }
 
-        // One-time migration (v1.2.53): installs seeded with the third-party free-pool URL
-        // move to the worker-served pool (version-gated, proxied through imsoroush.top).
-        // Only the default free source is rewritten — the premium endpoint and any other
-        // active source are never touched.
-        if (MmkvManager.decodeSettingsString(AppConfig.PREF_DERAFSH_FREE_SUB_MOVED) != "1") {
-            val stored = decodeSubscription(DEFAULT_SUBSCRIPTION_ID)
-            if (stored != null && stored.url == AppConfig.DERAFSH_SUB_URL_LEGACY) {
-                stored.url = AppConfig.DERAFSH_SUB_URL
+        // De-premium migration (v1.2.62): installs the v1.2.53 migration moved onto the
+        // retired Cloudflare worker pool go back to the direct GitHub-raw feed — the
+        // worker is gone, only the default free source is rewritten; user-chosen sources
+        // and any other active subscription are never touched. Self-guarding: once
+        // rewritten the condition is false, so no flag is needed.
+        decodeSubscription(DEFAULT_SUBSCRIPTION_ID)?.let { stored ->
+            if (stored.url == AppConfig.DERAFSH_SUB_URL) {
+                stored.url = AppConfig.DERAFSH_SUB_URL_LEGACY
                 encodeSubscription(DEFAULT_SUBSCRIPTION_ID, stored)
-                LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription to the worker-served free pool")
+                LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription off the retired worker pool")
             }
-            MmkvManager.encodeSettings(AppConfig.PREF_DERAFSH_FREE_SUB_MOVED, "1")
         }
 
         // One-time migration from the multi-pool seeding: only the active source is kept as a
