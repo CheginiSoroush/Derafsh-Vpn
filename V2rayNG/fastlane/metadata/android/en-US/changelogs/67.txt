@@ -1,0 +1,1 @@
+The About screen now links to the project's official GitHub pages: source code, releases (the new update channel — check here for new APK versions) and the issue tracker for reporting bugs and suggestions.
