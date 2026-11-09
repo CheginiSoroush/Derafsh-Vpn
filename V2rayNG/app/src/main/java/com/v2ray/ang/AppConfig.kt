@@ -163,6 +163,12 @@ object AppConfig {
     const val ANDROID_PACKAGE_NAME_LIST_URL = "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
     const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/CheginiSoroush/Derafsh-Vpn/main/PRIVACY.md"
 
+    /** Official project GitHub pages shown on the About screen: repository, APK
+     *  releases (the update path since the de-premium pass) and issue tracker. */
+    const val APP_GITHUB_URL = "$GITHUB_URL/CheginiSoroush/Derafsh-Vpn"
+    const val APP_GITHUB_RELEASES_URL = "$APP_GITHUB_URL/releases"
+    const val APP_GITHUB_ISSUES_URL = "$APP_GITHUB_URL/issues"
+
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */
     const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"

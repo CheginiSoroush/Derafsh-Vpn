@@ -285,17 +285,17 @@
     <string name="summary_pref_group_all_display">Combine profiles from every subscription group in one tab.</string>
 
     <!-- AboutActivity -->
-    <string name="title_pref_feedback">Feedback</string>
-    <string name="summary_pref_feedback">Contact us on Telegram</string>
-    <string name="summary_pref_tg_group">Join the Telegram group</string>
-    <string name="toast_tg_app_not_found">Telegram app not found</string>
     <string name="title_privacy_policy">Privacy policy</string>
     <string name="title_qr_code">QR code</string>
     <string name="title_about">About</string>
     <string name="title_source_code">Source code</string>
+    <string name="summary_source_code_github">Project repository on GitHub</string>
+    <string name="title_app_releases">Releases &amp; updates</string>
+    <string name="summary_app_releases">Get the latest APK from GitHub releases</string>
+    <string name="title_issues_feedback">Report an issue</string>
+    <string name="summary_issues_feedback">Bugs and suggestions via GitHub issues</string>
     <string name="title_oss_license">Open-source licenses</string>
     <string name="title_translators">Translators</string>
-    <string name="title_tg_channel">Telegram bot</string>
 
     <string name="title_pref_promotion">Promotion</string>
 

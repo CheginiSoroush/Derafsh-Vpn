@@ -82,6 +82,25 @@ fun AboutScreen(
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Official GitHub project pages: source, releases, issue tracker.
+            SettingsMenuItem(
+                icon = painterResource(R.drawable.ic_github_24dp),
+                title = stringResource(R.string.title_source_code),
+                subtitle = stringResource(R.string.summary_source_code_github),
+                onClick = { Utils.openUri(context, AppConfig.APP_GITHUB_URL) }
+            )
+            SettingsMenuItem(
+                icon = painterResource(R.drawable.ic_check_update_24dp),
+                title = stringResource(R.string.title_app_releases),
+                subtitle = stringResource(R.string.summary_app_releases),
+                onClick = { Utils.openUri(context, AppConfig.APP_GITHUB_RELEASES_URL) }
+            )
+            SettingsMenuItem(
+                icon = painterResource(R.drawable.ic_feedback_24dp),
+                title = stringResource(R.string.title_issues_feedback),
+                subtitle = stringResource(R.string.summary_issues_feedback),
+                onClick = { Utils.openUri(context, AppConfig.APP_GITHUB_ISSUES_URL) }
+            )
             SettingsMenuItem(
                 icon = painterResource(R.drawable.license_24px),
                 title = stringResource(R.string.title_oss_license),
