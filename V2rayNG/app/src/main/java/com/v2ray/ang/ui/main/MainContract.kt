@@ -42,15 +42,12 @@ data class MainUiState(
     val confirmRemove: Boolean = false,
     val doubleColumnDisplay: Boolean = false,
     val shareQRCodeBitmap: android.graphics.Bitmap? = null,
-    /** Derafsh: set when the daemon broadcast that the 30-minute session expired. */
-    val sessionTimeUp: Boolean = false,
 )
 
 /** Destinations reachable from the main connect screen. */
 enum class MainDestination {
     Settings,
     About,
-    License,
 }
 
 /**
@@ -95,8 +92,6 @@ sealed interface MainAction {
     data object LocateHandled : MainAction
 
     /** Derafsh: extend the expired session by watching a rewarded ad (handled by the activity). */
-    data object ExtendSessionWithAd : MainAction
-    data object DismissSessionTimeUp : MainAction
 
     /** Derafsh: switch the active built-in source ("Derafsh N"); the new active pool is refreshed immediately. */
     data class SwitchDerafshSource(val index: Int) : MainAction

@@ -1,10 +1,6 @@
 package com.v2ray.ang.handler
 
 import com.v2ray.ang.AppConfig.PREF_IS_BOOTED
-import com.v2ray.ang.AppConfig.PREF_LICENSE_CODE
-import com.v2ray.ang.AppConfig.PREF_LICENSE_DEVICE
-import com.v2ray.ang.AppConfig.PREF_LICENSE_EXPIRES
-import com.v2ray.ang.AppConfig.PREF_LICENSE_LAST_OK
 import com.v2ray.ang.AppConfig.PREF_ROUTING_RULESET
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -31,23 +27,17 @@ class SensitiveKeysTest {
     }
 
     @Test
-    fun `sensitive set is exactly the WebDAV record plus the four license keys`() {
+    fun `sensitive set is exactly the WebDAV record`() {
         assertEquals(
-            setOf(
-                "WEBDAV_CONFIG",
-                PREF_LICENSE_CODE,
-                PREF_LICENSE_EXPIRES,
-                PREF_LICENSE_LAST_OK,
-                PREF_LICENSE_DEVICE,
-            ),
+            setOf("WEBDAV_CONFIG"),
             SENSITIVE_KEYS,
         )
-        assertEquals(5, SENSITIVE_KEYS.size, "no key may join or leave the excluded set unnoticed")
+        assertEquals(1, SENSITIVE_KEYS.size, "no key may join or leave the excluded set unnoticed")
     }
 
     @Test
-    fun `long-typed subset is exactly the two license bookkeeping timestamps`() {
-        assertEquals(setOf(PREF_LICENSE_EXPIRES, PREF_LICENSE_LAST_OK), SENSITIVE_LONG_KEYS)
+    fun `long-typed subset stays within the settings-hosted sensitive keys`() {
+        assertEquals(setOf<String>(), SENSITIVE_LONG_KEYS)
         assertTrue(
             SENSITIVE_LONG_KEYS.all { it in SENSITIVE_SETTINGS_KEYS },
             "long subset must be a subset of the settings-hosted sensitive keys",
@@ -69,16 +59,8 @@ class SensitiveKeysTest {
     }
 
     @Test
-    fun `webdav record and string license keys migrate as STRING`() {
+    fun `webdav record migrates as STRING`() {
         assertEquals(SensitiveMigrationKind.STRING, sensitiveMigrationKindFor("WEBDAV_CONFIG"))
-        assertEquals(SensitiveMigrationKind.STRING, sensitiveMigrationKindFor(PREF_LICENSE_CODE))
-        assertEquals(SensitiveMigrationKind.STRING, sensitiveMigrationKindFor(PREF_LICENSE_DEVICE))
-    }
-
-    @Test
-    fun `license timestamps migrate as LONG`() {
-        assertEquals(SensitiveMigrationKind.LONG, sensitiveMigrationKindFor(PREF_LICENSE_EXPIRES))
-        assertEquals(SensitiveMigrationKind.LONG, sensitiveMigrationKindFor(PREF_LICENSE_LAST_OK))
     }
 
     @Test

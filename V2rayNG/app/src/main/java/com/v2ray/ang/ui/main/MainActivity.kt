@@ -223,7 +223,6 @@ class MainActivity : HelperBaseComponentActivity() {
                 when (action) {
                     MainAction.ToggleService -> handleFabAction()
                     MainAction.TestCurrentServer -> handleLayoutTestClick()
-                    MainAction.ExtendSessionWithAd -> handleExtendSession()
                     MainAction.ImportQRcode -> importQRcode()
                     MainAction.ImportClipboard -> importClipboard()
                     MainAction.ImportConfigLocal -> importConfigLocal()
@@ -265,9 +264,6 @@ class MainActivity : HelperBaseComponentActivity() {
         val intent = when (destination) {
             MainDestination.Settings -> Intent(this, SettingsActivity::class.java)
             MainDestination.About -> Intent(this, AboutActivity::class.java)
-            // De-premium step 1: the LicenseActivity is gone; the enum entry survives only
-            // until step 3 removes the premium UI blocks that still navigate with it.
-            MainDestination.License -> Intent(this, SettingsActivity::class.java)
         }
         settingsActivityLauncher.launch(intent)
     }
@@ -327,15 +323,6 @@ class MainActivity : HelperBaseComponentActivity() {
             mainViewModel.markStartRequested(ConnectPhase.EstablishingTunnel)
             LauncherManager.startService(this)
         }
-    }
-
-    /** Rewarded-ad extension: re-run the regular connect flow; the daemon re-arms the timer. */
-    private fun handleExtendSession() {
-        AdsManager.showRewarded(
-            this,
-            onRewarded = { startV2Ray() },
-            onClosed = { mainViewModel.onAction(MainAction.DismissSessionTimeUp) },
-        )
     }
 
     private fun importManually(createConfigType: Int) {

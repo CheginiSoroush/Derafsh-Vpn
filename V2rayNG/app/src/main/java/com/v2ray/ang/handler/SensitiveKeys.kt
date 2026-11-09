@@ -1,22 +1,15 @@
 package com.v2ray.ang.handler
 
-import com.v2ray.ang.AppConfig.PREF_LICENSE_CODE
-import com.v2ray.ang.AppConfig.PREF_LICENSE_DEVICE
-import com.v2ray.ang.AppConfig.PREF_LICENSE_EXPIRES
-import com.v2ray.ang.AppConfig.PREF_LICENSE_LAST_OK
 
 /**
  * Keys whose MMKV entries must never ride Google auto-backup (API 24-30) or
  * cloud backup / device-to-device transfer (API 31+) — O10 remediation.
  *
  * Before this file existed the app shipped `allowBackup="true"` with no
- * extraction rules, so the OS copied every MMKV file: the WebDAV credential
- * ([KEY_WEBDAV_CONFIG] — a plaintext password), and the license binding
- * ([PREF_LICENSE_CODE] / [PREF_LICENSE_DEVICE] — cloning a license onto a
- * second device) plus the license bookkeeping ([PREF_LICENSE_EXPIRES] /
- * [PREF_LICENSE_LAST_OK]). Per-key exclusion is impossible at file granularity
- * (the WebDAV key lived in MAIN next to every server profile, the license keys
- * in SETTING next to every preference), so those five entries live in a
+ * extraction rules, so the OS copied every MMKV file — including the WebDAV
+ * credential ([KEY_WEBDAV_CONFIG] — a plaintext password). Per-key exclusion is
+ * impossible at file granularity (the WebDAV key lived in MAIN next to every
+ * server profile), so it lives in a
  * dedicated MMKV instance ([ID_SENSITIVE]) whose FILE — and only that file —
  * is excluded by `res/xml/backup_rules.xml` and
  * `res/xml/data_extraction_rules.xml`. Everything else keeps backing up, so
@@ -37,18 +30,10 @@ internal const val ID_SENSITIVE = "derafsh_sensitive"
 internal const val KEY_WEBDAV_CONFIG = "WEBDAV_CONFIG"
 
 /** Settings-file keys that must move to (or be written straight to) [ID_SENSITIVE]. */
-internal val SENSITIVE_SETTINGS_KEYS: Set<String> = setOf(
-    PREF_LICENSE_CODE,
-    PREF_LICENSE_EXPIRES,
-    PREF_LICENSE_LAST_OK,
-    PREF_LICENSE_DEVICE,
-)
+internal val SENSITIVE_SETTINGS_KEYS: Set<String> = setOf()
 
 /** The subset of [SENSITIVE_SETTINGS_KEYS] stored as Long (everything else is a string). */
-internal val SENSITIVE_LONG_KEYS: Set<String> = setOf(
-    PREF_LICENSE_EXPIRES,
-    PREF_LICENSE_LAST_OK,
-)
+internal val SENSITIVE_LONG_KEYS: Set<String> = setOf()
 
 /** Every key hosted by [ID_SENSITIVE] — settings keys plus the MAIN-hosted WebDAV record. */
 internal val SENSITIVE_KEYS: Set<String> = SENSITIVE_SETTINGS_KEYS + KEY_WEBDAV_CONFIG

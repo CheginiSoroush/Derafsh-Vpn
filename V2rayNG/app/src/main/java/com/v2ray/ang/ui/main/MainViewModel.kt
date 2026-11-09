@@ -20,7 +20,6 @@ import com.v2ray.ang.extension.matchesPattern
 import com.v2ray.ang.extension.moveItem
 import com.v2ray.ang.handler.AngConfigManager
 import com.v2ray.ang.handler.DerafshSourceManager
-import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.StaleProfileTracker
@@ -113,84 +112,8 @@ class MainViewModel(
     val connectPhase: StateFlow<ConnectPhase> = _connectPhase.asStateFlow()
 
     /** Derafsh: index of the active built-in source shown in the source switcher. */
-    private val _derafshActiveSource = MutableStateFlow(DerafshSourceManager.activeUiIndex())
+    private val _derafshActiveSource = MutableStateFlow(DerafshSourceManager.activeIndex())
     val derafshActiveSource: StateFlow<Int> = _derafshActiveSource.asStateFlow()
-
-    /**
-     * Derafsh premium: whether a valid (or in-grace) license unlocks premium entries.
-     * Read at interaction time — NOT cached — so returning from the activation screen
-     * takes effect immediately without recreating the ViewModel.
-     */
-    fun isPremiumUnlocked(): Boolean = LicenseManager.isPremiumUnlocked(app)
-
-    /**
-     * Derafsh premium (task 9): point the built-in subscription at the locked premium
-     * pool endpoint and refresh immediately. The URL embeds the stored license code and
-     * the canonical device id, so only this device can fetch the pool.
-     */
-    fun selectPremiumSource() {
-        if (!LicenseManager.isPremiumUnlocked(app)) return
-        val url = LicenseManager.premiumSubUrl(app) ?: return
-        launchLoading {
-            withContext(ioDispatcher) {
-                try {
-                    DerafshSourceManager.setPremiumSourceActive(true)
-                    _derafshActiveSource.value = DerafshSourceManager.PREMIUM_UI_INDEX
-
-                    val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
-                    val item = dataSource.getSubscriptionItem(subId) ?: SubscriptionItem(
-                        enabled = true,
-                        autoUpdate = true,
-                        updateInterval = 240, // every 4 hours
-                    )
-                    item.remarks = dataSource.getString(R.string.derafsh_premium_source_name)
-                    item.url = url
-                    MmkvManager.encodeSubscription(subId, item)
-
-                    val result = dataSource.updateConfigViaSub(SubscriptionCache(subId, item))
-                    when {
-                        result.successCount + result.failureCount + result.skipCount == 0 ->
-                            toast(R.string.title_update_subscription_no_subscription)
-
-                        result.successCount > 0 && result.failureCount + result.skipCount == 0 ->
-                            toast(
-                                getQuantityString(
-                                    R.plurals.title_update_config_count,
-                                    result.configCount,
-                                    result.configCount,
-                                )
-                            )
-
-                        else ->
-                            toast(dataSource.getString(R.string.title_update_subscription_result, result.configCount, result.successCount, result.failureCount, result.skipCount))
-                    }
-                    if (result.configCount > 0) {
-                        setupGroupTab(forceRefresh = true)
-                        refreshSelectedGuid()
-                        if (pendingTestGuids(dataSource.getServerGuidList("")).isNotEmpty()) {
-                            MaintenanceStatus.beginSession()
-                            testAllRealPing(allGroups = true, skipTested = true)
-                        }
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (e: Exception) {
-                    LogUtil.e(AppConfig.TAG, "Derafsh premium source switch failed", e)
-                    toastError(R.string.toast_failure)
-                }
-            }
-        }
-    }
-
-    /**
-     * Derafsh premium: the license died while the built-in subscription still points at
-     * the locked pool — fall back to the last free source (reuses the regular switch
-     * pipeline: URL rewrite + immediate fetch + toasts).
-     */
-    fun onPremiumLicenseLost() {
-        if (!DerafshSourceManager.isPremiumSourceActive()) return
-        switchDerafshSourceAsync(DerafshSourceManager.activeIndex())
-    }
 
     // ---------- Keyword filtering ----------
     @Volatile
@@ -255,8 +178,6 @@ class MainViewModel(
 
     // ---------- Session countdown ----------
     // The daemon owns the deadline; the UI only reads the persisted value from multiprocess MMKV.
-    private val _sessionDeadlineMillis = MutableStateFlow(dataSource.getSessionDeadlineMillis())
-    val sessionDeadlineMillis: StateFlow<Long> = _sessionDeadlineMillis.asStateFlow()
 
     private fun collectServiceEvents() {
         viewModelScope.launch {
@@ -325,16 +246,6 @@ class MainViewModel(
                 }
             }
 
-            MainServiceEvent.SessionExpired -> {
-                // The daemon tears the core down after the deadline; the stop broadcast follows.
-                _sessionDeadlineMillis.value = 0L
-                _uiState.update { it.copy(sessionTimeUp = true) }
-            }
-
-            is MainServiceEvent.SessionExtended -> {
-                _sessionDeadlineMillis.value = event.deadlineMillis
-                _uiState.update { it.copy(sessionTimeUp = false) }
-            }
         }
     }
 
@@ -524,7 +435,6 @@ class MainViewModel(
             is MainAction.Search -> filterConfig(action.query)
             is MainAction.ImportBatchConfig -> importBatchConfig(action.configText)
             MainAction.LocateHandled -> consumeLocateTarget()
-            MainAction.DismissSessionTimeUp -> dismissSessionTimeUp()
             is MainAction.SwitchDerafshSource -> switchDerafshSourceAsync(action.index)
             is MainAction.SetShowStale -> setShowStaleProfiles(action.show)
             is MainAction.ShareQRCode -> {
@@ -547,8 +457,7 @@ class MainViewModel(
             is MainAction.EditServer,
             is MainAction.ShareClipboard,
             is MainAction.ShareFullContent,
-            is MainAction.OpenSubscriptionLink,
-            MainAction.ExtendSessionWithAd -> {
+            is MainAction.OpenSubscriptionLink -> {
                 // Handled by Activity via its onAction lambda
             }
         }
@@ -939,24 +848,12 @@ class MainViewModel(
      * Derafsh source switcher: point the single built-in subscription at the chosen source
      * and refresh it immediately. Only the active source is ever updated — switching reuses
      * the same subscription id, so the previous pool's servers are replaced in place.
-     *
-     * v1.2.52 monetization: only [AppConfig.DERAFSH_FREE_SOURCE_COUNT] sources stay free;
-     * every other index (except the already-active one, so no install is stranded) requires
-     * a premium license. The picker routes locked taps to the premium gate — this check is
-     * the server-side guard behind it.
      */
     private fun switchDerafshSourceAsync(index: Int) {
-        if (index >= AppConfig.DERAFSH_FREE_SOURCE_COUNT &&
-            index != DerafshSourceManager.activeIndex() &&
-            !LicenseManager.isPremiumUnlocked(app)
-        ) {
-            return
-        }
         launchLoading {
             withContext(ioDispatcher) {
                 try {
                     DerafshSourceManager.setActiveIndex(index)
-                    DerafshSourceManager.setPremiumSourceActive(false)
                     _derafshActiveSource.value = index
 
                     val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
@@ -1590,10 +1487,6 @@ class MainViewModel(
     }
 
     // ---------- Session time-up dialog ----------
-    fun dismissSessionTimeUp() {
-        _uiState.update { it.copy(sessionTimeUp = false) }
-    }
-
     // ---------- Running state ----------
     private fun updateRunningState(running: Boolean, clearTestingText: Boolean = true) {
         // Every authoritative service-state broadcast closes the connecting phase.

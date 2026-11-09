@@ -26,7 +26,6 @@ interface MainDataSource : Closeable {
     fun isAutoPickFastestEnabled(): Boolean
 
     /** Derafsh: epoch millis when the daemon tears the session down (0 = no active session). */
-    fun getSessionDeadlineMillis(): Long
 
     /** Derafsh: epoch millis of the last automatic maintenance cycle (0 = never). */
     fun getLastAutoMaintenance(): Long

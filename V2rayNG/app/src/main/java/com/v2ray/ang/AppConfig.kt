@@ -99,9 +99,6 @@ object AppConfig {
     /** Derafsh monetization keys. */
     // One-tap connect tests every profile and picks the fastest one when enabled (no UI toggle).
     const val PREF_AUTO_PICK_FASTEST = "pref_auto_pick_fastest"
-    // Daemon-enforced session deadline persisted as epoch millis (0 = no active session), so the
-    // UI process can render the countdown straight from multiprocess MMKV.
-    const val PREF_SESSION_DEADLINE = "pref_session_deadline"
 
     /** Derafsh stale-profile tracking: consecutive real-delay test failures per GUID (JSON map,
      *  capped) and the derived set of stale GUIDs. Mark-only — nothing is ever deleted here. */
@@ -117,59 +114,19 @@ object AppConfig {
     const val PREF_LAST_AUTO_MAINTENANCE = "pref_last_auto_maintenance"
     const val AUTO_MAINTENANCE_INTERVAL_MS = 4L * 60 * 60 * 1000
 
-    /** Derafsh session limit enforced by the daemon process: one free hour per session.
-     *  Premium licenses never arm this timer at all (unlimited time) — see
-     *  CoreServiceManager.armSessionTimer. */
-    const val SESSION_DURATION_MS = 60L * 60L * 1000L
-
     /** Derafsh first-launch onboarding: intro carousel + privacy-policy consent.
      *  Consent is re-collected automatically whenever the stored script version falls
      *  behind OnboardingManager.CONSENT_VERSION. */
     const val PREF_ONBOARDING_DONE = "pref_onboarding_done"
     const val PREF_POLICY_CONSENT_VERSION = "pref_policy_consent_version"
 
-    /** Derafsh premium license (LicenseManager; premium-design.md §6). */
     // License API base URL — production Cloudflare Worker behind the custom domain
     // imsoroush.top (workers.dev is filtered in Iran). Contract: premium-design.md §5
     // (/health, /v1/activate, /v1/status, /v1/sub/<code>?device=).
     const val LICENSE_API_BASE = "https://imsoroush.top"
-    // Max offline window after the last successful server confirmation inside which premium
-    // stays unlocked. Reference time is max(device time, last server-confirmed time), so a
-    // backward clock shift cannot extend a license; a forward shift can only lock it early.
-    const val LICENSE_GRACE_MS = 72L * 60 * 60 * 1000
-    // Periodic server re-validation cadence (design §7.3); also the staleness threshold for
-    // the "running on grace" UI hint in the license screens.
-    const val LICENSE_REFRESH_INTERVAL_MS = 24L * 60 * 60 * 1000
-    // Cached Device ID (canonical, dash-less): SHA-256(ANDROID_ID).take(16) hex upper-cased.
-    const val PREF_DERAFSH_DEVICE_ID = "pref_derafsh_device_id"
-    // Stored license: user-entered code (canonical), server expiry, last server-confirmed
-    // time (epoch millis) and the device the license is bound to.
-    const val PREF_LICENSE_CODE = "pref_license_code"
-    const val PREF_LICENSE_EXPIRES = "pref_license_expires"
-    const val PREF_LICENSE_LAST_OK = "pref_license_last_ok"
-    const val PREF_LICENSE_DEVICE = "pref_license_device"
     // Telegram bot that sells subscriptions and issues activation codes (@PDerafshVpnbot,
     // live webhook on the license worker). The UI hides the bot entry points while blank.
     const val DERAFSH_BOT_URL = "https://t.me/PDerafshVpnbot"
-    // Renewal reminder (task 7): once the remaining license window drops below this
-    // threshold, the :bg worker posts a renewal notification and the main screen shows
-    // a renewal banner; both clear again as soon as the license is renewed or revoked.
-    const val LICENSE_REMIND_MS = 3L * 24 * 60 * 60 * 1000
-    // Unique periodic-work name for the LicenseReminder WorkManager task (24h cadence;
-    // also performs the design §7.3 background re-validation of the stored license).
-    const val LICENSE_REMINDER_TASK_NAME = "derafsh_license_reminder"
-
-    // Derafsh admin master access (v1.2.61): the owner's device unlocks every premium
-    // gate locally — all sources, unlimited session time, no upsell/reminder. Enabled by
-    // entering the master code on the activation screen; the check is a SHA-256 compare
-    // against the constant below and never touches the network. ONLY the hash ships in
-    // the repo/APK: the raw 20-char base32 code is 100 bits of entropy known to the owner
-    // alone, so the stored hash reveals nothing (preimage resistance). Admin mode is a
-    // separate MMKV flag — it never expires, needs no server confirmation and survives
-    // license clears.
-    const val PREF_ADMIN_MODE = "pref_derafsh_admin_mode"
-    const val ADMIN_CODE_SHA256 = "C7E86C27A76B1CF7253F922826D2AB42EA5F64F531324DDD59623794425D1EE8"
-
     // Force-update kill switch (v1.2.53): the app caches the server-mandated minimum
     // supported versionCode from <LICENSE_API_BASE>/v1/config on every startup and in
     // the periodic :bg check. When the running build is older, the main screen is
@@ -268,16 +225,8 @@ object AppConfig {
     /** Persisted index (as string) of the active built-in source in [DERAFSH_SOURCE_URLS]. */
     const val PREF_DERAFSH_ACTIVE_SOURCE = "pref_derafsh_active_source"
 
-    /** "1" while the built-in subscription points at the locked premium pool (task 9). */
-    const val PREF_DERAFSH_PREMIUM_SOURCE = "pref_derafsh_premium_source"
-
     /** Max configs per built-in pool group; bigger sources split into "(k)" overflow groups. */
     const val DERAFSH_POOL_CHUNK_SIZE = 200
-
-    /** v1.2.52 monetization: exactly this many built-in sources stay free (Derafsh 1);
-     *  every other entry in the switcher requires a premium license. The already-active
-     *  source always remains switchable-when-selected so an install is never stranded. */
-    const val DERAFSH_FREE_SOURCE_COUNT = 1
 
     /** subId prefix of the overflow chunk groups carved out of any subscription with more
      *  than [DERAFSH_POOL_CHUNK_SIZE] configs; group ids are namespaced per primary
@@ -596,9 +545,6 @@ object AppConfig {
 
     const val MSG_SUB_UPDATE_START = 8
     const val MSG_SUB_UPDATE_CANCEL = 81
-
-    const val MSG_SESSION_EXPIRED = 91
-    const val MSG_SESSION_EXTENDED = 92
 
     /** Notification channel IDs and names. */
     // Use a new ID because Android does not let an app raise an existing channel's importance.

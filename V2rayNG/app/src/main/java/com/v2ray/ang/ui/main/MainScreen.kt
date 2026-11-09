@@ -94,13 +94,9 @@ import com.v2ray.ang.R
 import com.v2ray.ang.core.LauncherManager
 import com.v2ray.ang.handler.DerafshSourceManager
 import com.v2ray.ang.handler.ForceUpdateManager
-import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MaintenanceStatus
 import com.v2ray.ang.ui.compose.BannerAd
 import com.v2ray.ang.util.Utils
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -126,7 +122,6 @@ fun MainScreen(
     val allServers by mainViewModel.allServerRows.collectAsStateWithLifecycle()
     val pickerServers by mainViewModel.pickerServerRows.collectAsStateWithLifecycle()
     val showStaleProfiles by mainViewModel.showStaleProfiles.collectAsStateWithLifecycle()
-    val sessionDeadlineMillis by mainViewModel.sessionDeadlineMillis.collectAsStateWithLifecycle()
     val derafshActiveSource by mainViewModel.derafshActiveSource.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
@@ -138,25 +133,10 @@ fun MainScreen(
     // state rides the same ticker (a pure MMKV read), so returning from the activation
     // screen corrects the renewal banner within a second.
     var maintenance by remember { mutableStateOf(MaintenanceStatus.read()) }
-    var licenseState by remember { mutableStateOf(LicenseManager.current(appContext)) }
     LaunchedEffect(Unit) {
         while (isActive) {
             maintenance = MaintenanceStatus.read()
-            licenseState = LicenseManager.current(appContext)
             delay(700)
-        }
-    }
-
-    // Premium pool revert (task 9): if the built-in sub points at the locked premium
-    // endpoint but the license is no longer unlocked (revoked, expired locally, device
-    // mismatch), fall back to the last free source right away. v1.2.61: admin master
-    // access is local-only — it never lapses, so the revert must not fire for it.
-    LaunchedEffect(licenseState) {
-        if (DerafshSourceManager.isPremiumSourceActive() &&
-            !licenseState.active &&
-            !LicenseManager.isAdminMode()
-        ) {
-            mainViewModel.onPremiumLicenseLost()
         }
     }
 
@@ -201,7 +181,6 @@ fun MainScreen(
 
     var showServerPicker by rememberSaveable { mutableStateOf(false) }
     var showDerafshSources by rememberSaveable { mutableStateOf(false) }
-    var showPremiumGate by rememberSaveable { mutableStateOf(false) }
 
     val selectedRow = remember(allServers, uiState.selectedGuid) {
         uiState.selectedGuid?.let { guid -> allServers.firstOrNull { it.guid == guid } }
@@ -246,26 +225,6 @@ fun MainScreen(
         label = "entranceCardOffset",
     )
 
-    // Session countdown: one shared per-second ticker feeds the ring and the text label.
-    var remainingMillis by remember { mutableStateOf(Long.MAX_VALUE) }
-    LaunchedEffect(uiState.isRunning, sessionDeadlineMillis) {
-        if (!uiState.isRunning || sessionDeadlineMillis <= 0L) {
-            remainingMillis = Long.MAX_VALUE
-            return@LaunchedEffect
-        }
-        while (isActive) {
-            remainingMillis = (sessionDeadlineMillis - System.currentTimeMillis()).coerceAtLeast(0L)
-            if (remainingMillis == 0L) break
-            delay(1000)
-        }
-    }
-    val sessionFraction: Float? =
-        if (uiState.isRunning && sessionDeadlineMillis > 0L && remainingMillis != Long.MAX_VALUE) {
-            (remainingMillis.toFloat() / AppConfig.SESSION_DURATION_MS).coerceIn(0f, 1f)
-        } else {
-            null
-        }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -306,7 +265,6 @@ fun MainScreen(
                     ConnectAmbientVisuals(
                         isRunning = uiState.isRunning,
                         isStartPending = isStartPending,
-                        sessionFraction = sessionFraction,
                         reducedMotion = reducedMotion,
                     )
                     ConnectCircleButton(
@@ -323,36 +281,7 @@ fun MainScreen(
                     isStartPending = isStartPending,
                     connectPhase = connectPhase,
                 )
-                // Derafsh session limit: remaining time while the daemon-enforced session runs.
-                SessionRemainingLabel(
-                    isRunning = uiState.isRunning,
-                    remainingMillis = remainingMillis,
-                )
             }
-        }
-
-        // Derafsh premium renewal (task 7): a quiet countdown banner while the license is
-        // active but inside the 3-day reminder window. The Renew shortcut opens the
-        // Telegram bot when configured, otherwise the in-app activation screen; the
-        // banner disappears by itself once the license is renewed or revoked.
-        val renewalState = licenseState
-        if (renewalState.active && renewalState.expiresAt != null &&
-            renewalState.expiresAt - System.currentTimeMillis() <= AppConfig.LICENSE_REMIND_MS
-        ) {
-            DerafshRenewalBanner(
-                expiresAt = renewalState.expiresAt,
-                onRenew = {
-                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                    } else {
-                        onNavigate(MainDestination.License)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 12.dp),
-            )
         }
 
         // Derafsh status section 1: background maintenance (sub refresh + speed test).
@@ -374,25 +303,6 @@ fun MainScreen(
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 12.dp),
         )
-
-        // v1.2.52 monetization: the premium pitch for free installs — premium means
-        // unlimited time (no 60-minute session) plus every locked source. Opens the bot
-        // (or the activation screen) on tap. v1.2.61: hidden under admin master access.
-        if (!licenseState.active && !LicenseManager.isAdminMode()) {
-            DerafshPremiumUpsellCard(
-                onAction = {
-                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                    } else {
-                        onNavigate(MainDestination.License)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 12.dp),
-            )
-        }
 
         SelectedServerCard(
             selectedRow = selectedRow,
@@ -425,56 +335,14 @@ fun MainScreen(
     if (showDerafshSources) {
         DerafshSourcesDialog(
             activeIndex = derafshActiveSource,
-            premiumUnlocked = mainViewModel.isPremiumUnlocked(),
             onSelect = { index ->
                 showDerafshSources = false
-                val locked = !mainViewModel.isPremiumUnlocked() &&
-                    index >= AppConfig.DERAFSH_FREE_SOURCE_COUNT &&
-                    index != derafshActiveSource
-                if (locked) {
-                    showPremiumGate = true
-                } else {
-                    onAction(MainAction.SwitchDerafshSource(index))
-                }
-            },
-            onPremiumClick = {
-                showDerafshSources = false
-                if (mainViewModel.isPremiumUnlocked()) {
-                    // Licensed: point the built-in subscription at the locked premium
-                    // pool endpoint and refresh immediately (task 9).
-                    mainViewModel.selectPremiumSource()
-                } else {
-                    showPremiumGate = true
-                }
+                onAction(MainAction.SwitchDerafshSource(index))
             },
             onDismiss = { showDerafshSources = false },
         )
     }
 
-    if (showPremiumGate) {
-        DerafshPremiumGateDialog(
-            onActivate = {
-                showPremiumGate = false
-                onNavigate(MainDestination.License)
-            },
-            onDismiss = { showPremiumGate = false },
-        )
-    }
-
-    if (uiState.sessionTimeUp) {
-        SessionTimeUpDialog(
-            onExtend = { onAction(MainAction.ExtendSessionWithAd) },
-            onPremium = {
-                onAction(MainAction.DismissSessionTimeUp)
-                if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                    Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                } else {
-                    onNavigate(MainDestination.License)
-                }
-            },
-            onClose = { onAction(MainAction.DismissSessionTimeUp) },
-        )
-    }
 }
 
 @Composable
@@ -669,14 +537,13 @@ private fun ConnectCircleButton(
  * Ambient animation layer drawn around the connect button:
  * - idle: breathing brand glow
  * - connecting: expanding radar rings
- * - connected: soft gold glow plus a depleting session countdown ring
+ * - connected: soft gold glow
  * Under reduced motion every loop is replaced by a single static halo.
  */
 @Composable
 private fun ConnectAmbientVisuals(
     isRunning: Boolean,
     isStartPending: Boolean,
-    sessionFraction: Float?,
     reducedMotion: Boolean,
 ) {
     when {
@@ -689,9 +556,6 @@ private fun ConnectAmbientVisuals(
         }
         isRunning -> {
             if (!reducedMotion) ConnectedGlow()
-            if (sessionFraction != null) {
-                SessionProgressRing(fraction = sessionFraction)
-            }
         }
         else -> {
             if (reducedMotion) {
@@ -797,40 +661,6 @@ private fun ConnectedGlow() {
     }
 }
 
-/**
- * Depleting ring around the connect button visualising the remaining session time.
- * Turns crimson in the final stretch as a soft "time is running out" hint.
- */
-@Composable
-private fun SessionProgressRing(fraction: Float) {
-    val ringColor by animateColorAsState(
-        targetValue = if (fraction < LOW_TIME_FRACTION) {
-            MaterialTheme.colorScheme.error
-        } else {
-            MaterialTheme.colorScheme.secondary
-        },
-        animationSpec = tween(durationMillis = COLOR_ANIMATION_MILLIS),
-        label = "sessionRingColor",
-    )
-    val trackColor = MaterialTheme.colorScheme.outlineVariant
-    Canvas(modifier = Modifier.size((BUTTON_SIZE + RING_PADDING * 2).dp)) {
-        val stroke = 4.dp.toPx()
-        val radius = (size.minDimension - stroke) / 2f
-        drawCircle(
-            color = trackColor.copy(alpha = 0.45f),
-            radius = radius,
-            style = Stroke(width = stroke),
-        )
-        drawArc(
-            color = ringColor,
-            startAngle = -90f,
-            sweepAngle = 360f * fraction,
-            useCenter = false,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-    }
-}
-
 @Composable
 private fun AnimatedStatusLabel(
     isRunning: Boolean,
@@ -857,88 +687,6 @@ private fun AnimatedStatusLabel(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 24.dp),
         )
-    }
-}
-
-/**
- * Derafsh session countdown shown under the status label while connected. The deadline is
- * daemon-owned and reaches the UI through the ViewModel; this composable only formats the
- * already-ticked remaining time — no MMKV access here.
- */
-@Composable
-private fun SessionRemainingLabel(isRunning: Boolean, remainingMillis: Long) {
-    if (!isRunning || remainingMillis == Long.MAX_VALUE || remainingMillis <= 0L) return
-
-    Text(
-        text = stringResource(R.string.session_remaining, formatSessionRemaining(remainingMillis)),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .padding(top = 8.dp)
-            .padding(horizontal = 24.dp),
-    )
-}
-
-/** mm:ss for 30-minute sessions (h:mm:ss kept for safety if a session ever runs longer). */
-private fun formatSessionRemaining(remainingMillis: Long): String {
-    val totalSeconds = remainingMillis / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
-    }
-}
-
-/**
- * v1.2.52 monetization: the always-visible premium pitch for installs without a license —
- * "the free hour ends, premium never does". Sits where the GitHub self-update card used to,
- * right beside the maintenance card the user already reads every app open.
- */
-@Composable
-private fun DerafshPremiumUpsellCard(
-    onAction: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = onAction,
-        shape = RoundedCornerShape(CARD_CORNER_RADIUS.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_derafsh_emblem),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.premium_upsell_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.premium_upsell_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            TextButton(onClick = onAction) {
-                Text(stringResource(R.string.premium_upsell_cta), fontWeight = FontWeight.SemiBold)
-            }
-        }
     }
 }
 
@@ -1149,86 +897,6 @@ private fun DerafshProgressBar(
 }
 
 /**
- * Derafsh premium renewal banner (task 7): shown on the main screen while the license is
- * within the renewal reminder window. Reuses the license screen's expiry line, adds the
- * "ending soon" hint and the Renew shortcut (Telegram bot or the activation screen).
- */
-@Composable
-private fun DerafshRenewalBanner(
-    expiresAt: Long,
-    onRenew: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        shape = RoundedCornerShape(CARD_CORNER_RADIUS.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_derafsh_emblem),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(
-                        R.string.license_status_active_until,
-                        formatExpiry(expiresAt)
-                    ),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(R.string.license_renew_banner_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            TextButton(onClick = onRenew) {
-                Text(stringResource(R.string.license_renew))
-            }
-        }
-    }
-}
-
-/**
- * Derafsh monetization (v1.2.52): the free hour is over. Premium = unlimited time + every
- * locked source; the ad path stays as the secondary "keep testing" option.
- */
-@Composable
-private fun SessionTimeUpDialog(
-    onExtend: () -> Unit,
-    onPremium: () -> Unit,
-    onClose: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onClose,
-        title = { Text(stringResource(R.string.session_time_up)) },
-        text = { Text(stringResource(R.string.session_time_up_body)) },
-        confirmButton = {
-            TextButton(onClick = onPremium) {
-                Text(stringResource(R.string.session_premium_cta), fontWeight = FontWeight.SemiBold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onExtend) {
-                Text(stringResource(R.string.session_extend_ad))
-            }
-        },
-    )
-}
-
-/**
  * Force-update blocker (v1.2.53): the whole main screen while the build is below the
  * server-mandated minimum. Non-dismissable — the only ways out are updating (bot) or
  * the server lifting the pin. The button funnels to the Telegram bot, where the new
@@ -1359,12 +1027,6 @@ private fun SelectedServerCard(
     }
 }
 
-/** Inlined from the removed LicenseViewModel (de-premium step 1); the premium status UI
- *  that uses it is removed in step 3, after which this helper goes too. */
-private fun formatExpiry(epochMillis: Long): String =
-    Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault())
-        .format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
-
 private const val BUTTON_SIZE = 200
 private const val PROGRESS_SIZE = 64
 private const val ICON_SIZE = 72
@@ -1372,5 +1034,4 @@ private const val CARD_CORNER_RADIUS = 24
 private const val COLOR_ANIMATION_MILLIS = 250
 private const val RING_PADDING = 36
 private const val RADAR_RING_COUNT = 3
-private const val LOW_TIME_FRACTION = 0.15f
 private const val MAINT_DONE_VISIBLE_MILLIS = 7000L

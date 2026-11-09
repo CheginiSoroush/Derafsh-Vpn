@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit
  *    premium sub URL an av= parameter), so the worker itself rejects outdated/legacy
  *    clients with 426 UPDATE_REQUIRED regardless of what the client does locally.
  *
- * Failure policy mirrors [LicenseManager]: network errors NEVER unlock anything — the
+ * Failure policy: network errors NEVER unlock anything — the
  * cached minimum stays in force (0 = never checked / nothing pinned means "allow").
  */
 object ForceUpdateManager {

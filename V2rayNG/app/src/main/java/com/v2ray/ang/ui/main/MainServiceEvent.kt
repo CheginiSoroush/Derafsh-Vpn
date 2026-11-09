@@ -17,8 +17,6 @@ sealed class MainServiceEvent {
     data class MeasureConfigCancelled(val requestId: String) : MainServiceEvent()
 
     /** Derafsh: the daemon tore the session down after its 30-minute deadline elapsed. */
-    data object SessionExpired : MainServiceEvent()
 
     /** Derafsh: the daemon (re)armed the session deadline; payload is the new epoch deadline. */
-    data class SessionExtended(val deadlineMillis: Long) : MainServiceEvent()
 }

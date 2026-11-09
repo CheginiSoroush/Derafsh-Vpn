@@ -75,11 +75,6 @@ class MainRepository(
                 )
                 AppConfig.MSG_MEASURE_CONFIG_CANCEL -> MainServiceEvent.MeasureConfigCancelled(requestId)
 
-                AppConfig.MSG_SESSION_EXPIRED -> MainServiceEvent.SessionExpired
-                AppConfig.MSG_SESSION_EXTENDED -> safeIntent.getStringExtra("content")
-                    ?.toLongOrNull()
-                    ?.let { MainServiceEvent.SessionExtended(it) }
-
                 else -> null
             }
             event?.let { mainServiceEventChannel.trySend(it) }
@@ -136,9 +131,6 @@ class MainRepository(
 
     override fun isAutoPickFastestEnabled(): Boolean =
         MmkvManager.decodeSettingsBool(AppConfig.PREF_AUTO_PICK_FASTEST, true)
-
-    override fun getSessionDeadlineMillis(): Long =
-        MmkvManager.decodeSettingsLong(AppConfig.PREF_SESSION_DEADLINE, 0L)
 
     override fun getLastAutoMaintenance(): Long =
         MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_AUTO_MAINTENANCE, 0L)

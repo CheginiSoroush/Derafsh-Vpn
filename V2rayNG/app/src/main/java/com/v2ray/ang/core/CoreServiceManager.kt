@@ -20,7 +20,6 @@ import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
-import com.v2ray.ang.handler.LicenseManager
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
@@ -55,11 +54,6 @@ object CoreServiceManager {
     private var browserDialer: IDialerService? = null
     private var networkMonitor: NetworkMonitor? = null
     private val connectionTestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    // Derafsh session timer: only ever armed in the :daemon process (startCoreLoop is called
-    // exclusively by the daemon-side services), scoped to this object like connectionTestScope.
-    private val sessionTimerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var sessionTimerJob: Job? = null
 
     @Volatile
     private var isReloading = false
@@ -109,12 +103,10 @@ object CoreServiceManager {
 
         try {
             doStartCoreLoop(service, vpnInterface)
-            armSessionTimer(service)
             return true
         } catch (e: Exception) {
             val message = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
             LogUtil.e(AppConfig.TAG, "StartCore-Manager: $message", e)
-            cancelSessionTimer()
             MessageHelper.sendMsg2UI(service, AppConfig.MSG_STATE_START_FAILURE, message)
             NotificationManager.cancelNotification()
             return false
@@ -200,9 +192,6 @@ object CoreServiceManager {
      */
     fun stopCoreLoop(): Boolean {
         connectionTestScope.coroutineContext.cancelChildren()
-        // A manual stop always kills the session deadline; expiry itself tears down through
-        // serviceControl.stopService() below, which lands back here afterwards.
-        cancelSessionTimer()
         val service = getService() ?: return false
 
         networkMonitor?.unregister()
@@ -236,75 +225,6 @@ object CoreServiceManager {
         }
 
         return true
-    }
-
-    // ---------- Derafsh session timer (:daemon only) ----------
-
-    /**
-     * Arms the free-session deadline after the core loop started successfully. The
-     * deadline is persisted so the UI process can render its countdown straight from
-     * multiprocess MMKV. Re-arming (restart / rewarded-ad extension) always opens a fresh
-     * window; a network-handover reload (launchCore isReload=true) intentionally does not
-     * touch the deadline.
-     *
-     * v1.2.52: a valid (or in-grace) premium license means UNLIMITED time — the timer is
-     * never armed and any persisted deadline is cleared. The license is read live from
-     * multiprocess MMKV (same store the daemon already shares with the UI), so a purchase
-     * made while connected takes effect on the next (re)start, and a revoked one falls
-     * back into the free 60-minute window.
-     */
-    private fun armSessionTimer(service: Service) {
-        cancelSessionTimer()
-        if (LicenseManager.isPremiumUnlocked(service)) {
-            MmkvManager.encodeSettings(AppConfig.PREF_SESSION_DEADLINE, 0L)
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_SESSION_EXTENDED, "0")
-            LogUtil.i(AppConfig.TAG, "Session timer: premium license active — unlimited session")
-            return
-        }
-        val deadline = System.currentTimeMillis() + AppConfig.SESSION_DURATION_MS
-        MmkvManager.encodeSettings(AppConfig.PREF_SESSION_DEADLINE, deadline)
-        MessageHelper.sendMsg2UI(service, AppConfig.MSG_SESSION_EXTENDED, deadline.toString())
-        sessionTimerJob = sessionTimerScope.launch {
-            try {
-                delay(AppConfig.SESSION_DURATION_MS)
-                expireSession()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (e: Exception) {
-                LogUtil.e(AppConfig.TAG, "Session timer: expiry handling failed", e)
-            }
-        }
-    }
-
-    /**
-     * Tears the session down through exactly the same path the MSG_STATE_STOP command uses
-     * (serviceControl.stopService); the UI is notified first so the stop-success broadcast
-     * cannot race the "Time's up" dialog state. The service may already be gone; expiry must
-     * never crash the daemon.
-     */
-    private fun expireSession() {
-        try {
-            val service = getService() ?: run {
-                LogUtil.w(AppConfig.TAG, "Session timer: expired but service is gone, skipping teardown")
-                return
-            }
-            LogUtil.i(AppConfig.TAG, "Session timer: session expired, stopping core")
-            // Notify before teardown: the stop-success broadcast would otherwise race the
-            // dialog state in the UI process.
-            MessageHelper.sendMsg2UI(service, AppConfig.MSG_SESSION_EXPIRED, "")
-            if (isRunning()) {
-                serviceControl?.get()?.stopService()
-            }
-        } catch (e: Exception) {
-            LogUtil.e(AppConfig.TAG, "Session timer: failed to expire session", e)
-        }
-    }
-
-    /** Cancels the timer job and clears the persisted deadline (0 = no active session). */
-    private fun cancelSessionTimer() {
-        sessionTimerJob?.cancel()
-        sessionTimerJob = null
-        MmkvManager.encodeSettings(AppConfig.PREF_SESSION_DEADLINE, 0L)
     }
 
     /**
