@@ -2,7 +2,6 @@ package com.v2ray.ang.ui.compose
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -33,9 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
-import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.delay
 
 /**
@@ -49,13 +45,11 @@ import kotlinx.coroutines.delay
 private const val HOUSE_INTERSTITIAL_DURATION_MS = 4_000L
 
 /**
- * Branded banner card shown in the main screen's ad slot. Tapping it opens the Telegram bot
- * (v1.2.52: the GitHub project page is gone from the app). Deliberately static (no looping
- * animation) to respect reduced-motion accessibility.
+ * Branded banner card shown in the main screen's ad slot. Purely informational —
+ * deliberately static (no looping animation) to respect reduced-motion accessibility.
  */
 @Composable
 fun DerafshHouseBanner(modifier: Modifier = Modifier) {
-    val context = LocalContext.current
     val a11y = stringResource(R.string.house_banner_title)
 
     Surface(
@@ -66,11 +60,6 @@ fun DerafshHouseBanner(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(64.dp)
             .clip(RoundedCornerShape(12.dp))
-            .clickable {
-                if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                    Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                }
-            }
             .semantics { contentDescription = a11y },
     ) {
         Row(

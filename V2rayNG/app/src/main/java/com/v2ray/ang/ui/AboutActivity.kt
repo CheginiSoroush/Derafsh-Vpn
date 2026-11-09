@@ -93,24 +93,6 @@ fun AboutScreen(
                 onClick = onTranslatorsClick
             )
             SettingsMenuItem(
-                icon = painterResource(R.drawable.ic_feedback_24dp),
-                title = stringResource(R.string.title_pref_feedback),
-                onClick = {
-                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                    }
-                }
-            )
-            SettingsMenuItem(
-                icon = painterResource(R.drawable.ic_telegram_24dp),
-                title = stringResource(R.string.title_tg_channel),
-                onClick = {
-                    if (AppConfig.DERAFSH_BOT_URL.isNotBlank()) {
-                        Utils.openUri(context, AppConfig.DERAFSH_BOT_URL)
-                    }
-                }
-            )
-            SettingsMenuItem(
                 icon = painterResource(R.drawable.ic_privacy_24dp),
                 title = stringResource(R.string.title_privacy_policy),
                 onClick = { Utils.openUri(context, AppConfig.APP_PRIVACY_POLICY) }

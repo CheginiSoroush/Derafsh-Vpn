@@ -66,19 +66,6 @@ object SettingsManager {
             LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription interval to 4h")
         }
 
-        // De-premium migration (v1.2.62): installs the v1.2.53 migration moved onto the
-        // retired Cloudflare worker pool go back to the direct GitHub-raw feed — the
-        // worker is gone, only the default free source is rewritten; user-chosen sources
-        // and any other active subscription are never touched. Self-guarding: once
-        // rewritten the condition is false, so no flag is needed.
-        decodeSubscription(DEFAULT_SUBSCRIPTION_ID)?.let { stored ->
-            if (stored.url == AppConfig.DERAFSH_SUB_URL) {
-                stored.url = AppConfig.DERAFSH_SUB_URL_LEGACY
-                encodeSubscription(DEFAULT_SUBSCRIPTION_ID, stored)
-                LogUtil.i(AppConfig.TAG, "Migrated default Derafsh subscription off the retired worker pool")
-            }
-        }
-
         // One-time migration from the multi-pool seeding: only the active source is kept as a
         // subscription now — the extra built-in pools are removed so nothing stale is updated.
         val singleSourceMigrated =
@@ -122,9 +109,18 @@ object SettingsManager {
                 )
             )
             LogUtil.i(AppConfig.TAG, "Seeded active Derafsh source subscription: $activeName")
-        } else if (current.remarks != activeName) {
-            // Keep the built-in subscription naming in sync with the switcher.
-            current.remarks = activeName
+        } else if (current.remarks != activeName ||
+            current.url != DerafshSourceManager.sourceUrl(activeIndex)
+        ) {
+            // Keep the built-in subscription naming and URL in sync with the switcher.
+            // The URL repair also migrates installs still pointing at the retired
+            // Cloudflare worker pool (v1.2.53–v1.2.61 seeded the worker-served free
+            // feed) back onto the active free source — the worker is gone and nothing
+            // references it.
+            if (current.remarks != activeName) {
+                current.remarks = activeName
+            }
+            current.url = DerafshSourceManager.sourceUrl(activeIndex)
             encodeSubscription(DEFAULT_SUBSCRIPTION_ID, current)
         }
         MmkvManager.encodeSettings(AppConfig.PREF_DEFAULT_SUB_SEEDED, "1")

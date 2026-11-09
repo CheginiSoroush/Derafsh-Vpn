@@ -41,7 +41,8 @@ object AngConfigManager {
     /**
      * v1.2.58: true when the most recent [updateConfigViaSub] call served the bundled
      * asset snapshot ([AppConfig.DERAFSH_POOL_BACKUP_ASSET]) instead of the live network
-     * payload — imsoroush.top unreachable (Cloudflare SNI filtering on some Iranian ISPs).
+     * payload — the default feed unreachable (raw.githubusercontent throttled and
+     * sometimes SNI-filtered on Iranian ISPs).
      * Read by the UI right after an import to tell a bundled-bootstrap pool apart from a
      * fresh network refresh; every import run resets it.
      */

@@ -120,26 +120,6 @@ object AppConfig {
     const val PREF_ONBOARDING_DONE = "pref_onboarding_done"
     const val PREF_POLICY_CONSENT_VERSION = "pref_policy_consent_version"
 
-    // License API base URL — production Cloudflare Worker behind the custom domain
-    // imsoroush.top (workers.dev is filtered in Iran). Contract: premium-design.md §5
-    // (/health, /v1/activate, /v1/status, /v1/sub/<code>?device=).
-    const val LICENSE_API_BASE = "https://imsoroush.top"
-    // Telegram bot that sells subscriptions and issues activation codes (@PDerafshVpnbot,
-    // live webhook on the license worker). The UI hides the bot entry points while blank.
-    const val DERAFSH_BOT_URL = "https://t.me/PDerafshVpnbot"
-    // Force-update kill switch (v1.2.53): the app caches the server-mandated minimum
-    // supported versionCode from <LICENSE_API_BASE>/v1/config on every startup and in
-    // the periodic :bg check. When the running build is older, the main screen is
-    // replaced by an update-required blocker and every service start path refuses to
-    // run — outdated installs are dead until they update. All license API calls also
-    // announce the running version (X-App-Version header / av= query parameter) so the
-    // worker rejects outdated or legacy clients with 426 UPDATE_REQUIRED.
-    const val PREF_FORCE_UPDATE_MIN = "pref_force_update_min"
-    const val PREF_FORCE_UPDATE_CHECKED_AT = "pref_force_update_checked_at"
-    const val FORCE_UPDATE_CHECK_INTERVAL_MS = 5L * 60 * 1000
-    const val LICENSE_APP_VERSION_HEADER = "X-App-Version"
-    const val LICENSE_APP_VERSION_PARAM = "av"
-
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
 
@@ -173,17 +153,15 @@ object AppConfig {
     const val DOWNLINK = "downlink"
 
     /** URLs for various resources.
-     *  v1.2.52 privacy pass: the developer's GitHub coordinates are gone from the app —
-     *  support/updates funnel to the Telegram bot, the privacy policy is served by the
-     *  license worker (/privacy), and the GitHub-based self-updater was removed entirely
-     *  (releases are announced through the bot with the APK attached). Only third-party
-     *  infrastructure feeds (geoip assets, per-app package list, free-config pools) and
-     *  the legacy-sub migration URL remain. */
+     *  De-premium pass (v1.2.62): no Cloudflare worker, no Telegram-bot funnel — the
+     *  privacy policy is served straight from the repo on GitHub and updates ship
+     *  through GitHub releases. Only third-party infrastructure feeds (geoip assets,
+     *  per-app package list, free-config pools) remain. */
     const val GITHUB_URL = "https://github.com"
     const val GITHUB_RAW_URL = "https://raw.githubusercontent.com"
     const val GITHUB_DOWNLOAD_URL = "$GITHUB_URL/%s/releases/latest/download"
     const val ANDROID_PACKAGE_NAME_LIST_URL = "$GITHUB_RAW_URL/2dust/androidpackagenamelist/master/proxy.txt"
-    const val APP_PRIVACY_POLICY = "https://imsoroush.top/privacy"
+    const val APP_PRIVACY_POLICY = "$GITHUB_RAW_URL/CheginiSoroush/Derafsh-Vpn/main/PRIVACY.md"
 
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */
@@ -191,12 +169,12 @@ object AppConfig {
 
     /**
      * Default built-in source: the 0xRadikal "top100" free feed on raw.githubusercontent
-     * (≈15 min upstream refresh). v1.2.53 briefly moved this to the Cloudflare worker
-     * (/v1/free/sub); de-premium v1.2.62 reverts the default to the direct feed — no
-     * worker, no license API. [DERAFSH_SUB_URL] survives only so stored installs still
-     * pointing at it are migrated back below (see SettingsManager).
+     * (≈15 min upstream refresh). v1.2.53 briefly moved this to the Cloudflare worker;
+     * de-premium v1.2.62 reverts the default to the direct feed — no worker, no license
+     * API, no worker endpoints. Installs still pointing at the retired worker URL are
+     * healed by the built-in subscription sync in SettingsManager (no URL reference
+     * needed here — the sync compares against the active source, not the old URL).
      */
-    const val DERAFSH_SUB_URL = "$LICENSE_API_BASE/v1/free/sub"
     const val DERAFSH_SUB_URL_LEGACY = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
 
     /**
