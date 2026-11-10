@@ -1,0 +1,1 @@
+Housekeeping release: the unused fdroid build variant is gone. The Releases page now ships only the standard com.derafsh.vpn APKs (arm64-v8a, armeabi-v7a, x86, x86_64, universal) — no more lookalike -fdroid files that could not install over the standard app. Same signature, same features, faster builds.
