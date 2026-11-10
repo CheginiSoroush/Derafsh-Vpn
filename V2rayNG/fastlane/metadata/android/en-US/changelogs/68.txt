@@ -1,0 +1,1 @@
+Opening the app now takes care of itself: the default free source always refreshes on a cold open (no more 15-minute wait) and its servers go straight into a real-delay test right after the refresh, so delay badges are fresh and dead configs are swept without tapping anything. Background-return refreshes are throttled lightly (5 minutes) to save data.
