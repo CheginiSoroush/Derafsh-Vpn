@@ -155,7 +155,7 @@ jobs:
         cd ${{ github.workspace }}/V2rayNG
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
-        ./gradlew licenseFdroidReleaseReport
+        ./gradlew licenseReleaseReport
         if [ -n "$DERAFSH_KEYSTORE_PATH" ]; then
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file="$DERAFSH_KEYSTORE_PATH" \

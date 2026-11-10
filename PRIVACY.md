@@ -6,7 +6,7 @@
 
 ## فارسی
 
-اپلیکیشن «درفش» (به‌همراه نسخه فدورای آن `com.derafsh.vpn.fdroid`) توسط تیم درفش توسعه داده می‌شود. حریم خصوصی شما برای ما جدی است؛ این سند به زبان ساده توضیح می‌دهد چه اطلاعاتی پردازش می‌شود و چه اطلاعاتی **هرگز** جمع نمی‌شود.
+اپلیکیشن «درفش» (`com.derafsh.vpn`) توسط تیم درفش توسعه داده می‌شود. حریم خصوصی شما برای ما جدی است؛ این سند به زبان ساده توضیح می‌دهد چه اطلاعاتی پردازش می‌شود و چه اطلاعاتی **هرگز** جمع نمی‌شود.
 
 ### ۱. اطلاعاتی که جمع نمی‌کنیم
 
@@ -69,7 +69,7 @@
 
 ## English
 
-The **Derafsh** app (`com.derafsh.vpn`, plus its F-Droid flavor `com.derafsh.vpn.fdroid`) is developed by the Derafsh team. We take your privacy seriously. This policy explains, in plain language, what is processed and what is **never** collected.
+The **Derafsh** app (`com.derafsh.vpn`) is developed by the Derafsh team. We take your privacy seriously. This policy explains, in plain language, what is processed and what is **never** collected.
 
 ### 1. What we do NOT collect
 

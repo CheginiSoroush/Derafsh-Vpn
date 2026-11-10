@@ -114,17 +114,15 @@ from `git ls-tree HEAD AndroidLibXrayLite`. Take build-tool versions from that w
 `V2rayNG/gradle/libs.versions.toml`.
 
 Run Gradle from `V2rayNG/`, using `gradlew.bat` in Windows PowerShell or `./gradlew` on POSIX. Use
-the Play Store debug variant unless task scope names another distribution.
+the debug variant unless task scope names another build type.
 
 Apply every matching validation rule:
 
 - Documentation only: run `git diff --check`; no Gradle task is required.
 - Kotlin/Java production code: run the test class that asserts each changed behavior, then
-  `:app:testPlaystoreDebugUnitTest` and `:app:compilePlaystoreDebugKotlin`.
+  `:app:testDebugUnitTest` and `:app:compileDebugKotlin`.
 - Resources, manifest, Gradle, dependencies, or native packaging: run
-  `:app:assemblePlaystoreDebug`.
-- F-Droid only: replace `Playstore` with `Fdroid`. Run both variants when shared code branches on a
-  flavor, `BuildConfig.DISTRIBUTION`, or a flavor-specific resource or dependency.
+  `:app:assembleDebug`.
 - Android service lifecycle, framework callback, native interaction, permission, accessibility,
   focus, or state restoration: also run an emulator or physical-device check.
 
@@ -185,4 +183,4 @@ whitespace outside touched declarations or reorder imports except as the diff re
 - A preview/canary SDK or alpha dependency is allowed in production only when the request or linked
   issue requires it. Keep a stable path for supported non-preview devices, gate by runtime API or
   feature availability, and test both paths. After an API guard, opt-in, or lint suppression, run
-  `:app:lintPlaystoreDebug` and also `:app:lintFdroidDebug` when behavior differs by distribution.
+  `:app:lintDebug`.
