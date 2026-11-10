@@ -172,28 +172,32 @@ jobs:
       if: ${{ success() }}
       with:
         name: arm64-v8a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*arm64-v8a*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/release/*arm64-v8a*.apk
+        if-no-files-found: error
 
     - name: Upload armeabi-v7a APK
       uses: actions/upload-artifact@v7
       if: ${{ success() }}
       with:
         name: armeabi-v7a
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*armeabi-v7a*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/release/*armeabi-v7a*.apk
+        if-no-files-found: error
 
     - name: Upload x86 APK
       uses: actions/upload-artifact@v7
       if: ${{ success() }}
       with:
         name: x86-apk
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*x86*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/release/*x86*.apk
+        if-no-files-found: error
 
     - name: Upload universal APK
       uses: actions/upload-artifact@v7
       if: ${{ success() }}
       with:
         name: universal-apk
-        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*universal*.apk
+        path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/release/*universal*.apk
+        if-no-files-found: error
 
     # R8 mapping.txt = the deobfuscation map for obfuscated release builds.
     # Kept as a PRIVATE repo artifact only — never attach it to the public
