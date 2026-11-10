@@ -789,22 +789,28 @@ class MainViewModel(
      * uses (chunked, av-declared since v1.2.55) for the built-in group only.
      *
      * v1.2.57 fixes two real-world failure loops:
-     *  - the 15-minute throttle timestamp is stamped ONLY on success. v1.2.56 stamped it
+     *  - the throttle timestamp is stamped ONLY on success. v1.2.56 stamped it
      *    before the fetch, so a single failed attempt (first open while offline, network
      *    not yet up after install) suppressed every retry for a quarter of an hour and
      *    the user kept staring at an empty server list;
      *  - failures are no longer fully silent: a toast says the refresh did not happen
      *    instead of leaving an unexplained "No data available".
+     *
+     * v1.2.64 (user report: the app "neither updates the default sub nor tests the
+     * configs" on open): the throttle is now the short [AppConfig.DERAFSH_OPEN_REFRESH_MINUTES]
+     * window and only covers quick foreground returns — cold opens always fetch — and a
+     * successful refresh hands its pool straight to the real-delay pass, same contract
+     * as a source switch, instead of waiting for the 4h maintenance window.
      */
     fun refreshBuiltInSourceOnOpen(force: Boolean = false) {
         val subId = AppConfig.DEFAULT_SUBSCRIPTION_ID
         val item = dataSource.getSubscriptionItem(subId) ?: return
         if (!item.enabled || item.url.isEmpty()) return
         val now = System.currentTimeMillis()
-        val throttleMillis = AppConfig.SUBSCRIPTION_MIN_INTERVAL_MINUTES * 60_000L
-        // force=true (v1.2.61 pool heal): a successful fetch that was served from the
-        // bundled snapshot still stamps the throttle below — the tunnel-connected refetch
-        // must ignore it, otherwise the heal would be silently suppressed for 15 minutes.
+        val throttleMillis = AppConfig.DERAFSH_OPEN_REFRESH_MINUTES * 60_000L
+        // force=true (v1.2.61 pool heal; v1.2.64 cold opens): a successful fetch that was
+        // served from the bundled snapshot still stamps the throttle below — and cold
+        // opens must always fetch — so force bypasses the gap check entirely.
         if (!force && now - MmkvManager.decodeSettingsLong(AppConfig.PREF_LAST_OPEN_SUB_REFRESH, 0L) < throttleMillis) return
         if (openRefreshJob?.isActive == true) return
         openRefreshJob = viewModelScope.launch {
@@ -820,6 +826,14 @@ class MainViewModel(
                         if (result.configCount > 0) {
                             setupGroupTab(forceRefresh = true)
                             refreshSelectedGuid()
+                        }
+                        // v1.2.64: kick the real-delay pass right away for whatever still
+                        // needs a result — brand-new imports, or an unchanged pool whose
+                        // results expired. Fresh results are kept, so this stays cheap;
+                        // CoreTestService closes the maintenance card when it finishes.
+                        if (pendingTestGuids(dataSource.getServerGuidList("")).isNotEmpty()) {
+                            MaintenanceStatus.beginSession()
+                            testAllRealPing(allGroups = true, skipTested = true)
                         }
                         // v1.2.58: say when the pool came from the bundled snapshot so a
                         // possibly stale list is never mistaken for a live refresh.

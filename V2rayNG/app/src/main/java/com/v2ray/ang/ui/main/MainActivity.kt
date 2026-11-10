@@ -137,7 +137,9 @@ class MainActivity : HelperBaseComponentActivity() {
         mainViewModel.onAction(MainAction.Initialize)
         // v1.2.56 (user report): the built-in source pool must refresh when the app
         // opens — the 4h background cadence alone left users on stale configs.
-        mainViewModel.refreshBuiltInSourceOnOpen()
+        // v1.2.64 (user report): a cold open must visibly refresh and test, so it
+        // bypasses the on-open gap check; foreground returns (onStart below) keep it.
+        mainViewModel.refreshBuiltInSourceOnOpen(force = true)
 
         checkAndRequestPermission(PermissionType.POST_NOTIFICATIONS) {}
 

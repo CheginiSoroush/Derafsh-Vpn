@@ -222,6 +222,12 @@ object AppConfig {
      *  reopening the app never re-tests the whole pool from scratch. */
     const val DERAFSH_TEST_FRESH_MS = 12L * 60 * 60 * 1000
 
+    /** Derafsh: minimum gap between two automatic on-open refreshes of the built-in source
+     *  (foreground returns only — cold opens always refresh). Deliberately much shorter
+     *  than SUBSCRIPTION_MIN_INTERVAL_MINUTES: a cold open must visibly refresh the free
+     *  pool and re-test its configs (user report v1.2.63), not sit on a 15-minute throttle. */
+    const val DERAFSH_OPEN_REFRESH_MINUTES = 5L
+
     /** One-time migration: collapse the old multi-pool seeding into the single active source. */
     const val PREF_DERAFSH_SINGLE_SOURCE_MIGRATED = "pref_derafsh_single_source_migrated"
 
