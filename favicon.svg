@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Derafsh favicon: Kaviani Night ground + gold Kaviani emblem (app brand mark) -->
   <defs>
-    <linearGradient id="f1" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/>
+    <linearGradient id="kbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#21152F"/>
+      <stop offset="1" stop-color="#100B1D"/>
     </linearGradient>
-    <linearGradient id="f2" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#fbd048"/><stop offset="1" stop-color="#d99b26"/>
+    <linearGradient id="kfg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F3DDA4"/>
+      <stop offset="1" stop-color="#D8B66A"/>
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#060a09"/>
-  <rect x="13" y="9" width="3.2" height="43" rx="1.6" fill="#7d9a8d"/>
-  <path d="M9 52h15l-3 6H12Z" fill="#24352d"/>
-  <path d="M18 13c6.3-4 11.7 3.2 18.9-.5 6.3-3.2 13.5-.9 18.9 1.8v16.6c-5.4-2.7-11.7-4-18-1.8-8.1 2.7-14.4-1.8-19.8.9Z" fill="url(#f1)"/>
-  <path d="M18 30.1c5.4-2.7 11.7 1.8 19.8-.9 6.3-2.2 12.6-.9 18 1.8v4.5c-5.4-2.7-11.7-4-18-1.8-8.1 2.7-14.4-1.8-19.8.9Z" fill="url(#f2)" opacity=".92"/>
+  <rect width="64" height="64" rx="14" fill="url(#kbg)"/>
+  <g transform="translate(9.6,9.6) scale(1.866)" fill="url(#kfg)">
+    <path d="M7.2,21.2 C8.4,19.7 15.2,19.7 16.4,21.2 Z"/>
+    <path d="M11.1,4 h1.4 v15.9 h-1.4 z"/>
+    <path d="M11.8,1.6 L13.1,2.9 L11.8,4.2 L10.5,2.9 Z"/>
+    <path fill-rule="evenodd" d="M12.5,4.8 C15.6,4.0 19.4,4.6 21.6,6.2 C20.2,7.8 19.4,9.4 19.2,11.4 L16.9,10.0 L16.2,12.4 C15.1,11.6 13.8,11.2 12.5,11.2 Z M16.0,5.7 L16.7,7.2 L18.2,7.9 L16.7,8.6 L16.0,10.1 L15.3,8.6 L13.8,7.9 L15.3,7.2 Z"/>
+  </g>
 </svg>

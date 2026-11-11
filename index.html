@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Derafsh — Free &amp; Open-Source VPN for Android · Xray Core</title>
   <meta name="description" content="Derafsh (درفش) is a free, privacy-first Android VPN client powered by the Xray core. VLESS, VMess, Trojan, Shadowsocks & Hysteria2 · built-in free source · no sign-up · GPL-3.0 open source.">
-  <meta name="theme-color" content="#060a09">
+  <meta name="theme-color" content="#100B1D">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Derafsh — The internet, without walls.">
@@ -13,7 +13,7 @@
   <meta property="og:url" content="https://cheginisoroush.github.io/Derafsh-Vpn/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600&family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/style.css">
   <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -26,19 +26,19 @@
   <header class="nav">
     <div class="wrap nav-in">
       <a class="brand" href="#top" aria-label="Derafsh home">
-        <svg class="brand-flag" viewBox="0 0 64 64" aria-hidden="true">
+        <!-- Derafsh Kaviani brand mark — same geometry as the app emblem (ic_derafsh_emblem.xml) -->
+        <svg class="brand-flag" viewBox="0 0 24 24" aria-hidden="true">
           <defs>
-            <linearGradient id="bf1" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/>
-            </linearGradient>
-            <linearGradient id="bf2" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#fbd048"/><stop offset="1" stop-color="#d99b26"/>
+            <linearGradient id="kg1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#F3DDA4"/><stop offset="1" stop-color="#D8B66A"/>
             </linearGradient>
           </defs>
-          <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#7d9a8d"/>
-          <path d="M4 53h17l-3.4 6.6H7.4Z" fill="#24352d"/>
-          <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf1)"/>
-          <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf2)" opacity=".92"/>
+          <g fill="url(#kg1)">
+            <path d="M7.2,21.2 C8.4,19.7 15.2,19.7 16.4,21.2 Z"/>
+            <path d="M11.1,4 h1.4 v15.9 h-1.4 z"/>
+            <path d="M11.8,1.6 L13.1,2.9 L11.8,4.2 L10.5,2.9 Z"/>
+            <path fill-rule="evenodd" d="M12.5,4.8 C15.6,4.0 19.4,4.6 21.6,6.2 C20.2,7.8 19.4,9.4 19.2,11.4 L16.9,10.0 L16.2,12.4 C15.1,11.6 13.8,11.2 12.5,11.2 Z M16.0,5.7 L16.7,7.2 L18.2,7.9 L16.7,8.6 L16.0,10.1 L15.3,8.6 L13.8,7.9 L15.3,7.2 Z"/>
+          </g>
         </svg>
         <span class="brand-name">Derafsh<span class="brand-fa">درفش</span></span>
       </a>
@@ -90,11 +90,13 @@
         <div class="radar">
           <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
           <div class="app-tile">
-            <svg viewBox="0 0 64 64" class="tile-flag">
-              <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#7d9a8d"/>
-              <path d="M4 53h17l-3.4 6.6H7.4Z" fill="#24352d"/>
-              <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf1)"/>
-              <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf2)" opacity=".92"/>
+            <svg viewBox="0 0 24 24" class="tile-flag">
+              <g fill="#D8B66A">
+                <path d="M7.2,21.2 C8.4,19.7 15.2,19.7 16.4,21.2 Z"/>
+                <path d="M11.1,4 h1.4 v15.9 h-1.4 z"/>
+                <path d="M11.8,1.6 L13.1,2.9 L11.8,4.2 L10.5,2.9 Z"/>
+                <path fill-rule="evenodd" d="M12.5,4.8 C15.6,4.0 19.4,4.6 21.6,6.2 C20.2,7.8 19.4,9.4 19.2,11.4 L16.9,10.0 L16.2,12.4 C15.1,11.6 13.8,11.2 12.5,11.2 Z M16.0,5.7 L16.7,7.2 L18.2,7.9 L16.7,8.6 L16.0,10.1 L15.3,8.6 L13.8,7.9 L15.3,7.2 Z"/>
+              </g>
             </svg>
           </div>
           <span class="float-chip fc1">VLESS · Reality</span>
@@ -257,10 +259,13 @@
   <footer class="footer">
     <div class="wrap footer-in">
       <div class="f-brand">
-        <svg viewBox="0 0 64 64" class="f-flag" aria-hidden="true">
-          <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#5f7a6e"/>
-          <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="#10b981" opacity=".85"/>
-          <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="#d99b26" opacity=".85"/>
+        <svg viewBox="0 0 24 24" class="f-flag" aria-hidden="true">
+          <g fill="#D8B66A">
+            <path d="M7.2,21.2 C8.4,19.7 15.2,19.7 16.4,21.2 Z"/>
+            <path d="M11.1,4 h1.4 v15.9 h-1.4 z"/>
+            <path d="M11.8,1.6 L13.1,2.9 L11.8,4.2 L10.5,2.9 Z"/>
+            <path fill-rule="evenodd" d="M12.5,4.8 C15.6,4.0 19.4,4.6 21.6,6.2 C20.2,7.8 19.4,9.4 19.2,11.4 L16.9,10.0 L16.2,12.4 C15.1,11.6 13.8,11.2 12.5,11.2 Z M16.0,5.7 L16.7,7.2 L18.2,7.9 L16.7,8.6 L16.0,10.1 L15.3,8.6 L13.8,7.9 L15.3,7.2 Z"/>
+          </g>
         </svg>
         <p><strong>Derafsh</strong> · <span data-i18n="f_tag">free &amp; open-source VPN for Android</span></p>
       </div>
