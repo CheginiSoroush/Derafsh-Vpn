@@ -263,6 +263,40 @@ h1 {
 .marquee-track span::after { content: "◆"; font-size: .5rem; color: rgba(var(--gold-glow), .55); letter-spacing: 0; }
 @keyframes scroll { to { transform: translateX(calc(-50% - 23px)); } }
 
+/* ---------- app preview ---------- */
+.shots {
+  display: flex; gap: 26px; overflow-x: auto;
+  padding: 38px 6px 18px; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.shots::-webkit-scrollbar { height: 8px; }
+.shots::-webkit-scrollbar-track { background: transparent; }
+.shots::-webkit-scrollbar-thumb { background: var(--dusk-hi); border-radius: 99px; }
+.shot { flex: 0 0 auto; width: 264px; scroll-snap-align: center; }
+.shot-frame {
+  position: relative; border-radius: 38px; padding: 10px;
+  background: linear-gradient(160deg, #1A1226, #0B0716);
+  border: 1px solid rgba(var(--gold-glow), .22);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 0 46px rgba(var(--gold-glow), .09);
+  transition: transform .25s, border-color .25s, box-shadow .25s;
+}
+.shot:hover .shot-frame {
+  transform: translateY(-6px);
+  border-color: rgba(var(--gold-glow), .45);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .6), 0 0 60px rgba(var(--gold-glow), .16);
+}
+.shot-frame::after {
+  content: ""; position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #0B0716; box-shadow: inset 0 0 0 2px #1A1226;
+}
+.shot-frame img {
+  display: block; width: 100%; height: auto;
+  border-radius: 30px;
+  background: var(--night);
+}
+.shot-cap { text-align: center; margin-top: 14px; color: var(--mut); font-size: .85rem; font-weight: 500; }
+
 /* ---------- sections ---------- */
 .section { padding-top: 84px; padding-bottom: 30px; }
 .section-tight { padding-top: 60px; }
