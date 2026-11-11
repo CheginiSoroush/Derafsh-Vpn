@@ -379,9 +379,9 @@ h2 {
 .f-links a:hover { color: var(--em); }
 .f-copy { flex-basis: 100%; color: #5f7a6e; font-size: .8rem; }
 
-/* ---------- reveal ---------- */
-.reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
-.reveal.in { opacity: 1; transform: none; }
+/* ---------- reveal (only when JS is running; no-JS users see everything) ---------- */
+.js .reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
+.js .reveal.in { opacity: 1; transform: none; }
 
 /* ---------- rtl fine-tuning ---------- */
 html[dir="rtl"] body { font-family: var(--font-fa); }
