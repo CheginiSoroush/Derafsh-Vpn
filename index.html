@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Derafsh — Free &amp; Open-Source VPN for Android · Xray Core</title>
+  <meta name="description" content="Derafsh (درفش) is a free, privacy-first Android VPN client powered by the Xray core. VLESS, VMess, Trojan, Shadowsocks & Hysteria2 · built-in free source · no sign-up · GPL-3.0 open source.">
+  <meta name="theme-color" content="#060a09">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Derafsh — The internet, without walls.">
+  <meta property="og:description" content="Free & open-source Android VPN built on the Xray core. No account, no sign-up — install, open, connect.">
+  <meta property="og:url" content="https://cheginisoroush.github.io/Derafsh-Vpn/">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="skip">Skip to content</a>
+
+  <div class="bg-fx" aria-hidden="true"></div>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a class="brand" href="#top" aria-label="Derafsh home">
+        <svg class="brand-flag" viewBox="0 0 64 64" aria-hidden="true">
+          <defs>
+            <linearGradient id="bf1" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0d9488"/>
+            </linearGradient>
+            <linearGradient id="bf2" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#fbd048"/><stop offset="1" stop-color="#d99b26"/>
+            </linearGradient>
+          </defs>
+          <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#7d9a8d"/>
+          <path d="M4 53h17l-3.4 6.6H7.4Z" fill="#24352d"/>
+          <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf1)"/>
+          <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf2)" opacity=".92"/>
+        </svg>
+        <span class="brand-name">Derafsh<span class="brand-fa">درفش</span></span>
+      </a>
+      <nav class="nav-links" aria-label="Primary">
+        <a href="#features" data-i18n="nav_features">Features</a>
+        <a href="#download" data-i18n="nav_download">Download</a>
+        <a href="#privacy" data-i18n="nav_privacy">Privacy</a>
+        <a href="#faq" data-i18n="nav_faq">FAQ</a>
+      </nav>
+      <div class="nav-actions">
+        <a class="gh-link" href="https://github.com/CheginiSoroush/Derafsh-Vpn" target="_blank" rel="noopener" aria-label="GitHub repository">
+          <svg viewBox="0 0 16 16" width="19" height="19" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span class="gh-stars" id="ghStars" hidden></span>
+        </a>
+        <button class="lang-btn" id="langBtn" type="button" aria-label="Switch language">فا</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+  <span id="top"></span>
+
+    <!-- ============ HERO ============ -->
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <span class="badge reveal">
+          <span class="badge-dot" aria-hidden="true"></span>
+          <span data-i18n="badge">100% free &amp; open source — GPL-3.0</span>
+        </span>
+        <h1 class="reveal">
+          <span data-i18n="h1a">The internet,</span><br>
+          <span class="grad" data-i18n="h1b">without walls.</span>
+        </h1>
+        <p class="lead reveal" data-i18n="lead">Derafsh is a free, privacy-first VPN client for Android, powered by the battle-tested Xray core. One tap, a built-in free source — and you're in.</p>
+        <div class="cta-row reveal">
+          <a class="btn btn-primary" id="dlHero" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest" data-i18n="cta_download">Download for Android</a>
+          <a class="btn btn-ghost" href="https://github.com/CheginiSoroush/Derafsh-Vpn" target="_blank" rel="noopener" data-i18n="cta_github">View on GitHub</a>
+        </div>
+        <div class="chips reveal">
+          <span class="chip">≈ 25 MB</span>
+          <span class="chip" data-i18n="chip_android">Android 7.0+</span>
+          <span class="chip">Xray Core</span>
+          <span class="chip">English · فارسی</span>
+        </div>
+        <p class="version-pill reveal" id="versionPill" hidden></p>
+      </div>
+
+      <div class="hero-visual reveal" aria-hidden="true">
+        <div class="radar">
+          <span class="ring r1"></span><span class="ring r2"></span><span class="ring r3"></span>
+          <div class="app-tile">
+            <svg viewBox="0 0 64 64" class="tile-flag">
+              <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#7d9a8d"/>
+              <path d="M4 53h17l-3.4 6.6H7.4Z" fill="#24352d"/>
+              <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf1)"/>
+              <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="url(#bf2)" opacity=".92"/>
+            </svg>
+          </div>
+          <span class="float-chip fc1">VLESS · Reality</span>
+          <span class="float-chip fc2">Trojan</span>
+          <span class="float-chip fc3">Hysteria2</span>
+          <span class="float-chip fc4">Shadowsocks</span>
+        </div>
+        <div class="status-card">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="status-txt">
+            <strong data-i18n="status_connected">Connected</strong>
+            <em id="statusPing">23 ms</em>
+          </div>
+          <div class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROTOCOL MARQUEE ============ -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <span>VLESS</span><span>VMess</span><span>Trojan</span><span>Shadowsocks</span><span>Hysteria2</span><span>Reality</span><span>XTLS</span><span>WebSocket</span><span>gRPC</span><span>Xray Core</span>
+        <span>VLESS</span><span>VMess</span><span>Trojan</span><span>Shadowsocks</span><span>Hysteria2</span><span>Reality</span><span>XTLS</span><span>WebSocket</span><span>gRPC</span><span>Xray Core</span>
+      </div>
+    </div>
+
+    <!-- ============ FEATURES ============ -->
+    <section id="features" class="wrap section">
+      <p class="overline reveal" data-i18n="features_overline">Why Derafsh</p>
+      <h2 class="reveal" data-i18n="features_title">Everything you need. Nothing you don't.</h2>
+      <div class="grid features-grid">
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13l0-8Z"/></svg></span>
+          <h3 data-i18n="f1_t">Instant free connection</h3>
+          <p data-i18n="f1_p">A public free source is built right in. Open the app and it refreshes itself, delay-tests every config and buries the dead ones — no setup, no hunting.</p>
+        </article>
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg></span>
+          <h3 data-i18n="f2_t">Xray core inside</h3>
+          <p data-i18n="f2_p">VLESS, VMess, Trojan and Shadowsocks — plus Hysteria2, with Reality, XTLS, WebSocket and gRPC transports for the toughest networks.</p>
+        </article>
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2.5 4.5 5.5v6c0 4.7 3.2 8 7.5 10 4.3-2 7.5-5.3 7.5-10v-6L12 2.5Z"/><path d="m9 12 2.2 2.2L15.5 9.8"/></svg></span>
+          <h3 data-i18n="f3_t">Privacy by design</h3>
+          <p data-i18n="f3_p">No account, no sign-up, no tracking. The tunnel is built 100% on your device by the local Xray core — we operate no servers in your path.</p>
+        </article>
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17.7 3.3 20.7 6.3 8.6 18.4 4.4 19.6 5.6 15.4 17.7 3.3Z"/></svg></span>
+          <h3 data-i18n="f4_t">Feather-light &amp; fast</h3>
+          <p data-i18n="f4_p">A ~25 MB arm64 APK, per-ABI builds and a tuned startup profile. Runs smoothly on Android 7.0 and up.</p>
+        </article>
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.7 2.6 4 5.9 4 9.5s-1.3 6.9-4 9.5c-2.7-2.6-4-5.9-4-9.5s1.3-6.9 4-9.5Z"/></svg></span>
+          <h3 data-i18n="f5_t">English &amp; فارسی</h3>
+          <p data-i18n="f5_p">A polished bilingual interface with proper RTL support — made for Iranian users first, without excluding anyone else.</p>
+        </article>
+        <article class="card reveal">
+          <span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></svg></span>
+          <h3 data-i18n="f6_t">Open source, forever</h3>
+          <p data-i18n="f6_p">GPL-3.0. Every line is on GitHub — audit it, fork it, build it yourself. Free means free.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ DOWNLOAD ============ -->
+    <section id="download" class="wrap section">
+      <p class="overline reveal" data-i18n="dl_overline">Download</p>
+      <h2 class="reveal" data-i18n="dl_title">Get Derafsh on your phone</h2>
+      <p class="section-sub reveal" data-i18n="dl_sub">Direct APKs from the official GitHub releases — signed, reproducible and always up to date.</p>
+
+      <div class="dl-card reveal">
+        <div class="dl-main">
+          <a class="btn btn-primary btn-xl" id="dlPrimary" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest" data-i18n="dl_btn">Download for Android</a>
+          <p class="dl-meta" id="dlMeta" data-i18n="dl_meta">Latest release · arm64-v8a — for most modern phones</p>
+        </div>
+        <div class="dl-others">
+          <p class="dl-others-label" data-i18n="dl_others">Other builds</p>
+          <div class="dl-grid" id="dlGrid">
+            <a class="dl-item" data-abi="arm64-v8a" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest"><strong>arm64-v8a</strong><em data-i18n="abi_modern">most phones · recommended</em></a>
+            <a class="dl-item" data-abi="armeabi-v7a" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest"><strong>armeabi-v7a</strong><em data-i18n="abi_old">older devices</em></a>
+            <a class="dl-item" data-abi="x86_64" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest"><strong>x86_64</strong><em data-i18n="abi_x64">emulators · Chromebooks</em></a>
+            <a class="dl-item" data-abi="x86" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest"><strong>x86</strong><em data-i18n="abi_x86">legacy 32-bit x86</em></a>
+            <a class="dl-item" data-abi="universal" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest"><strong>universal</strong><em data-i18n="abi_uni">not sure? pick this</em></a>
+          </div>
+        </div>
+        <ol class="steps">
+          <li><span class="step-n">1</span><span data-i18n="step1">Download the APK that matches your phone.</span></li>
+          <li><span class="step-n">2</span><span data-i18n="step2">Allow “Install unknown apps” for your browser when Android asks.</span></li>
+          <li><span class="step-n">3</span><span data-i18n="step3">Install, open, connect — the free source is ready on first launch.</span></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- ============ PRIVACY ============ -->
+    <section id="privacy" class="wrap section">
+      <p class="overline reveal" data-i18n="pr_overline">Privacy</p>
+      <h2 class="reveal" data-i18n="pr_title">What Derafsh never collects</h2>
+      <div class="grid pr-grid">
+        <article class="card pr-card reveal">
+          <span class="ic ic-red" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.4"/><path d="M3.5 20c1.4-3.6 3.8-5.2 6.5-5.2 1.3 0 2.5.3 3.6 1"/><path d="m16.5 5 5 5M21.5 5l-5 5"/></svg></span>
+          <h3 data-i18n="p1_t">Your identity</h3>
+          <p data-i18n="p1_p">No account, name, email or phone number. Derafsh has no sign-up — nothing to leak.</p>
+        </article>
+        <article class="card pr-card reveal">
+          <span class="ic ic-red" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6.5 9-6.5c1.2 0 2.3.2 3.3.6L21 3M21 12s-.9 1.7-2.7 3.3C16.7 16.6 14.5 18.5 12 18.5c-5.5 0-9-6.5-9-6.5s.9-1.7 2.7-3.3"/><circle cx="12" cy="12" r="2.6"/><path d="m4 4 17 17"/></svg></span>
+          <h3 data-i18n="p2_t">Your traffic</h3>
+          <p data-i18n="p2_p">Processed entirely on your device by the local Xray core. No Derafsh server ever touches your connection.</p>
+        </article>
+        <article class="card pr-card reveal">
+          <span class="ic ic-red" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14l-2 .9M6 3H5a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h9"/><path d="M9 9h6M9 13h6M9 17h3"/><path d="m16.5 15.5 5 5M21.5 15.5l-5 5"/></svg></span>
+          <h3 data-i18n="p3_t">Your history</h3>
+          <p data-i18n="p3_p">No logs of visited sites, no browsing history, no precise location. Your phone keeps your stats — locally.</p>
+        </article>
+      </div>
+      <div class="pr-foot reveal">
+        <a class="policy-link" href="https://github.com/CheginiSoroush/Derafsh-Vpn/blob/main/PRIVACY.md" target="_blank" rel="noopener" data-i18n="pr_link">Read the full privacy policy →</a>
+        <p class="pr-ads" data-i18n="pr_ads">Derafsh shows a few ads to cover development costs — exactly what the ad networks can see is spelled out in the policy.</p>
+      </div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section id="faq" class="wrap section section-tight">
+      <p class="overline reveal" data-i18n="faq_overline">FAQ</p>
+      <h2 class="reveal" data-i18n="faq_title">Quick answers</h2>
+      <div class="faq-list reveal">
+        <details>
+          <summary data-i18n="q1">Is Derafsh really free?</summary>
+          <p data-i18n="a1">Yes. Every feature is free and the whole app is open source under GPL-3.0. A small number of ads cover the costs.</p>
+        </details>
+        <details>
+          <summary data-i18n="q2">Do I need an account or an invitation code?</summary>
+          <p data-i18n="a2">No. There is no sign-up, no code, no invite. Install, open, connect.</p>
+        </details>
+        <details>
+          <summary data-i18n="q3">Where do the configs come from?</summary>
+          <p data-i18n="a3">A public free source ships built-in and is refreshed and delay-tested automatically when you open the app. You can also add your own subscriptions or configs at any time.</p>
+        </details>
+        <details>
+          <summary data-i18n="q4">Which APK should I install?</summary>
+          <p data-i18n="a4">Modern phones (2016 and later): <b>arm64-v8a</b>. Older devices: <b>armeabi-v7a</b>. Emulators and Chromebooks: <b>x86_64</b>. When in doubt, pick <b>universal</b>.</p>
+        </details>
+        <details>
+          <summary data-i18n="q5">Can I check the code myself?</summary>
+          <p data-i18n="a5">Absolutely — the full source is public on GitHub under GPL-3.0, and every release APK is signed with the same official key.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ FINAL CTA ============ -->
+    <section class="wrap section">
+      <div class="final-cta reveal">
+        <h2 data-i18n="final_t">Ready when you are.</h2>
+        <p data-i18n="final_p">Free forever. No account. One tap.</p>
+        <a class="btn btn-primary btn-xl" id="dlFinal" href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases/latest" data-i18n="cta_download2">Download Derafsh — it's free</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="wrap footer-in">
+      <div class="f-brand">
+        <svg viewBox="0 0 64 64" class="f-flag" aria-hidden="true">
+          <rect x="8" y="6" width="3.6" height="47" rx="1.8" fill="#5f7a6e"/>
+          <path d="M14 10c7-4.5 13 3.5 21-.5 7-3.5 15-1 21 2v18.5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="#10b981" opacity=".85"/>
+          <path d="M14 29c6-3 13 2 22-1 7-2.5 14-1 20 2v5c-6-3-13-4.5-20-2-9 3-16-2-22 1Z" fill="#d99b26" opacity=".85"/>
+        </svg>
+        <p><strong>Derafsh</strong> · <span data-i18n="f_tag">free &amp; open-source VPN for Android</span></p>
+      </div>
+      <nav class="f-links" aria-label="Footer">
+        <a href="https://github.com/CheginiSoroush/Derafsh-Vpn" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/CheginiSoroush/Derafsh-Vpn/releases" target="_blank" rel="noopener" data-i18n="f_releases">Releases</a>
+        <a href="https://github.com/CheginiSoroush/Derafsh-Vpn/blob/main/PRIVACY.md" target="_blank" rel="noopener" data-i18n="f_privacy">Privacy</a>
+        <a href="https://github.com/CheginiSoroush/Derafsh-Vpn/blob/main/LICENSE" target="_blank" rel="noopener">GPL-3.0</a>
+      </nav>
+      <p class="f-copy"><span id="year">2026</span> © Derafsh · <span data-i18n="f_made">built with ❤️ and the Xray core</span></p>
+    </div>
+  </footer>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>
