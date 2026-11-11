@@ -169,6 +169,11 @@ object AppConfig {
     const val APP_GITHUB_RELEASES_URL = "$APP_GITHUB_URL/releases"
     const val APP_GITHUB_ISSUES_URL = "$APP_GITHUB_URL/issues"
 
+    /** Project owner's GitHub profile avatar, shown next to the Source code entry on the
+     *  About screen. avatars.githubusercontent.com always redirects to the current profile
+     *  image, so it stays in sync with GitHub without app updates. */
+    const val APP_GITHUB_OWNER_AVATAR_URL = "$GITHUB_URL/CheginiSoroush.png?size=96"
+
     /** Official release signing certificate SHA-256, used by IntegrityManager (anti-tamper).
      *  Must match the release keystore (derafsh-release.p12) — verify with: python3 tools/verify_sig.py <apk> */
     const val RELEASE_CERT_SHA256 = "2642E7F0EE52AD5F179D756D5F58CDF7DF5B08577301BD13C8D05382FD79F531"

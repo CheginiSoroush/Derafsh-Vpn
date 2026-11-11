@@ -81,7 +81,8 @@ private fun SettingsItemRow(
     enabled: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
-    trailing: @Composable (() -> Unit)? = null
+    trailing: @Composable (() -> Unit)? = null,
+    leading: @Composable (() -> Unit)? = null
 ) {
     val titleColor = if (enabled) MaterialTheme.colorScheme.onSurface
     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
@@ -95,14 +96,20 @@ private fun SettingsItemRow(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (icon != null) {
-            Icon(
-                painter = icon,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = titleColor
-            )
-            Spacer(modifier = Modifier.width(16.dp))
+        when {
+            icon != null -> {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = titleColor
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+            }
+            leading != null -> {
+                leading()
+                Spacer(modifier = Modifier.width(16.dp))
+            }
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -221,7 +228,8 @@ fun SettingsMenuItem(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    subtitle: String? = null
+    subtitle: String? = null,
+    leading: @Composable (() -> Unit)? = null
 ) {
     SettingsItemRow(
         icon = icon,
@@ -229,7 +237,8 @@ fun SettingsMenuItem(
         description = subtitle,
         enabled = true,
         onClick = onClick,
-        modifier = modifier
+        modifier = modifier,
+        leading = leading
     )
 }
 

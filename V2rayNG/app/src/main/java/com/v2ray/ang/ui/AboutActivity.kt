@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -22,11 +24,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import coil3.compose.AsyncImage
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.BuildConfig
 import com.v2ray.ang.R
@@ -83,8 +88,23 @@ fun AboutScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Official GitHub project pages: source, releases, issue tracker.
+            // The Source code entry carries the owner's live GitHub avatar (the avatar
+            // service follows the current profile image); the GitHub mark stands in
+            // while loading and when the network is unavailable.
             SettingsMenuItem(
-                icon = painterResource(R.drawable.ic_github_24dp),
+                leading = {
+                    AsyncImage(
+                        model = AppConfig.APP_GITHUB_OWNER_AVATAR_URL,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.ic_github_24dp),
+                        error = painterResource(R.drawable.ic_github_24dp),
+                        fallback = painterResource(R.drawable.ic_github_24dp)
+                    )
+                },
                 title = stringResource(R.string.title_source_code),
                 subtitle = stringResource(R.string.summary_source_code_github),
                 onClick = { Utils.openUri(context, AppConfig.APP_GITHUB_URL) }

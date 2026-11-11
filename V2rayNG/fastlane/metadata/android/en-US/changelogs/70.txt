@@ -1,0 +1,1 @@
+About screen: the "Source code" entry now carries the project owner's live GitHub avatar, loaded straight from avatars.githubusercontent.com — it always follows the current profile image. The GitHub mark stands in while offline. Nothing else changed: same signature, same features.
