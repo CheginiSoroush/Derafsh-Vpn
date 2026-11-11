@@ -328,6 +328,7 @@ h2 {
 .dl-item {
   display: flex; flex-direction: column; gap: 3px; align-items: center; text-align: center;
   padding: 13px 10px; border-radius: 14px; text-decoration: none;
+  color: var(--txt);
   background: rgba(201, 191, 168, .05); border: 1px solid var(--line);
   transition: border-color .2s, background .2s, transform .16s;
 }
