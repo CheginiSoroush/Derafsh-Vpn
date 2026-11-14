@@ -1,0 +1,248 @@
+{
+  "generated_utc": "2026-11-14T10:50:50+00:00",
+  "generator": "Derafsh-SubFactory/1.1",
+  "chunk_size": 200,
+  "total_configs": 9440,
+  "chunks": [
+    {
+      "file": "sub1.txt",
+      "base64": "sub1_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub2.txt",
+      "base64": "sub2_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub3.txt",
+      "base64": "sub3_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub4.txt",
+      "base64": "sub4_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub5.txt",
+      "base64": "sub5_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub6.txt",
+      "base64": "sub6_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub7.txt",
+      "base64": "sub7_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub8.txt",
+      "base64": "sub8_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub9.txt",
+      "base64": "sub9_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub10.txt",
+      "base64": "sub10_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub11.txt",
+      "base64": "sub11_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub12.txt",
+      "base64": "sub12_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub13.txt",
+      "base64": "sub13_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub14.txt",
+      "base64": "sub14_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub15.txt",
+      "base64": "sub15_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub16.txt",
+      "base64": "sub16_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub17.txt",
+      "base64": "sub17_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub18.txt",
+      "base64": "sub18_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub19.txt",
+      "base64": "sub19_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub20.txt",
+      "base64": "sub20_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub21.txt",
+      "base64": "sub21_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub22.txt",
+      "base64": "sub22_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub23.txt",
+      "base64": "sub23_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub24.txt",
+      "base64": "sub24_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub25.txt",
+      "base64": "sub25_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub26.txt",
+      "base64": "sub26_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub27.txt",
+      "base64": "sub27_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub28.txt",
+      "base64": "sub28_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub29.txt",
+      "base64": "sub29_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub30.txt",
+      "base64": "sub30_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub31.txt",
+      "base64": "sub31_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub32.txt",
+      "base64": "sub32_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub33.txt",
+      "base64": "sub33_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub34.txt",
+      "base64": "sub34_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub35.txt",
+      "base64": "sub35_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub36.txt",
+      "base64": "sub36_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub37.txt",
+      "base64": "sub37_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub38.txt",
+      "base64": "sub38_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub39.txt",
+      "base64": "sub39_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub40.txt",
+      "base64": "sub40_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub41.txt",
+      "base64": "sub41_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub42.txt",
+      "base64": "sub42_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub43.txt",
+      "base64": "sub43_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub44.txt",
+      "base64": "sub44_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub45.txt",
+      "base64": "sub45_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub46.txt",
+      "base64": "sub46_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub47.txt",
+      "base64": "sub47_b64.txt",
+      "count": 200
+    },
+    {
+      "file": "sub48.txt",
+      "base64": "sub48_b64.txt",
+      "count": 40
+    }
+  ]
+}
